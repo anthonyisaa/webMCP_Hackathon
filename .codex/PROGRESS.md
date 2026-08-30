@@ -1,40 +1,37 @@
 # Progress — Ratiflow
-_Updated: 2026-08-30T19:31:03+08:00_
+_Updated: 2026-08-31T01:22:20+08:00_
 
 ## Next action
-After the user explicitly confirms Supabase organization `anthonyisaa's projects`
-(`vercel_icfg_Xch7Yhjww7zc2brfrFzvdQew`), call `get_cost` for one project and present
-the quoted recurring price for explicit acknowledgement; do not create it before both
-connector gates are satisfied.
+After explicit user authorization, make `anthonyisaa/webMCP_Hackathon` public and
+verify anonymous repository access before the user records/uploads the narrated video.
 
 ## In flight
-- Provision `ratiflow-webmcp` in `ap-southeast-1`, apply both ordered migrations, run
-  RPC/advisor checks, bind server-only credentials in Vercel, deploy, and rerun release.
-- Still needed: five production rehearsals, Chrome/OpenAI captures, agent evals/ablation,
-  public GitHub, and the user's narrated video.
+- Only public GitHub visibility and the user-owned sub-three-minute video remain.
+- Production stays at product SHA `1c47d88f37688b065d910798f3be35b865ab1091`;
+  evidence/docs SHA `454cc14bdf38bc39dad403be599b862f32222cc4` is pushed.
 
 ## Verified
-- `.codex/verify.sh` — TypeScript, ESLint, and 40/40 Vitest tests passed.
-- `pnpm build` — optimized Next.js 16 production build passed with all seven routes.
-- `RATIFLOW_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/hero.spec.ts e2e/accessibility.spec.ts` — 2/2 passed against the optimized build.
-- Codex in-app Browser — real `document.modelContext` completed rev 7→11 with dynamic
-  discovery, exact stale recovery, Jordan, WebMCP preparation, Maya ratification,
-  downstream read, and zero browser errors.
-- Fresh visual fallback — SHIP for data truth, coherence, anti-slop, and 390px fit; FLAG only because its own driver could not claim the popup. Configured `design-judge` role was unavailable.
+- `.codex/verify.sh` — TypeScript, ESLint, and 56/56 tests across 11 files passed.
+- `pnpm build` — Next.js 16.3.3 production build passed.
+- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm exec playwright test e2e/hero.spec.ts e2e/accessibility.spec.ts e2e/followup-context.spec.ts e2e/webmcp-session-reset.spec.ts` — 7/7 passed, including real two-window collaboration.
+- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm eval:rehearse` — 20/20 passed.
+- `node evals/agent/validate.ts evals/results/agent --mode release` — all A01–A07 bars passed; 35/35 runs.
+- `node evals/agent/validate.ts evals/results/ablation/combined-runs.json --mode ablation` — all six bars passed; dynamic 91/13/10 calls/invalid/stale versus static 102/23/17; timing is non-comparable.
+- Cloud connectors — Supabase `ACTIVE_HEALTHY` with three migrations; Vercel production
+  `READY` in `iad1`, canonical alias present, no latest-hour runtime errors.
 
 ## Done this block
-- Built and pushed commit `1cf872c` (`Build Ratiflow WebMCP collaboration demo`) to `origin/main`.
-- Built the frozen 5-state/10-tool contract, runtimes, WebMCP bridge, two-person UI,
-  evals, README, demo ledger, 2:46 script, and Devpost copy.
-- Fixed false popup-blocked feedback, selected/committed state clarity, accountable handoff
-  wrapping, provenance attribution, RPC validation, and all golden-contract drift.
+- Committed and pushed sanitized native, agent, and ablation evidence.
+- Added machine-enforced A02/A06 bars and transcript-content secret scanning.
+- Closed the final independent claim audit and mapped all four Devpost answers to shots
+  and evidence.
+- Set GitHub About description/homepage; MIT license detection is confirmed.
 
 ## Files touched
-- `src/`, `supabase/` — product, native WebMCP, domain/runtime, and database boundary.
-- `evals/`, `e2e/`, `EVAL_RESULTS.md` — goldens and evidence gates.
-- `README.md`, `demo/`, `.codex/PLAN.md` — judge narrative and release plan.
+- `evals/agent/`, `evals/results/` — validator and release evidence.
+- Release docs, `demo/`, and `.codex/` — final claims, mappings, and gates.
 
 ## Open decisions / risks
-- Vercel production still serves the old lifecycle probe; do not present it as Ratiflow.
-- GitHub repository remains private and is a submission blocker until release.
-- Live Supabase migration parsing/security behavior is unverified until provisioning.
+- Repository visibility remains `PRIVATE`; do not change it without explicit approval.
+- Video recording/upload is user-owned; use `demo/shot-script.md`.
+- Connected Chrome lacks `document.modelContext`; recorded as a client limitation.
