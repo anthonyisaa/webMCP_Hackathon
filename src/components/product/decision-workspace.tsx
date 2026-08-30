@@ -425,7 +425,7 @@ export function DecisionWorkspace({
     }
   };
 
-  const updateJordanCapacity = async () => {
+  const applyJordanCapacityChange = async (source: "human-window" | "synthetic-rehearsal") => {
     const jordanToken = sessionStorage.getItem(SESSION_KEYS.jordan);
     if (!workspace || !jordanToken) return;
     setBusyAction("capacity");
@@ -440,7 +440,9 @@ export function DecisionWorkspace({
         setActionMessage(`${result.code}: ${result.message}`);
       } else {
         acceptWorkspace(result.data.workspace);
-        setActionMessage("Capacity changed from 18 to 14 at authoritative revision 8.");
+        setActionMessage(source === "synthetic-rehearsal"
+          ? "Synthetic Jordan rehearsal applied the authorized 18 → 14 capacity change at revision 8."
+          : "Jordan changed capacity from 18 to 14 at authoritative revision 8.");
       }
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : String(error));
@@ -460,7 +462,7 @@ export function DecisionWorkspace({
   }
 
   if (member === "JORDAN") {
-    return <JordanWorkspace actionMessage={actionMessage} busy={busyAction === "capacity"} compiled={compiled} onCapacityChange={updateJordanCapacity} workspace={workspace} />;
+    return <JordanWorkspace actionMessage={actionMessage} busy={busyAction === "capacity"} compiled={compiled} onCapacityChange={() => applyJordanCapacityChange("human-window")} workspace={workspace} />;
   }
 
   const reviewRecommendation = recommendation ?? workspace.preparedDecision?.recommendation ?? "";
@@ -491,6 +493,7 @@ export function DecisionWorkspace({
         lastAgentResult={lastAgentResult}
         onCustomerMessageChange={setCustomerMessage}
         onOpenJordan={openJordanWindow}
+        onSyntheticJordanCapacityChange={() => applyJordanCapacityChange("synthetic-rehearsal")}
         onPrepare={runAgentPrepare}
         onRatify={ratify}
         onRecommendationChange={setRecommendation}
@@ -545,6 +548,7 @@ function WorkspaceViewSurface({
   lastAgentResult,
   onCustomerMessageChange,
   onOpenJordan,
+  onSyntheticJordanCapacityChange,
   onPrepare,
   onRatify,
   onRecommendationChange,
@@ -566,6 +570,7 @@ function WorkspaceViewSurface({
   lastAgentResult: ToolResult<MutationReceipt> | null;
   onCustomerMessageChange: (value: string) => void;
   onOpenJordan: () => void;
+  onSyntheticJordanCapacityChange: () => void;
   onPrepare: () => void;
   onRatify: () => void;
   onRecommendationChange: (value: string) => void;
@@ -648,7 +653,7 @@ function WorkspaceViewSurface({
               </>
             )}
 
-            <RehearsalControls basisCaptured={basisCaptured} busyAction={busyAction} contextEpoch={compiled.contextEpoch} hasStaleResult={Boolean(staleError)} onOpenJordan={onOpenJordan} onPrepare={onPrepare} onRecover={onRecover} onReset={onReset} onStaleWrite={onStaleWrite} selection={selection} workspace={workspace} />
+            <RehearsalControls basisCaptured={basisCaptured} busyAction={busyAction} contextEpoch={compiled.contextEpoch} hasStaleResult={Boolean(staleError)} onOpenJordan={onOpenJordan} onPrepare={onPrepare} onRecover={onRecover} onReset={onReset} onStaleWrite={onStaleWrite} onSyntheticJordanCapacityChange={onSyntheticJordanCapacityChange} selection={selection} workspace={workspace} />
             {actionMessage && <div className="action-message" role="status">{actionMessage}</div>}
           </section>
 
@@ -735,7 +740,7 @@ function FollowupCard({ onSelect, selection, workspace }: { onSelect: (selection
   );
 }
 
-function RehearsalControls({ basisCaptured, busyAction, contextEpoch, hasStaleResult, onOpenJordan, onPrepare, onRecover, onReset, onStaleWrite, selection, workspace }: {
+function RehearsalControls({ basisCaptured, busyAction, contextEpoch, hasStaleResult, onOpenJordan, onPrepare, onRecover, onReset, onStaleWrite, onSyntheticJordanCapacityChange, selection, workspace }: {
   basisCaptured: boolean;
   busyAction: string | null;
   contextEpoch: number;
@@ -745,6 +750,7 @@ function RehearsalControls({ basisCaptured, busyAction, contextEpoch, hasStaleRe
   onRecover: () => void;
   onReset: () => void;
   onStaleWrite: () => void;
+  onSyntheticJordanCapacityChange: () => void;
   selection: PageSelection;
   workspace: WorkspaceView;
 }) {
@@ -757,7 +763,10 @@ function RehearsalControls({ basisCaptured, busyAction, contextEpoch, hasStaleRe
     <div className="journey-controls" aria-label="Live deterministic rehearsal controls">
       <div><span className="section-kicker">Live rehearsal</span><p>Every action calls an authorized local route; no preview state or timer writes.</p></div>
       <div className="journey-action-row">
-        {workspace.revision === 7 && <button className="secondary-button" disabled={!canOpenJordan || isBusy} onClick={onOpenJordan} type="button">Open Jordan window · human action</button>}
+        {workspace.revision === 7 && <>
+          <button className="secondary-button" disabled={!canOpenJordan || isBusy} onClick={onOpenJordan} type="button">Open Jordan window · human action</button>
+          <button className="text-button" disabled={!canOpenJordan || isBusy} onClick={onSyntheticJordanCapacityChange} type="button">Apply Jordan capacity change · synthetic rehearsal</button>
+        </>}
         {canStale && !hasStaleResult && <button className="secondary-button" disabled={isBusy} onClick={onStaleWrite} type="button">{busyAction === "stale" ? "Submitting…" : "Submit stale rev-7 evidence · synthetic agent"}</button>}
         {canRecover && <button className="secondary-button" disabled={isBusy} onClick={onRecover} type="button">{busyAction === "recover" ? "Recovering…" : "Recommend O2 · synthetic agent"}</button>}
         {canPrepare && <button className="secondary-button" disabled={isBusy} onClick={onPrepare} type="button">{busyAction === "prepare" ? "Preparing…" : "Prepare review · synthetic agent"}</button>}

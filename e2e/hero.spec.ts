@@ -1,6 +1,29 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("hero two-person path", () => {
+  test("runs the single-window synthetic Jordan fallback through the authorized collaborator mutation", async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
+
+    const context = await browser.newContext({ baseURL });
+    const mayaPage = await context.newPage();
+    try {
+      await mayaPage.goto("/");
+      await mayaPage.getByRole("button", { name: "Launch deterministic workspace" }).click();
+      await mayaPage.getByRole("radio", { name: /^Full CSV export/ }).click();
+
+      await mayaPage.getByRole("button", { name: "Apply Jordan capacity change · synthetic rehearsal" }).click();
+
+      await expect(mayaPage.locator(".revision-block")).toContainText("rev 8");
+      await expect(mayaPage.locator(".revision-block")).toContainText("Contested");
+      await expect(mayaPage.getByText("14 engineer-days", { exact: true })).toBeVisible();
+      await expect(mayaPage.locator(".provenance-ribbon")).toContainText("Jordan Lee");
+      await expect(mayaPage.locator(".provenance-ribbon")).toContainText("ordinary UI");
+      await expect(mayaPage.getByText("Synthetic Jordan rehearsal applied the authorized 18 → 14 capacity change at revision 8.", { exact: true })).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+
   test("runs the two-window collision, agent recovery, and human ratification path", async ({ browser, baseURL }) => {
     if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
 
