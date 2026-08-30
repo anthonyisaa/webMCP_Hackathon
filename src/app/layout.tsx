@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ratiflow · WebMCP validation",
-  description: "Native WebMCP lifecycle validation for the Ratiflow decision room.",
+  title: "Ratiflow · Decision workspace",
+  description: "A WebMCP-native decision room where agents prepare and people ratify.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

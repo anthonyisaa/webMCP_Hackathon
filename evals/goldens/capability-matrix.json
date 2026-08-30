@@ -1,0 +1,129 @@
+{
+  "fixtureVersion": "hero-v1.2",
+  "catalogOrder": [
+    "inspect_decision",
+    "inspect_selected_option",
+    "recommend_option",
+    "challenge_option",
+    "add_evidence",
+    "compare_options",
+    "prepare_decision",
+    "trace_decision",
+    "inspect_followup",
+    "why_not"
+  ],
+  "cases": [
+    {
+      "id": "options-decision",
+      "state": "OPTIONS",
+      "selection": { "kind": "DECISION", "id": "dec_csv_oct15" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "options-option",
+      "state": "OPTIONS",
+      "selection": { "kind": "OPTION", "id": "opt_csv_ga_oct15" },
+      "availableTools": ["inspect_decision", "inspect_selected_option", "recommend_option", "challenge_option", "add_evidence", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "options-followup",
+      "state": "OPTIONS",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_customer_launch_brief" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "contested-decision",
+      "state": "CONTESTED",
+      "selection": { "kind": "DECISION", "id": "dec_csv_oct15" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "compare_options", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "contested-option",
+      "state": "CONTESTED",
+      "selection": { "kind": "OPTION", "id": "opt_csv_ga_oct15" },
+      "availableTools": ["inspect_decision", "inspect_selected_option", "recommend_option", "challenge_option", "add_evidence", "compare_options", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "contested-followup",
+      "state": "CONTESTED",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_customer_launch_brief" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "compare_options", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "ready-decision",
+      "state": "READY",
+      "selection": { "kind": "DECISION", "id": "dec_csv_oct15" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "compare_options", "prepare_decision", "why_not"],
+      "unavailableActions": ["ratify_decision"]
+    },
+    {
+      "id": "ready-option",
+      "state": "READY",
+      "selection": { "kind": "OPTION", "id": "opt_csv_ga_oct15" },
+      "availableTools": ["inspect_decision", "inspect_selected_option", "recommend_option", "challenge_option", "add_evidence", "compare_options", "prepare_decision", "why_not"],
+      "unavailableActions": ["ratify_decision"]
+    },
+    {
+      "id": "ready-followup",
+      "state": "READY",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_customer_launch_brief" },
+      "availableTools": ["inspect_decision", "recommend_option", "add_evidence", "compare_options", "prepare_decision", "why_not"],
+      "unavailableActions": ["ratify_decision"]
+    },
+    {
+      "id": "review-decision",
+      "state": "REVIEW",
+      "selection": { "kind": "DECISION", "id": "dec_csv_oct15" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "review-option",
+      "state": "REVIEW",
+      "selection": { "kind": "OPTION", "id": "opt_csv_beta_oct15" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "review-followup",
+      "state": "REVIEW",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_customer_launch_brief" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "committed-decision",
+      "state": "COMMITTED",
+      "selection": { "kind": "DECISION", "id": "dec_csv_oct15" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "committed-option",
+      "state": "COMMITTED",
+      "selection": { "kind": "OPTION", "id": "opt_csv_beta_oct15" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "committed-followup",
+      "state": "COMMITTED",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_customer_launch_brief" },
+      "availableTools": ["inspect_decision", "trace_decision", "inspect_followup", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    },
+    {
+      "id": "committed-other-followup",
+      "state": "COMMITTED",
+      "selection": { "kind": "FOLLOWUP", "id": "fu_other" },
+      "availableTools": ["inspect_decision", "trace_decision", "why_not"],
+      "unavailableActions": ["prepare_decision", "ratify_decision"]
+    }
+  ]
+}

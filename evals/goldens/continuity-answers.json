@@ -1,0 +1,21 @@
+{
+  "fixtureVersion": "hero-v1.2",
+  "answers": {
+    "whatWasDecided": "O2: an invite-only, single-tenant Northstar beta on Oct 15, followed by GA on Nov 1.",
+    "why": "The incident rotation reduced capacity to 14 days. O1 needs 18 days (10 reliability + 8 full GA export), while O2 needs 14 (10 reliability + 4 beta) and still gives Northstar usable export by Nov 1.",
+    "whatChanged": "Jordan reduced capacity from 18 to 14 in a second browser due to a four-day incident rotation; the decision moved READY to CONTESTED, invalidating the agent’s revision-7 basis.",
+    "whatRemainsOpen": "GA readiness and the customer-launch-brief execution after the Oct 15 beta; the committed launch scope itself is not open.",
+    "whoRatified": "Maya Chen, Product Lead, in the ordinary human UI at revision 11."
+  },
+  "finalState": {
+    "revision": 11,
+    "state": "COMMITTED",
+    "selectedOptionId": "opt_csv_beta_oct15",
+    "followup": {
+      "id": "fu_customer_launch_brief",
+      "status": "READY",
+      "ownerId": "usr_maya_chen",
+      "dueDate": "2026-10-16"
+    }
+  }
+}

@@ -48,6 +48,7 @@ export interface ReadinessFacts {
   activeOptionCount: number;
   hasCurrentCapacityEvidence: boolean;
   hasNorthstarDeadlineEvidence: boolean;
+  selectedOptionId: string | null;
   selectedOptionEngineerDays: number | null;
   launchCapacityEngineerDays: number;
   unresolvedBlockingChallengeCount: number;

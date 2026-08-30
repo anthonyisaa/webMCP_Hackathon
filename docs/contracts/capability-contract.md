@@ -102,6 +102,10 @@ The compiler and reducer use these exact predicates:
 4. the selected option's total engineer-days do not exceed current capacity;
 5. zero unresolved blocking challenges against the selected option.
 
+`ReadinessFacts.selectedOptionId` is the domain recommendation, independent of the
+page-local `selection`. It supplies `{optionId}` in the blocking-challenge reason even
+when the user has selected the decision root or follow-up rather than an option card.
+
 `why_not({ action: "prepare_decision" })` returns the failed predicates verbatim. It does
 not implement a second rules table.
 

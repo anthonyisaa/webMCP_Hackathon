@@ -1,0 +1,12 @@
+[
+  { "id": "wrong-context-epoch", "expectedCode": "STALE_PAGE_CONTEXT", "expectedRevision": 7, "mutationAccepted": false },
+  { "id": "captured-selection-mismatch", "expectedCode": "STALE_PAGE_CONTEXT", "expectedRevision": 7, "mutationAccepted": false },
+  { "id": "replay-same-content", "expectedRevision": 9, "mutationAccepted": true },
+  { "id": "replay-different-content", "expectedCode": "REQUEST_REPLAY_MISMATCH", "expectedRevision": 9, "mutationAccepted": false },
+  { "id": "cross-workspace", "expectedCode": "UNAUTHORIZED", "expectedRevision": 7, "mutationAccepted": false },
+  { "id": "forged-actor", "expectedCode": "UNAUTHORIZED", "expectedRevision": 7, "mutationAccepted": false },
+  { "id": "invalid-state", "expectedCode": "NOT_AVAILABLE_IN_STATE", "expectedRevision": 8, "mutationAccepted": false },
+  { "id": "agent-ratification", "expectedCode": "UNAUTHORIZED", "expectedRevision": 10, "mutationAccepted": false, "actor": "agent_ratiflow_demo", "origin": "WEBMCP" },
+  { "id": "jordan-ratification", "expectedCode": "UNAUTHORIZED", "expectedRevision": 10, "mutationAccepted": false, "actor": "usr_jordan_lee", "origin": "ORDINARY_UI" },
+  { "id": "maya-ui-ratification", "expectedRevision": 11, "mutationAccepted": true, "actor": "usr_maya_chen", "origin": "ORDINARY_UI" }
+]

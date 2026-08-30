@@ -7,6 +7,8 @@
 - Fast gate: `.codex/verify.sh`
 - Typecheck: `pnpm typecheck`
 - Lint: `pnpm lint`
+- Unit/protocol tests: `pnpm test`
+- Native browser evals: `RATIFLOW_BASE_URL=<https-url> pnpm eval:native`
 - Production build: `pnpm build`
 
 `pnpm build` deliberately uses Next.js's webpack path. Turbopack's CSS worker may try

@@ -1,0 +1,15 @@
+{
+  "evidenceClass": "AUTOMATED",
+  "status": "PENDING",
+  "fixtureVersion": "hero-v1.2",
+  "commitSha": null,
+  "deployedUrl": null,
+  "timestampUtc": null,
+  "browserSurface": null,
+  "model": null,
+  "durationMs": null,
+  "testCommand": "pnpm eval:protocol",
+  "tests": { "goldenOracle": "PASS", "liveServiceIntegration": "PENDING" },
+  "artifacts": [],
+  "limitations": ["This scaffold does not claim production service or native browser evidence."]
+}

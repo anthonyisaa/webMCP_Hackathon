@@ -1,0 +1,53 @@
+{
+  "ok": false,
+  "code": "STALE_WORK_STATE",
+  "message": "Workspace advanced from revision 7 to 8.",
+  "retryable": true,
+  "currentWorkspaceRevision": 8,
+  "contextEpoch": 2,
+  "currentCapabilities": {
+    "state": "CONTESTED",
+    "workspaceRevision": 8,
+    "contextEpoch": 2,
+    "selection": { "kind": "OPTION", "id": "opt_csv_ga_oct15" },
+    "availableTools": [
+      "inspect_decision",
+      "inspect_selected_option",
+      "recommend_option",
+      "challenge_option",
+      "add_evidence",
+      "compare_options",
+      "why_not"
+    ],
+    "unavailableActions": [
+      {
+        "action": "prepare_decision",
+        "unmetPredicates": ["selected option requires 18 engineer-days but launch capacity is 14"]
+      },
+      {
+        "action": "ratify_decision",
+        "unmetPredicates": [
+          "ratification is never available through WebMCP; Maya Chen must ratify in the ordinary UI",
+          "ratification requires a prepared decision in REVIEW"
+        ]
+      }
+    ]
+  },
+  "expectedWorkspaceRevision": 7,
+  "actualWorkspaceRevision": 8,
+  "changes": [
+    {
+      "eventId": "evt_0008_capacity_reduced",
+      "actor": { "id": "usr_jordan_lee", "name": "Jordan Lee", "role": "Engineering Lead" },
+      "origin": "ORDINARY_UI",
+      "reason": "Four-day incident rotation",
+      "resultingRevision": 8,
+      "changes": [
+        { "field": "decision.launchCapacityEngineerDays", "before": 18, "after": 14 },
+        { "field": "decision.state", "before": "READY", "after": "CONTESTED" },
+        { "field": "capabilities.prepare_decision", "before": true, "after": false }
+      ]
+    }
+  ],
+  "nextAction": "Call inspect_decision, refresh WebMCP tools, then retry against workspace revision 8."
+}

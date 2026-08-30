@@ -3,3 +3,4 @@ set -euo pipefail
 
 pnpm typecheck
 pnpm lint
+pnpm test -- --reporter=dot

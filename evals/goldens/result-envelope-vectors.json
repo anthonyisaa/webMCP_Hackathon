@@ -1,0 +1,9 @@
+[
+  { "code": "INVALID_INPUT", "retryable": false, "hasRevision": true, "hasEpoch": true },
+  { "code": "UNAUTHORIZED", "retryable": false, "hasRevision": true, "hasEpoch": true },
+  { "code": "NOT_AVAILABLE_IN_STATE", "retryable": false, "hasRevision": true, "hasEpoch": true },
+  { "code": "STALE_PAGE_CONTEXT", "retryable": true, "hasRevision": true, "hasEpoch": true },
+  { "code": "STALE_WORK_STATE", "retryable": true, "hasRevision": true, "hasEpoch": true },
+  { "code": "REQUEST_REPLAY_MISMATCH", "retryable": false, "hasRevision": true, "hasEpoch": true },
+  { "code": "CONFLICT", "retryable": true, "hasRevision": true, "hasEpoch": true }
+]

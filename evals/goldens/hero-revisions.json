@@ -1,0 +1,74 @@
+{
+  "fixtureVersion": "hero-v1.2",
+  "workspace": {
+    "id": "ws_northstar_csv_launch",
+    "name": "Northstar CSV launch scope",
+    "decisionId": "dec_csv_oct15",
+    "revision": 7,
+    "state": "READY",
+    "selectedOptionId": "opt_csv_ga_oct15",
+    "launchDate": "2026-10-15",
+    "launchCapacityEngineerDays": 18,
+    "coreReliabilityEngineerDays": 10,
+    "customerId": "cust_northstar_health",
+    "customerName": "Northstar Health",
+    "annualRenewalUsd": 180000,
+    "usableExportDueDate": "2026-11-01",
+    "followupId": "fu_customer_launch_brief",
+    "followupStatus": "BLOCKED",
+    "readiness": {
+      "activeOptionCount": 3,
+      "hasCurrentCapacityEvidence": true,
+      "hasNorthstarDeadlineEvidence": true,
+      "selectedOptionId": "opt_csv_ga_oct15",
+      "selectedOptionEngineerDays": 18,
+      "launchCapacityEngineerDays": 18,
+      "unresolvedBlockingChallengeCount": 0
+    }
+  },
+  "actors": {
+    "maya": { "id": "usr_maya_chen", "name": "Maya Chen", "role": "Product Lead", "actorType": "HUMAN" },
+    "jordan": { "id": "usr_jordan_lee", "name": "Jordan Lee", "role": "Engineering Lead", "actorType": "HUMAN" },
+    "agent": { "id": "agent_ratiflow_demo", "name": "Ratiflow demo agent", "role": "Agent", "actorType": "AGENT" },
+    "seed": { "id": "system_seed", "name": "Seed fixture", "role": "System", "actorType": "SYSTEM" }
+  },
+  "options": [
+    { "id": "opt_csv_ga_oct15", "title": "Full CSV export", "summary": "Full CSV export, GA Oct 15, 2026", "launchDate": "2026-10-15", "exportEngineerDays": 8, "totalEngineerDays": 18, "postLaunchEngineerDays": 0 },
+    { "id": "opt_csv_beta_oct15", "title": "Northstar beta", "summary": "Invite-only, single-tenant Northstar beta Oct 15, 2026; GA Nov 1, 2026", "launchDate": "2026-10-15", "exportEngineerDays": 4, "totalEngineerDays": 14, "postLaunchEngineerDays": 4 },
+    { "id": "opt_csv_defer_nov1", "title": "Defer export", "summary": "Defer all export to GA Nov 1, 2026", "launchDate": "2026-11-01", "exportEngineerDays": 0, "totalEngineerDays": 10, "postLaunchEngineerDays": 8 }
+  ],
+  "evidence": [
+    { "id": "ev_capacity_r7", "optionId": null, "kind": "ENGINEERING_ESTIMATE", "stance": "CONTEXT", "title": "Launch capacity", "detail": "18 engineer-days are available for the Oct 15 launch.", "sourceLabel": "Jordan planning note", "metrics": { "engineerDays": 18 } },
+    { "id": "ev_core_reliability", "optionId": null, "kind": "ENGINEERING_ESTIMATE", "stance": "CONTEXT", "title": "Core reliability", "detail": "Launch reliability work requires 10 engineer-days.", "sourceLabel": "Engineering plan", "metrics": { "engineerDays": 10 } },
+    { "id": "ev_o1_ga_effort", "optionId": "opt_csv_ga_oct15", "kind": "ENGINEERING_ESTIMATE", "stance": "SUPPORTS", "title": "Full GA export effort", "detail": "Full GA export requires 8 launch engineer-days.", "sourceLabel": "Export estimate", "metrics": { "engineerDays": 8 } },
+    { "id": "ev_o2_beta_effort", "optionId": "opt_csv_beta_oct15", "kind": "ENGINEERING_ESTIMATE", "stance": "SUPPORTS", "title": "Northstar beta effort", "detail": "A single-tenant beta requires 4 launch engineer-days; the remaining 4 complete GA after launch.", "sourceLabel": "Export estimate", "metrics": { "engineerDays": 4 } },
+    { "id": "ev_o3_deferred_effort", "optionId": "opt_csv_defer_nov1", "kind": "DELIVERY_RISK", "stance": "CONTEXT", "title": "Deferred export effort", "detail": "O3 uses 0 export days before Oct 15 and all 8 after launch, leaving no buffer before Nov 1.", "sourceLabel": "Export estimate", "metrics": { "engineerDays": 0 } },
+    { "id": "ev_northstar_deadline", "optionId": null, "kind": "CUSTOMER_DEADLINE", "stance": "CONTEXT", "title": "Northstar renewal requirement", "detail": "The $180,000 renewal needs usable CSV export by Nov 1, not general availability on Oct 15.", "sourceLabel": "Renewal brief", "metrics": { "annualValueUsd": 180000, "date": "2026-11-01" } }
+  ],
+  "evidenceIds": [
+    "ev_capacity_r7",
+    "ev_core_reliability",
+    "ev_o1_ga_effort",
+    "ev_o2_beta_effort",
+    "ev_o3_deferred_effort",
+    "ev_northstar_deadline"
+  ],
+  "timeline": [
+    { "revision": 7, "actorId": "system_seed", "origin": "SYSTEM", "action": "reset", "state": "READY", "selectedOptionId": "opt_csv_ga_oct15", "capacity": 18, "epoch": 1 },
+    { "revision": 7, "actorId": "usr_maya_chen", "origin": "ORDINARY_UI", "action": "select_option", "state": "READY", "selectedOptionId": "opt_csv_ga_oct15", "capacity": 18, "epoch": 2 },
+    { "revision": 8, "actorId": "usr_jordan_lee", "origin": "ORDINARY_UI", "action": "reduce_capacity", "reason": "Four-day incident rotation", "state": "CONTESTED", "selectedOptionId": "opt_csv_ga_oct15", "capacity": 14, "epoch": 2 },
+    { "revision": 8, "actorId": "agent_ratiflow_demo", "origin": "WEBMCP", "action": "stale_add_evidence_rejected", "state": "CONTESTED", "selectedOptionId": "opt_csv_ga_oct15", "capacity": 14, "epoch": 2 },
+    { "revision": 9, "actorId": "agent_ratiflow_demo", "origin": "WEBMCP", "action": "recommend_option", "optionId": "opt_csv_beta_oct15", "state": "READY", "selectedOptionId": "opt_csv_beta_oct15", "capacity": 14, "epoch": 3 },
+    { "revision": 10, "actorId": "agent_ratiflow_demo", "origin": "WEBMCP", "action": "prepare_decision", "optionId": "opt_csv_beta_oct15", "state": "REVIEW", "selectedOptionId": "opt_csv_beta_oct15", "capacity": 14, "epoch": 3 },
+    { "revision": 11, "actorId": "usr_maya_chen", "origin": "ORDINARY_UI", "action": "ratify_decision", "optionId": "opt_csv_beta_oct15", "state": "COMMITTED", "selectedOptionId": "opt_csv_beta_oct15", "capacity": 14, "epoch": 3 }
+  ],
+  "followup": {
+    "id": "fu_customer_launch_brief",
+    "slug": "customer-launch-brief",
+    "statusBefore": "BLOCKED",
+    "statusAfter": "READY",
+    "ownerId": "usr_maya_chen",
+    "dueDate": "2026-10-16",
+    "inheritedContext": ["Northstar beta Oct 15, 2026", "GA Nov 1, 2026", "Capacity reduced to 14 engineer-days after a four-day incident rotation"]
+  }
+}

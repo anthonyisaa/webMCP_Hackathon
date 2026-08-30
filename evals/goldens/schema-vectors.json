@@ -1,0 +1,10 @@
+[
+  { "id": "unknown-envelope-property", "valid": false, "reason": "additionalProperties" },
+  { "id": "invalid-evidence-kind", "valid": false, "reason": "enum" },
+  { "id": "malformed-deadline", "valid": false, "reason": "date-format" },
+  { "id": "malformed-request-id", "valid": false, "reason": "uuid" },
+  { "id": "overlong-rationale", "valid": false, "reason": "maxLength" },
+  { "id": "oversized-option-array", "valid": false, "reason": "maxItems" },
+  { "id": "negative-revision", "valid": false, "reason": "minimum" },
+  { "id": "valid-bounded-envelope", "valid": true }
+]

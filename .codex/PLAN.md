@@ -1,5 +1,5 @@
 # Plan — Build and submit Ratiflow to the WebMCP Challenge
-_Updated: 2026-08-30T18:36:17+08:00_
+_Updated: 2026-08-30T19:29:00+08:00_
 
 ## Goal and ambition mode
 
@@ -85,7 +85,7 @@ when a native client rejects a removed tool before dispatch.
   matrix and seed facts each have one definition; `tsc --noEmit` accepts the façade; an
   adversarial reviewer finds no unresolved ownership or schema collision.
 
-### S1 — Domain, persistence, and collaboration — pending
+### S1 — Domain, persistence, and collaboration — in progress (local complete; live cloud apply pending)
 - Owner / worktree: worker with ownership of `supabase/`, `src/domain/`, and
   `src/app/api/` only; Codex-managed isolated worktree after the C0 base commit.
 - Scope and key files: typed seed clone, compare-and-swap mutations, idempotency,
@@ -99,7 +99,7 @@ when a native client rejects a removed tool before dispatch.
   realtime collaborator update. Direct WebMCP/agent routes cannot create an accepted
   commitment; the claim does not extend to an arbitrary same-session browser attacker.
 
-### S2 — Capability compiler and WebMCP lifecycle — pending
+### S2 — Capability compiler and WebMCP lifecycle — completed locally
 - Owner / worktree: worker with ownership of `src/capabilities/`, `src/webmcp/`, and
   `src/components/system/WebMCPBridge.tsx` plus focused tests only; Codex-managed
   isolated worktree after the C0 base commit.
@@ -112,7 +112,7 @@ when a native client rejects a removed tool before dispatch.
   adapter tests prove precise add/remove diffs, cancellation, serializable results, and
   callback-level stale/selection recovery.
 
-### S3 — Product experience and visual system — pending
+### S3 — Product experience and visual system — completed locally; native recording review pending
 - Owner / worktree: worker with ownership of `src/app/` pages and `src/components/`
   only, excluding API routes and `src/components/system/WebMCPBridge.tsx`;
   Codex-managed isolated worktree after the C0 base commit.
@@ -127,7 +127,7 @@ when a native client rejects a removed tool before dispatch.
   attributed sessions show realtime change; responsive desktop layout passes keyboard,
   contrast, empty/loading/error checks; final UI is graded through `dev-visual-review`.
 
-### S4 — Evals and reliability evidence — pending
+### S4 — Evals and reliability evidence — in progress (40 deterministic tests green; release native/agent evidence pending)
 - Owner / worktree: worker with ownership of `evals/`, `vitest.config.ts`,
   `playwright.config.ts`, and `EVAL_RESULTS.md`; Codex-managed isolated worktree after
   the C0 base commit. The coordinator alone merges root `package.json` script changes.
@@ -142,7 +142,7 @@ when a native client rejects a removed tool before dispatch.
   zero safety-gate failures; every hero trajectory succeeds at least 4/5 before polish
   and the complete release flow succeeds 5/5 before submission.
 
-### S5 — Demo, submission, and release evidence — pending
+### S5 — Demo, submission, and release evidence — in progress
 - Owner / worktree: coordinating task owns `demo/`, `README.md`, public submission copy,
   release checklist, screenshots/transcripts, and final deployment evidence.
 - Scope and key files: running shot/evidence list, sub-2:59 script, demo reset procedure,
@@ -153,7 +153,7 @@ when a native client rejects a removed tool before dispatch.
   shot or committed artifact; clean judge session completes five times; public repo,
   public YouTube URL, live URL, license, and all Devpost fields are checked before freeze.
 
-### I0 — Page integration and production deployment — pending
+### I0 — Page integration and production deployment — in progress (local production + native flow green; cloud pending)
 - Owner / worktree: coordinating task in the integration checkout after S1–S3 land.
 - Scope and key files: root configuration/scripts, `src/app/layout.tsx`, the workspace
   page mount for `WebMCPBridge`, service wiring, environment bindings, migrations, and
@@ -233,8 +233,19 @@ and their managed worktrees exist.
   2026-09-03 12:00 SGT, leaving sixteen hours for judge-surface rehearsal and upload.
 - Ratiflow is frozen for the hackathon with the public qualifier “WebMCP collaboration
   workspace.” Commercial use would require a separate trademark clearance.
-- Supabase/Vercel creation is authorized, but cloud resources wait until contracts are
-  frozen to avoid duplicate projects and migrations.
+- Vercel is linked to `ratiflow-webmcp`; the current public URL still serves the old
+  validation probe until the persistent release candidate is ready. Supabase creation
+  is authorized in principle but is paused at the connector's required organization
+  choice and cost-confirmation gate. The sole visible organization is
+  `anthonyisaa's projects`; the requested region is `ap-southeast-1`.
+- Local release evidence is green: 40 deterministic tests, an optimized production
+  build, and the Maya/Jordan two-window plus 390px Playwright flows. The full rev 7→11
+  product journey also passed through native `document.modelContext` discovery and
+  invocation in Codex desktop's in-app Browser, including the exact stale result and
+  downstream recompilation. These remain pre-release observations: they do not count
+  as cloud persistence or deployed release evidence.
+- GitHub remains private during implementation. Public visibility, GitHub About license
+  detection, and the live URL are disqualifying release gates, not optional polish.
 - Human-only means: no WebMCP tool or agent-specific endpoint can ratify. It is not a
   claim that an arbitrary browser-driving agent or same-session attacker cannot click or
   imitate the human UI route.
