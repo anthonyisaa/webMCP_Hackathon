@@ -76,6 +76,7 @@ export function DecisionWorkspace({
   registrationMode?: WebMCPRegistrationMode;
 }) {
   const [member, setMember] = useState<PageMember | null>(null);
+  const [invalidJordanJoin, setInvalidJordanJoin] = useState(false);
   const [sessions, setSessions] = useState<DemoSessions | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceView | null>(null);
   const [authoritativeCompiled, setAuthoritativeCompiled] = useState<CompiledCapabilities | null>(null);
@@ -111,18 +112,39 @@ export function DecisionWorkspace({
       if (disposed) return;
       setMemberSessionInstanceId(crypto.randomUUID());
       const fragment = new URLSearchParams(window.location.hash.slice(1));
-      const importedJordanToken = fragment.get("jordan");
+      const isJordanJoin = fragment.get("member") === "jordan";
 
       if (window.location.hash) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       }
 
-      if (importedJordanToken) {
+      if (isJordanJoin) {
+        // A same-origin window opened with an opener receives an initial copy of
+        // sessionStorage. The fragment is only a non-secret role marker; never
+        // accept a membership handle from a URL.
+        const opener = window.opener;
+        let hasLiveSameOriginOpener = false;
+        if (opener && !opener.closed) {
+          try {
+            hasLiveSameOriginOpener = opener.location.origin === window.location.origin;
+          } catch {
+            // Cross-origin openers cannot authorize an attributed collaborator tab.
+          }
+        }
+        const inheritedJordanToken = hasLiveSameOriginOpener
+          ? sessionStorage.getItem(SESSION_KEYS.jordan)
+          : null;
+        window.opener = null;
+        if (!inheritedJordanToken) {
+          setInvalidJordanJoin(true);
+          return;
+        }
         sessionStorage.setItem(SESSION_KEYS.activeMember, "JORDAN");
-        sessionStorage.setItem(SESSION_KEYS.jordan, importedJordanToken);
+        sessionStorage.removeItem(SESSION_KEYS.maya);
+        sessionStorage.removeItem(SESSION_KEYS.agent);
         setMember("JORDAN");
         setBusyAction("load");
-        void httpRatiflowService.inspect(importedJordanToken).then(
+        void httpRatiflowService.inspect(inheritedJordanToken).then(
         (next) => {
           previousRecommendationRef.current = next.decision.selectedOptionId;
           workspaceRevisionRef.current = next.revision;
@@ -281,15 +303,12 @@ export function DecisionWorkspace({
 
   const openJordanWindow = () => {
     if (!sessions?.jordanSessionToken) return;
-    const fragment = new URLSearchParams({ jordan: sessions.jordanSessionToken });
-    const target = `${window.location.origin}${window.location.pathname}#${fragment.toString()}`;
-    const opened = window.open("", "_blank");
+    const target = `${window.location.origin}${window.location.pathname}#member=jordan`;
+    const opened = window.open(target, "_blank");
     if (opened === null) {
       setActionMessage("The Jordan window was blocked. Allow popups, then try again.");
       return;
     }
-    opened.opener = null;
-    opened.location.replace(target);
     setActionMessage("Jordan’s attributed workspace opened in a separate window.");
   };
 
@@ -425,6 +444,10 @@ export function DecisionWorkspace({
       setBusyAction(null);
     }
   };
+
+  if (invalidJordanJoin) {
+    return <LaunchWorkspace error={pageError} isJordan launching={false} onLaunch={launchOrReset} />;
+  }
 
   if (member === null || busyAction === "load") return <WorkspaceLoading />;
 
@@ -642,7 +665,7 @@ function Topbar({ member, workspace }: { member: PageMember; workspace: Workspac
     <header className="topbar">
       <a className="wordmark" href="#workspace" aria-label="Ratiflow workspace"><span className="wordmark-mark" /> Ratiflow</a>
       <div className="workspace-identity"><span className="status-dot status-dot-green" /><span>{workspace.name}</span><span className="slash">/</span><span className="mono">{workspace.id}</span></div>
-      <div className="people" aria-label="Current workspace member"><span className="person-chip active-person"><b className={`avatar ${member === "MAYA" ? "maya" : "jordan"}`}>{member === "MAYA" ? "MC" : "JL"}</b>{member === "MAYA" ? "Maya Chen · Product Lead" : "Jordan Lee · Engineering Lead"}</span></div>
+      <div className="people" aria-label="Current workspace member"><span className="person-chip active-person"><b className={`avatar ${member === "MAYA" ? "maya" : "jordan"}`}>{member === "MAYA" ? "MC" : "JL"}</b><span className="person-label">{member === "MAYA" ? "Maya Chen · Product Lead" : "Jordan Lee · Engineering Lead"}</span><span className="person-label-short" aria-hidden="true">{member === "MAYA" ? "Maya · Lead" : "Jordan · Lead"}</span></span></div>
     </header>
   );
 }
@@ -795,7 +818,7 @@ function JordanWorkspace({ actionMessage, busy, compiled, onCapacityChange, work
     <main className="product-shell jordan-shell">
       <Topbar member="JORDAN" workspace={workspace} />
       <section className="workspace" id="workspace">
-        <div className="member-banner"><span className="avatar jordan">JL</span><div><div className="section-kicker">Attributed collaborator window</div><strong>Jordan Lee · Engineering Lead</strong><p>This tab imported Jordan’s membership from the URL fragment and erased the fragment before loading. Joining did not reset the workspace.</p></div></div>
+        <div className="member-banner"><span className="avatar jordan">JL</span><div><div className="section-kicker">Attributed collaborator window</div><strong>Jordan Lee · Engineering Lead</strong><p>This tab inherited Jordan’s session storage from the same-origin opener, erased its non-secret join marker, then severed the opener. Joining did not reset the workspace.</p></div></div>
         <DecisionHeading workspace={workspace} />
         <div className="jordan-grid"><DecisionContext workspace={workspace} /><article className="panel capacity-action-card"><div className="section-kicker">Ordinary human UI action</div><h2>Incident rotation changes the feasible scope.</h2><div className="capacity-delta"><div><span>Current</span><b>{workspace.decision.launchCapacityEngineerDays}d</b></div><i>→</i><div><span>After rotation</span><b>14d</b></div></div><p>Reason: <strong>Four-day incident rotation</strong>. This POST is attributed to Jordan and advances the shared workspace exactly once.</p><button className="primary-button" disabled={!canChange || busy} onClick={onCapacityChange} type="button">{busy ? "Applying real update…" : canChange ? "Apply 18 → 14 capacity change" : "Capacity update already applied"}</button>{actionMessage && <div className="action-message" role="status">{actionMessage}</div>}</article></div>
         <article className="panel jordan-status-card"><div><div className="section-kicker">Shared state</div><h2>{stateLabel[workspace.decision.state]} at revision {workspace.revision}</h2></div><div className="capability-meta"><span className="mono">epoch {compiled.contextEpoch}</span><span className="mono">authorized SSE + polling fallback</span></div></article>

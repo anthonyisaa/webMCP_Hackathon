@@ -22,9 +22,22 @@ test.describe("hero two-person path", () => {
         "inspect_selected_option",
       ]);
 
+      await mayaPage.evaluate(() => {
+        const open = window.open;
+        window.open = (...args) => {
+          const target = String(args[0] ?? "");
+          const jordanToken = sessionStorage.getItem("ratiflow.jordan-session");
+          document.documentElement.dataset.jordanNavigation = target;
+          document.documentElement.dataset.jordanTokenInNavigation = String(Boolean(jordanToken && target.includes(jordanToken)));
+          return open.apply(window, args);
+        };
+      });
+
       const jordanPagePromise = context.waitForEvent("page");
       await mayaPage.getByRole("button", { name: /Open Jordan window/ }).click();
       const jordanPage = await jordanPagePromise;
+      await expect(mayaPage.locator("html")).toHaveAttribute("data-jordan-navigation", /#member=jordan$/);
+      await expect(mayaPage.locator("html")).toHaveAttribute("data-jordan-token-in-navigation", "false");
       await expect(
         mayaPage.getByText("Jordan’s attributed workspace opened in a separate window.", {
           exact: true,
@@ -60,6 +73,52 @@ test.describe("hero two-person path", () => {
       await mayaPage.getByRole("button", { name: /Select follow-up/ }).click();
       await expect(mayaPage.locator(".capability-field")).toContainText("inspect_followup");
       await expect(pageErrors).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("fails closed when a Jordan join marker has no inherited session", async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
+
+    const context = await browser.newContext({ baseURL });
+    const jordanPage = await context.newPage();
+    try {
+      await jordanPage.goto("/#member=jordan");
+      await expect(jordanPage.getByRole("heading", { name: "Jordan’s workspace link is no longer valid." })).toBeVisible();
+      await expect.poll(() => jordanPage.url()).not.toContain("#");
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("cannot switch a launched Maya tab to Jordan with the public join marker", async ({ browser, baseURL }) => {
+    if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
+
+    const context = await browser.newContext({ baseURL });
+    const mayaPage = await context.newPage();
+    try {
+      await mayaPage.goto("/");
+      await mayaPage.getByRole("button", { name: "Launch deterministic workspace" }).click();
+      await expect(mayaPage.locator(".person-chip")).toContainText("Maya Chen · Product Lead");
+
+      await mayaPage.goto("/#member=jordan");
+      await mayaPage.reload();
+
+      await expect(mayaPage.getByRole("heading", { name: "Jordan’s workspace link is no longer valid." })).toBeVisible();
+      await expect(mayaPage.getByText("Jordan Lee · Engineering Lead", { exact: true })).toHaveCount(0);
+      await expect.poll(() => mayaPage.url()).not.toContain("#");
+      await expect.poll(() => mayaPage.evaluate(() => ({
+        activeMember: sessionStorage.getItem("ratiflow.active-member"),
+        hasAgentSession: Boolean(sessionStorage.getItem("ratiflow.agent-session")),
+        hasJordanSession: Boolean(sessionStorage.getItem("ratiflow.jordan-session")),
+        hasMayaSession: Boolean(sessionStorage.getItem("ratiflow.maya-session")),
+      }))).toEqual({
+        activeMember: "MAYA",
+        hasAgentSession: true,
+        hasJordanSession: true,
+        hasMayaSession: true,
+      });
     } finally {
       await context.close();
     }
