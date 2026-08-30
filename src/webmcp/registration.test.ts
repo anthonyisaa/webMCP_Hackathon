@@ -140,10 +140,12 @@ function runtime(initialCompiled: CompiledCapabilities, initialWorkspace = works
     },
   };
   let mutationCalls = 0;
+  let inspectToken: string | undefined;
   let inspectSignal: AbortSignal | undefined;
   let inspectedWorkspace = initialWorkspace;
   const service = {
-    inspect: async (_sessionToken: string, signal?: AbortSignal) => {
+    inspect: async (sessionToken: string, signal?: AbortSignal) => {
+      inspectToken = sessionToken;
       inspectSignal = signal;
       return inspectedWorkspace;
     },
@@ -174,6 +176,7 @@ function runtime(initialCompiled: CompiledCapabilities, initialWorkspace = works
     latest,
     service,
     getMutationCalls: () => mutationCalls,
+    getInspectToken: () => inspectToken,
     getInspectSignal: () => inspectSignal,
     setInspectedWorkspace: (value: WorkspaceView) => {
       inspectedWorkspace = value;
@@ -269,6 +272,42 @@ test("re-registers retained names when selection context changes and old callbac
   assert.equal(staleResult.ok, false);
   assert.equal(staleResult.code, "STALE_PAGE_CONTEXT");
   assert.equal(state.getMutationCalls(), 0);
+});
+
+test("re-registers retained names when a reset issues a new member session", async () => {
+  const ready = compiled("READY", { kind: "DECISION", id: "dec_csv_oct15" }, 7, 1);
+  const state = runtime(ready);
+  const context = new FakeModelContext();
+  const manager = new WebMCPRegistrationManager(context, state);
+  await manager.reconcile(ready, makeRegistrationContextKey("maya-tab-1", 1));
+  const oldInspectCallback = manager.getRegisteredCallback("inspect_decision");
+  const oldSignals = context.calls.map((call) => call.signal);
+
+  state.latest.current = {
+    ...state.latest.current,
+    memberSessionInstanceId: "maya-tab-2",
+    sessionToken: "new-opaque-session-token",
+  };
+  const diff = await manager.reconcile(
+    ready,
+    makeRegistrationContextKey("maya-tab-2", 1),
+  );
+
+  assert.deepEqual(diff.added, []);
+  assert.deepEqual(diff.removed, []);
+  assert.deepEqual(diff.reRegistered, ready.availableTools);
+  assert.notEqual(manager.getRegisteredCallback("inspect_decision"), oldInspectCallback);
+  assert.ok(oldSignals.every((signal) => signal?.aborted));
+
+  const staleResult = (await oldInspectCallback?.({})) as { ok: boolean; code: string };
+  assert.equal(staleResult.ok, false);
+  assert.equal(staleResult.code, "STALE_PAGE_CONTEXT");
+
+  const freshResult = (await manager.getRegisteredCallback("inspect_decision")?.({})) as {
+    ok: boolean;
+  };
+  assert.equal(freshResult.ok, true);
+  assert.equal(state.getInspectToken(), "new-opaque-session-token");
 });
 
 test("rejects invalid or wrong-epoch writes before domain mutation", async () => {

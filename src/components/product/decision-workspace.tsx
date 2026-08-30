@@ -275,6 +275,10 @@ export function DecisionWorkspace({
       storeMayaSessions(nextSessions);
       setMember("MAYA");
       setSessions(nextSessions);
+      // A reset can reproduce the same revision, selection, and capability signature.
+      // Rotate the page-session identity so retained WebMCP tools are re-registered
+      // with callbacks that captured the newly issued membership handle.
+      setMemberSessionInstanceId(crypto.randomUUID());
       setWorkspace(body.workspace);
       workspaceRevisionRef.current = body.workspace.revision;
       setAuthoritativeCompiled(null);
