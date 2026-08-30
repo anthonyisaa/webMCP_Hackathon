@@ -1,0 +1,23 @@
+{
+  "scenarioId": "A01",
+  "condition": "static-superset",
+  "run": 1,
+  "commitSha": "1c47d88f37688b065d910798f3be35b865ab1091",
+  "deployedUrl": "https://ratiflow-webmcp-bivmhuj4f-anthonyisaas-projects.vercel.app",
+  "startedAtUtc": "2026-08-30T16:28:59.665Z",
+  "browserSurface": "Codex In-app Browser native document.modelContext via local preview-only serialized coordinator; the access-protected preview URL identifies the static build",
+  "model": "gpt-5.6-terra/medium",
+  "fixtureVersion": "hero-v1.2",
+  "outcome": "PASS",
+  "durationMs": 180705,
+  "transcriptPath": "evals/results/ablation/gpt-5.6-terra-medium/A01/1.transcript.json",
+  "metrics": {
+    "invalidCalls": 0,
+    "repeatedInvalidCalls": 0,
+    "staleRecoveryTurns": 0,
+    "totalToolCalls": 4,
+    "timeToReviewMs": 180705,
+    "committedBeforeHumanUi": false,
+    "resetVerified": true
+  }
+}

@@ -92,15 +92,24 @@ Postgres/RPC with authorized revision-notice polling, SSE, pnpm, and Vercel.
 
 ## Evidence links (replace only with observed release evidence)
 
-- **Live judging URL:** `PENDING — final product redeploy`
-- **Public source repository:** `PENDING — public release repository`
+- **Live judging URL:** [https://ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) (release SHA `1c47d88f37688b065d910798f3be35b865ab1091`)
+- **Public source repository:** `PENDING — repository remains private unless user authorizes public release`
 - **Demo video (<3 minutes, public YouTube):** `PENDING — record and upload`
-- **Native WebMCP discovery/invocation capture:** `PENDING — final judging surface`
-- **Agent trajectory and five-run rehearsal results:** `PENDING — release evidence`
-- **WebMCP-on/off ablation:** `PENDING — release evidence`
+- **Native WebMCP discovery/invocation capture:** [N01–N11 release capture](../evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json) (Codex in-app Browser; browser version null). The [connected Chrome observation](../evals/results/native/chrome-extension/2026-08-30T170405Z/release.json) records that client’s unavailable namespace without claiming a pass.
+- **Agent trajectory and five-run rehearsal results:** [Dynamic agent ledger](../evals/results/agent/) is 35/35 across A01–A07; production `eval:rehearse` is 20/20.
+- **Dynamic-vs-static ablation:** [30-run summary](../evals/results/ablation/summary.json) — both conditions 15/15; dynamic used 91 calls, 13 invalid calls, and 10 stale recoveries versus static-superset 102/23/17. Cross-environment timing is not compared.
 - **Relevant source:** [README](../README.md), [product specification](../product_spec.md),
   [capability contract](../docs/contracts/capability-contract.md), and
   [hero scenario](../docs/contracts/hero-scenario.md)
+
+## Answer-to-evidence map
+
+| Devpost answer | Visible video beat | Committed evidence |
+|---|---|---|
+| Strong fit for WebMCP | 0:12–1:37 — selection-scoped tools, Jordan's update, stale recovery | Native N01–N07 and the 30-run ablation |
+| Better user experience | 0:50–2:37 — capability diff, review boundary, downstream handoff | Native N03–N11 and production 7/7 browser suite |
+| What people and agents do together | 0:29–2:37 — two-person collision, agent recovery, Maya ratification | A02/A04/A06/A07 ledgers and native N03–N08 |
+| WebMCP implementation | 0:12–1:57 — live discovery, removal, refetch, preparation | Capability contract, protocol suite, and native release capture |
 
 The four answers follow the required fields in the [official WebMCP Challenge rules](https://webmcp.devpost.com/rules).
 Pending links and captures are intentionally not presented as completed proof.

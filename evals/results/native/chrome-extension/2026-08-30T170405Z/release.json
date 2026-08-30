@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "ratiflow-native-observation-v1",
+  "status": "UNAVAILABLE",
+  "observedAtUtc": "2026-08-30T17:04:05.586Z",
+  "release": {
+    "commitSha": "1c47d88f37688b065d910798f3be35b865ab1091",
+    "deployedUrl": "https://ratiflow-webmcp.vercel.app"
+  },
+  "surface": {
+    "client": "Chrome controlled through the ChatGPT browser extension",
+    "browserVersion": null,
+    "pageTitle": "Ratiflow · Decision workspace",
+    "readyState": "complete"
+  },
+  "observation": {
+    "documentModelContextType": "undefined",
+    "advertisedTabCapabilityIds": [
+      "pageAssets"
+    ],
+    "webmcpCapabilityAdvertised": false,
+    "consoleErrorCount": 0,
+    "mutationsAttempted": 0
+  },
+  "conclusion": "This connected Chrome surface did not expose document.modelContext or a WebMCP browser capability on the deployed release. It is a client-setup limitation, not a product pass or failure; native release evidence remains the dated Codex in-app Browser capture."
+}

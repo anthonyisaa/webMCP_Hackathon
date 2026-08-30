@@ -22,13 +22,13 @@ function of state.
 
 | Item | Current status |
 | --- | --- |
-| Judging app | **Pending product redeploy.** The earlier WebMCP lifecycle probe is at [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/); it is not yet the release product URL. |
+| Judging app | **Production live.** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/) — release SHA `1c47d88f37688b065d910798f3be35b865ab1091`, deployment `dpl_4ypxF5YvesYkHztgok6m3NAFfrZX`. |
 | Public source repository | **Pending release.** This repository must be public, include this README and the MIT license, and remain accessible through judging. |
 | Narrated demo | **Pending recording/upload.** The required public YouTube video must be narrated and shorter than three minutes; the 2:46 recording script is in [demo/shot-script.md](demo/shot-script.md). |
-| Evidence | Protocol tests are present, but final deployed native-surface, agent-trajectory, ablation, and five-run rehearsal evidence remain pending. See [EVAL_RESULTS.md](EVAL_RESULTS.md). |
+| Evidence | `.codex/verify.sh` passes 56 tests across 11 files; production browser checks pass 7/7, `eval:rehearse` passes 20/20, the dynamic agent ledger passes 35/35, and the matched ablation passes 30/30. Native N01–N11 release capture is recorded; only public-repo release and the user-owned video remain submission gates. See [EVAL_RESULTS.md](EVAL_RESULTS.md). |
 
-Ratiflow is intended to be freely reachable by judges for the full judging period. Do
-not treat the probe URL or local fallback as a submission-ready deployment.
+Ratiflow is intended to be freely reachable by judges for the full judging period. The
+source repository remains private until the user authorizes public release.
 
 ## Why this is native WebMCP
 
@@ -155,6 +155,7 @@ Apply the SQL migrations in this filename order to the target Supabase project:
 
 1. `supabase/migrations/20260830104328_ratiflow_persistence_foundation.sql`
 2. `supabase/migrations/20260830190000_ratiflow_rpc_boundary.sql`
+3. `supabase/migrations/20260830201915_derive_followup_context.sql`
 
 The second migration relies on the first migration's schema, types, and private session
 boundary. Use the team's normal Supabase migration workflow (for example, a configured
@@ -165,17 +166,18 @@ boundary. Use the team's normal Supabase migration workflow (for example, a conf
 ```bash
 .codex/verify.sh
 pnpm eval:protocol
-RATIFLOW_BASE_URL=https://your-deployed-url pnpm eval:native
+RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm eval:native
 pnpm build
 ```
 
 `pnpm eval:native` is browser automation, not by itself proof that a native client
-discovered the release page. Final native evidence must be captured from the deployed
-HTTPS URL on the judging surface and Chrome with WebMCP explicitly enabled. Required
-release observations include discovery, invocation, dynamic tool removal, stale-write
-handling, selection invalidation, absence of a ratify tool, downstream recompilation,
-optional client APIs, WebMCP-off UI fallback, and runtime health. See
-[EVALS.md](EVALS.md) and [VALIDATION.md](VALIDATION.md).
+discovered the release page. Final native evidence must come from the deployed HTTPS
+URL on at least one supported native judging surface. Record additional client surfaces
+honestly: a client that does not expose WebMCP is an availability observation, not a
+required pass or a product failure. Release observations cover discovery, invocation,
+dynamic tool removal, stale-write handling, selection invalidation, absence of a ratify
+tool, downstream recompilation, available optional client APIs, WebMCP-off UI fallback,
+and runtime health. See [EVALS.md](EVALS.md) and [VALIDATION.md](VALIDATION.md).
 
 ## Security and privacy
 
@@ -192,18 +194,21 @@ optional client APIs, WebMCP-off UI fallback, and runtime health. See
   the URL. Do not commit handles, cookies, API keys, raw browser storage, or transcripts
   containing them.
 
-## Evidence limitations today
+## Historical probe and current evidence boundaries
 
-The deployed lifecycle probe established native `document.modelContext` discovery,
-invocation, dynamic replacement, and HTTPS behavior in Codex desktop's in-app Browser
-on 2026-08-30 SGT. It does **not** prove the final product or the final judging surface.
-Connected Chrome loaded the probe but did not expose a `modelContext` namespace; enabling
-and capturing Chrome and the final ChatGPT/OpenAI judging surface remain release gates.
+The earlier lifecycle probe established native `document.modelContext` behavior; it is
+historical evidence only. The current production release has a dated N01–N11 native
+capture in Codex desktop’s in-app Browser at [the release artifact](evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json).
+The wrapper did not expose raw `getTools`/`executeTool` or callback cancellation fields;
+browser version is null. A separate exact-production Chrome observation found
+`document.modelContext` unavailable on that connected client, with zero console errors
+and no mutations; it is recorded as a client-setup limitation, not a product pass or
+failure, in [the Chrome observation](evals/results/native/chrome-extension/2026-08-30T170405Z/release.json).
 
-The public product URL, native product captures, real-agent trajectories, ablation
-comparison, public video, and five consecutive production rehearsals are pending. The
-status ledger deliberately keeps those claims pending in [EVAL_RESULTS.md](EVAL_RESULTS.md)
-and [demo/README.md](demo/README.md).
+The dynamic agent ledger is 35/35 and the matched A01–A03 ablation is 30/30. At equal
+task success, dynamic discovery used 11 fewer calls, 10 fewer invalid calls, and seven
+fewer stale-recovery turns than the static superset; cross-environment elapsed time is
+not compared. Public video and final public-repo release remain pending.
 
 ## Project documents
 

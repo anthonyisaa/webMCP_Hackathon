@@ -1,0 +1,243 @@
+{
+  "schemaVersion": "ratiflow-agent-transcript-v1",
+  "scenarioId": "A01",
+  "run": 3,
+  "condition": "static-superset",
+  "release": {
+    "commitSha": "1c47d88f37688b065d910798f3be35b865ab1091",
+    "deployedUrl": "https://ratiflow-webmcp-bivmhuj4f-anthonyisaas-projects.vercel.app",
+    "fixtureVersion": "hero-v1.2"
+  },
+  "startedAtUtc": "2026-08-30T16:28:59.665Z",
+  "completedAtUtc": "2026-08-30T16:32:21.931Z",
+  "evaluatedInstruction": "Help move this launch-scope decision forward.",
+  "setup": {
+    "freshResetVerified": {
+      "workspaceRevision": 7,
+      "state": "READY",
+      "selectedOptionId": "opt_csv_ga_oct15",
+      "launchCapacityEngineerDays": 18,
+      "contextEpoch": 2
+    }
+  },
+  "staticRegistration": {
+    "registeredToolCount": 10,
+    "note": "All ten stable tools remained registered for the ablation; each result still reported the dynamic currentCapabilities field and server validation remained authoritative."
+  },
+  "browserSurface": "The access-protected preview identifies the static build. Counted calls ran against the exact release source in a local preview-only single-process harness because preview cloud variables were production-scoped; production remained dynamic.",
+  "callTrace": [
+    {
+      "n": 1,
+      "name": "inspect_decision",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "workspaceRevision": 7,
+        "contextEpoch": 1,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "recommend_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "decisionState": "READY",
+          "selectedOptionId": "opt_csv_ga_oct15",
+          "launchCapacityEngineerDays": 18,
+          "customerName": "Northstar Health",
+          "usableExportDueDate": "2026-11-01",
+          "optionIds": [
+            "opt_csv_ga_oct15",
+            "opt_csv_beta_oct15",
+            "opt_csv_defer_nov1"
+          ]
+        }
+      }
+    },
+    {
+      "n": 2,
+      "name": "compare_options",
+      "arguments": {
+        "optionIds": [
+          "opt_csv_ga_oct15",
+          "opt_csv_beta_oct15",
+          "opt_csv_defer_nov1"
+        ]
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 7,
+        "contextEpoch": 1,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "recommend_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "comparisons": [
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 18,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_ga_oct15",
+              "postLaunchEngineerDays": 0,
+              "scheduleBufferDays": 17,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Full CSV export, GA Oct 15, 2026"
+              ]
+            },
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 14,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_beta_oct15",
+              "postLaunchEngineerDays": 4,
+              "scheduleBufferDays": 17,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Invite-only, single-tenant Northstar beta Oct 15, 2026; GA Nov 1, 2026"
+              ]
+            },
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 10,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_defer_nov1",
+              "postLaunchEngineerDays": 8,
+              "scheduleBufferDays": 0,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Defer all export to GA Nov 1, 2026"
+              ]
+            }
+          ],
+          "currentRecommendationOptionId": "opt_csv_ga_oct15"
+        }
+      }
+    },
+    {
+      "n": 3,
+      "name": "recommend_option",
+      "arguments": {
+        "expectedWorkspaceRevision": 7,
+        "contextEpoch": 1,
+        "requestId": "2f2c732e-b4c9-4f9a-b20d-8ec1e4149e75",
+        "rationale": "Recommend GA on Oct 15: it fits the 18-day launch capacity alongside the 10-day reliability commitment, leaves 17 calendar days before the customer’s usable-export deadline, and avoids post-launch CSV work.",
+        "payload": {
+          "optionId": "opt_csv_ga_oct15"
+        }
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 8,
+        "contextEpoch": 1,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "recommend_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "eventId": "evt_0008_recommend_option",
+          "resultingRevision": 8,
+          "decisionState": "READY",
+          "selectedOptionId": "opt_csv_ga_oct15",
+          "reviewStatus": null
+        }
+      }
+    },
+    {
+      "n": 4,
+      "name": "prepare_decision",
+      "arguments": {
+        "expectedWorkspaceRevision": 8,
+        "contextEpoch": 1,
+        "requestId": "b4f69f53-1ab1-482a-bc29-0e8b13d10c6b",
+        "payload": {
+          "optionId": "opt_csv_ga_oct15",
+          "recommendation": "Ratify CSV export GA for October 15. It uses the full 18 launch engineer-days when combined with the 10-day core-reliability commitment, provides a 17-day buffer before the November 1 usable-export deadline, and avoids post-launch CSV work.",
+          "risks": [
+            "The plan consumes the full stated launch capacity, leaving no launch-capacity slack.",
+            "The reliability commitment and CSV GA work must both complete within the launch allocation."
+          ],
+          "customerMessageDraft": "We plan to make CSV export generally available on October 15, ahead of your November 1 usable-export deadline. This plan includes the core reliability work required for launch."
+        }
+      },
+      "result": {
+        "ok": false,
+        "code": "INVALID_INPUT",
+        "message": "input.rationale is required.",
+        "workspaceRevision": 8,
+        "contextEpoch": 1,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "recommend_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ]
+      }
+    },
+    {
+      "n": 5,
+      "name": "prepare_decision",
+      "arguments": {
+        "expectedWorkspaceRevision": 8,
+        "contextEpoch": 1,
+        "requestId": "b4f69f53-1ab1-482a-bc29-0e8b13d10c6b",
+        "rationale": "GA on October 15 is the recommended launch-scope choice because it fits the stated capacity, gives 17 days before the customer’s usable-export deadline, and avoids post-launch CSV work.",
+        "payload": {
+          "optionId": "opt_csv_ga_oct15",
+          "recommendation": "Ratify CSV export GA for October 15. It uses the full 18 launch engineer-days when combined with the 10-day core-reliability commitment, provides a 17-day buffer before the November 1 usable-export deadline, and avoids post-launch CSV work.",
+          "risks": [
+            "The plan consumes the full stated launch capacity, leaving no launch-capacity slack.",
+            "The reliability commitment and CSV GA work must both complete within the launch allocation."
+          ],
+          "customerMessageDraft": "We plan to make CSV export generally available on October 15, ahead of your November 1 usable-export deadline. This plan includes the core reliability work required for launch."
+        }
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 9,
+        "contextEpoch": 1,
+        "state": "REVIEW",
+        "availableTools": [
+          "inspect_decision",
+          "trace_decision",
+          "why_not"
+        ],
+        "data": {
+          "eventId": "evt_0009_prepare_decision",
+          "resultingRevision": 9,
+          "decisionState": "REVIEW",
+          "selectedOptionId": "opt_csv_ga_oct15",
+          "reviewStatus": "PROPOSED"
+        }
+      }
+    }
+  ],
+  "final": {
+    "workspaceRevision": 9,
+    "state": "REVIEW",
+    "selectedOptionId": "opt_csv_ga_oct15",
+    "humanRatificationClicked": false,
+    "agentAnswer": "Decision is ready for human review: CSV export GA on October 15, with the capacity and deadline risks surfaced. Human ratification remains pending."
+  },
+  "executionMode": "Fresh model/effort-matched decider; coordinator relayed tool calls unchanged through one isolated native document.modelContext handle and refreshed discovery on browser lifecycle signals."
+}

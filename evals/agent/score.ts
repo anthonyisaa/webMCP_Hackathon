@@ -6,6 +6,10 @@ export type AgentRunMetrics = {
   staleRecoveryTurns: number;
   totalToolCalls: number;
   timeToReviewMs?: number;
+  badMutations?: number;
+  attributionCorrect?: boolean;
+  keyedAnswerFieldsCorrect?: number;
+  keyedAnswerFieldsTotal?: number;
   committedBeforeHumanUi: boolean;
   resetVerified: boolean;
 };

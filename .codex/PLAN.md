@@ -1,5 +1,5 @@
 # Plan — Build and submit Ratiflow to the WebMCP Challenge
-_Updated: 2026-08-30T19:29:00+08:00_
+_Updated: 2026-08-31T01:06:22+08:00_
 
 ## Goal and ambition mode
 
@@ -85,7 +85,7 @@ when a native client rejects a removed tool before dispatch.
   matrix and seed facts each have one definition; `tsc --noEmit` accepts the façade; an
   adversarial reviewer finds no unresolved ownership or schema collision.
 
-### S1 — Domain, persistence, and collaboration — in progress (local complete; live cloud apply pending)
+### S1 — Domain, persistence, and collaboration — completed (Free US project live and RPC-smoked)
 - Owner / worktree: worker with ownership of `supabase/`, `src/domain/`, and
   `src/app/api/` only; Codex-managed isolated worktree after the C0 base commit.
 - Scope and key files: typed seed clone, compare-and-swap mutations, idempotency,
@@ -112,7 +112,7 @@ when a native client rejects a removed tool before dispatch.
   adapter tests prove precise add/remove diffs, cancellation, serializable results, and
   callback-level stale/selection recovery.
 
-### S3 — Product experience and visual system — completed locally; native recording review pending
+### S3 — Product experience and visual system — completed; visual and native recording reviews passed
 - Owner / worktree: worker with ownership of `src/app/` pages and `src/components/`
   only, excluding API routes and `src/components/system/WebMCPBridge.tsx`;
   Codex-managed isolated worktree after the C0 base commit.
@@ -127,7 +127,7 @@ when a native client rejects a removed tool before dispatch.
   attributed sessions show realtime change; responsive desktop layout passes keyboard,
   contrast, empty/loading/error checks; final UI is graded through `dev-visual-review`.
 
-### S4 — Evals and reliability evidence — in progress (40 deterministic tests green; release native/agent evidence pending)
+### S4 — Evals and reliability evidence — completed (56 protocol, 35/35 agent, 30/30 ablation, 20/20 rehearsal)
 - Owner / worktree: worker with ownership of `evals/`, `vitest.config.ts`,
   `playwright.config.ts`, and `EVAL_RESULTS.md`; Codex-managed isolated worktree after
   the C0 base commit. The coordinator alone merges root `package.json` script changes.
@@ -142,7 +142,7 @@ when a native client rejects a removed tool before dispatch.
   zero safety-gate failures; every hero trajectory succeeds at least 4/5 before polish
   and the complete release flow succeeds 5/5 before submission.
 
-### S5 — Demo, submission, and release evidence — in progress
+### S5 — Demo, submission, and release evidence — in progress (public repo and user-owned video remain)
 - Owner / worktree: coordinating task owns `demo/`, `README.md`, public submission copy,
   release checklist, screenshots/transcripts, and final deployment evidence.
 - Scope and key files: running shot/evidence list, sub-2:59 script, demo reset procedure,
@@ -153,7 +153,7 @@ when a native client rejects a removed tool before dispatch.
   shot or committed artifact; clean judge session completes five times; public repo,
   public YouTube URL, live URL, license, and all Devpost fields are checked before freeze.
 
-### I0 — Page integration and production deployment — in progress (local production + native flow green; cloud pending)
+### I0 — Page integration and production deployment — completed (Supabase + Vercel US release live)
 - Owner / worktree: coordinating task in the integration checkout after S1–S3 land.
 - Scope and key files: root configuration/scripts, `src/app/layout.tsx`, the workspace
   page mount for `WebMCPBridge`, service wiring, environment bindings, migrations, and
@@ -190,8 +190,8 @@ when a native client rejects a removed tool before dispatch.
 - 2026-08-31 06:00 — native observations recorded; C0 contracts and final public name
   frozen; base commit ready for managed worktrees.
 - 2026-09-01 06:00 — S1–S3 integrated once; real two-window hero flow works manually.
-- 2026-09-01 18:00 — deterministic suite green and Chrome native smoke captured.
-- 2026-09-02 12:00 — all v1.2 agent runs complete; visual review corrections landed.
+- 2026-09-01 18:00 — deterministic suite green; unsupported connected Chrome surface recorded honestly.
+- 2026-09-02 12:00 — all v1.2 agent and ablation runs complete; visual review corrections landed.
 - 2026-09-03 00:00 — release candidate deployed; README/submission/video script final.
 - 2026-09-03 12:00 — submission-ready freeze; remaining time is rehearsal/upload only.
 
@@ -233,17 +233,16 @@ and their managed worktrees exist.
   2026-09-03 12:00 SGT, leaving sixteen hours for judge-surface rehearsal and upload.
 - Ratiflow is frozen for the hackathon with the public qualifier “WebMCP collaboration
   workspace.” Commercial use would require a separate trademark clearance.
-- Vercel is linked to `ratiflow-webmcp`; the current public URL still serves the old
-  validation probe until the persistent release candidate is ready. Supabase creation
-  is authorized in principle but is paused at the connector's required organization
-  choice and cost-confirmation gate. The sole visible organization is
-  `anthonyisaa's projects`; the requested region is `ap-southeast-1`.
-- Local release evidence is green: 40 deterministic tests, an optimized production
-  build, and the Maya/Jordan two-window plus 390px Playwright flows. The full rev 7→11
-  product journey also passed through native `document.modelContext` discovery and
-  invocation in Codex desktop's in-app Browser, including the exact stale result and
-  downstream recompilation. These remain pre-release observations: they do not count
-  as cloud persistence or deployed release evidence.
+- `https://ratiflow-webmcp.vercel.app` now serves the persistent release candidate from
+  Vercel Functions in `iad1`. It uses project `ratiflow-webmcp` in the separate Supabase
+  Free organization `Ratiflow`, with the database in `us-east-1` so the US judging path
+  and persistence stay colocated.
+- Release evidence is green for 56 protocol tests across 11 files, the optimized production build,
+  the deployed Maya/Jordan two-window path, and the deployed 390px accessibility smoke.
+  A direct HTTPS Data API smoke also completed the real Supabase rev 7→11 journey with
+  exact stale recovery and downstream propagation. `eval:rehearse` is 20/20 deterministic
+  checks, native N01–N11 release capture is recorded, all 35 dynamic agent runs pass,
+  and the matched 30-run ablation validates the dynamic-capability claim.
 - GitHub remains private during implementation. Public visibility, GitHub About license
   detection, and the live URL are disqualifying release gates, not optional polish.
 - Human-only means: no WebMCP tool or agent-specific endpoint can ratify. It is not a

@@ -1,0 +1,375 @@
+{
+  "schemaVersion": "ratiflow-agent-transcript-v1",
+  "scenarioId": "A02",
+  "run": 3,
+  "condition": "static-superset",
+  "release": {
+    "commitSha": "1c47d88f37688b065d910798f3be35b865ab1091",
+    "deployedUrl": "https://ratiflow-webmcp-bivmhuj4f-anthonyisaas-projects.vercel.app",
+    "fixtureVersion": "hero-v1.2"
+  },
+  "startedAtUtc": "2026-08-30T16:35:37.695Z",
+  "completedAtUtc": "2026-08-30T16:43:13.757Z",
+  "evaluatedInstruction": "Help move this launch-scope decision forward while another lead changes capacity.",
+  "setup": {
+    "freshResetVerified": {
+      "workspaceRevision": 7,
+      "state": "READY",
+      "selectedOptionId": "opt_csv_ga_oct15",
+      "launchCapacityEngineerDays": 18,
+      "contextEpoch": 2
+    },
+    "collaboratorHarness": "Jordan's visible synthetic rehearsal control invokes the authorized ordinary-UI path after the first proposed mutation."
+  },
+  "staticRegistration": {
+    "registeredToolCount": 10,
+    "note": "All ten stable tools remained registered for the ablation; each result still reported the dynamic currentCapabilities field and server validation remained authoritative."
+  },
+  "browserSurface": "The access-protected preview identifies the static build. Counted calls ran against the exact release source in a local preview-only single-process harness because preview cloud variables were production-scoped; production remained dynamic.",
+  "callTrace": [
+    {
+      "n": 1,
+      "name": "inspect_decision",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "workspaceRevision": 7,
+        "contextEpoch": 2,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "decisionState": "READY",
+          "selectedOptionId": "opt_csv_ga_oct15",
+          "launchCapacityEngineerDays": 18,
+          "customerName": "Northstar Health",
+          "usableExportDueDate": "2026-11-01",
+          "optionIds": [
+            "opt_csv_ga_oct15",
+            "opt_csv_beta_oct15",
+            "opt_csv_defer_nov1"
+          ]
+        }
+      }
+    },
+    {
+      "n": 2,
+      "name": "inspect_selected_option",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "workspaceRevision": 7,
+        "contextEpoch": 2,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "optionId": "opt_csv_ga_oct15",
+          "title": "Full CSV export",
+          "totalEngineerDays": 18,
+          "postLaunchEngineerDays": 0,
+          "launchDate": "2026-10-15",
+          "challengeCount": 0
+        }
+      }
+    },
+    {
+      "n": 3,
+      "name": "compare_options",
+      "arguments": {
+        "optionIds": [
+          "opt_csv_ga_oct15",
+          "opt_csv_beta_oct15",
+          "opt_csv_defer_nov1"
+        ]
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 7,
+        "contextEpoch": 2,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "comparisons": [
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 18,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_ga_oct15",
+              "postLaunchEngineerDays": 0,
+              "scheduleBufferDays": 17,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Full CSV export, GA Oct 15, 2026"
+              ]
+            },
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 14,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_beta_oct15",
+              "postLaunchEngineerDays": 4,
+              "scheduleBufferDays": 17,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Invite-only, single-tenant Northstar beta Oct 15, 2026; GA Nov 1, 2026"
+              ]
+            },
+            {
+              "fitsCurrentLaunchCapacity": true,
+              "launchEngineerDays": 10,
+              "meetsNorthstarDeadline": true,
+              "optionId": "opt_csv_defer_nov1",
+              "postLaunchEngineerDays": 8,
+              "scheduleBufferDays": 0,
+              "tradeoffs": [
+                "Fits the current launch capacity.",
+                "Meets Northstar's usable-export deadline.",
+                "Defer all export to GA Nov 1, 2026"
+              ]
+            }
+          ],
+          "currentRecommendationOptionId": "opt_csv_ga_oct15"
+        }
+      }
+    },
+    {
+      "n": 4,
+      "name": "recommend_option",
+      "arguments": {
+        "expectedWorkspaceRevision": 7,
+        "contextEpoch": 2,
+        "requestId": "7cfd8b70-2a7a-4cb5-9ca4-3e467a863d21",
+        "rationale": "Full CSV export fits the current 18-day launch capacity exactly: 10 engineer-days for core reliability and 8 engineer-days for export, while providing a usable export before the November 1 renewal deadline.",
+        "payload": {
+          "optionId": "opt_csv_ga_oct15"
+        }
+      },
+      "collaboratorAction": {
+        "at": "2026-08-30T16:39:26.977Z",
+        "actor": "Jordan Lee",
+        "actorType": "HUMAN",
+        "origin": "ORDINARY_UI",
+        "change": "capacity 18→14",
+        "reason": "Four-day incident rotation",
+        "resultingRevision": 8,
+        "syntheticRehearsal": true
+      },
+      "result": {
+        "ok": false,
+        "code": "STALE_WORK_STATE",
+        "message": "Workspace advanced from revision 7 to 8.",
+        "workspaceRevision": 8,
+        "contextEpoch": 2,
+        "state": "CONTESTED",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "why_not"
+        ]
+      }
+    },
+    {
+      "n": 5,
+      "name": "inspect_decision",
+      "arguments": {},
+      "result": {
+        "ok": true,
+        "workspaceRevision": 8,
+        "contextEpoch": 2,
+        "state": "CONTESTED",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "why_not"
+        ],
+        "data": {
+          "decisionState": "CONTESTED",
+          "selectedOptionId": "opt_csv_ga_oct15",
+          "launchCapacityEngineerDays": 14,
+          "customerName": "Northstar Health",
+          "usableExportDueDate": "2026-11-01",
+          "optionIds": [
+            "opt_csv_ga_oct15",
+            "opt_csv_beta_oct15",
+            "opt_csv_defer_nov1"
+          ]
+        }
+      }
+    },
+    {
+      "n": 6,
+      "name": "recommend_option",
+      "arguments": {
+        "expectedWorkspaceRevision": 8,
+        "contextEpoch": 2,
+        "requestId": "e89053a5-62ca-42dd-a213-f577e2dc69b3",
+        "rationale": "The CSV beta option fits the revised 14-day launch capacity exactly, preserves 10 launch engineer-days for core reliability, and provides a usable export on October 15 before the November 1 renewal deadline; the remaining 4 engineer-days can follow launch.",
+        "payload": {
+          "optionId": "opt_csv_beta_oct15"
+        }
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 9,
+        "contextEpoch": 2,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ],
+        "data": {
+          "eventId": "evt_0009_recommend_option",
+          "resultingRevision": 9,
+          "decisionState": "READY",
+          "selectedOptionId": "opt_csv_beta_oct15",
+          "reviewStatus": null
+        }
+      }
+    },
+    {
+      "n": 7,
+      "name": "prepare_decision",
+      "arguments": {
+        "expectedWorkspaceRevision": 9,
+        "contextEpoch": 2,
+        "requestId": "ac105de1-6984-44a7-ba2e-a61106dd3a53",
+        "payload": {
+          "optionId": "opt_csv_beta_oct15",
+          "recommendation": "Launch the CSV export as a usable beta on October 15, with 4 engineer-days of follow-up work after launch.",
+          "risks": [
+            "The option uses all 14 available launch engineer-days, leaving no launch-capacity buffer.",
+            "Four engineer-days of export work remain after launch, so the October 15 release is a beta rather than full GA."
+          ],
+          "customerMessageDraft": "We plan to provide a usable CSV export beta on October 15, ahead of the November 1 deadline, and complete the remaining export work after launch."
+        }
+      },
+      "result": {
+        "transportError": "WebMCP tool registration is stale. Call fetchTools() again."
+      }
+    },
+    {
+      "n": 8,
+      "name": "prepare_decision",
+      "arguments": {
+        "expectedWorkspaceRevision": 9,
+        "contextEpoch": 2,
+        "requestId": "388696b6-4f67-445d-be14-df239f5f0e22",
+        "payload": {
+          "optionId": "opt_csv_beta_oct15",
+          "recommendation": "Launch the CSV export as a usable beta on October 15, with 4 engineer-days of follow-up work after launch.",
+          "risks": [
+            "The option uses all 14 available launch engineer-days, leaving no launch-capacity buffer.",
+            "Four engineer-days of export work remain after launch, so the October 15 release is a beta rather than full GA."
+          ],
+          "customerMessageDraft": "We plan to provide a usable CSV export beta on October 15, ahead of the November 1 deadline, and complete the remaining export work after launch."
+        }
+      },
+      "result": {
+        "ok": false,
+        "code": "INVALID_INPUT",
+        "message": "input.rationale is required.",
+        "workspaceRevision": 9,
+        "contextEpoch": 3,
+        "state": "READY",
+        "availableTools": [
+          "inspect_decision",
+          "inspect_selected_option",
+          "recommend_option",
+          "challenge_option",
+          "add_evidence",
+          "compare_options",
+          "prepare_decision",
+          "why_not"
+        ]
+      }
+    },
+    {
+      "n": 9,
+      "name": "prepare_decision",
+      "arguments": {
+        "expectedWorkspaceRevision": 9,
+        "contextEpoch": 3,
+        "requestId": "e66b71e2-6e03-41ca-8266-65d7acff7bbb",
+        "rationale": "Prepare the currently recommended CSV beta option for human review because it fits the revised 14-day launch capacity and provides a usable export before the November 1 deadline.",
+        "payload": {
+          "optionId": "opt_csv_beta_oct15",
+          "recommendation": "Launch the CSV export as a usable beta on October 15, with 4 engineer-days of follow-up work after launch.",
+          "risks": [
+            "The option uses all 14 available launch engineer-days, leaving no launch-capacity buffer.",
+            "Four engineer-days of export work remain after launch, so the October 15 release is a beta rather than full GA."
+          ],
+          "customerMessageDraft": "We plan to provide a usable CSV export beta on October 15, ahead of the November 1 deadline, and complete the remaining export work after launch."
+        }
+      },
+      "result": {
+        "ok": true,
+        "workspaceRevision": 10,
+        "contextEpoch": 3,
+        "state": "REVIEW",
+        "availableTools": [
+          "inspect_decision",
+          "trace_decision",
+          "why_not"
+        ],
+        "data": {
+          "eventId": "evt_0010_prepare_decision",
+          "resultingRevision": 10,
+          "decisionState": "REVIEW",
+          "selectedOptionId": "opt_csv_beta_oct15",
+          "reviewStatus": "PROPOSED"
+        }
+      }
+    }
+  ],
+  "final": {
+    "workspaceRevision": 10,
+    "state": "REVIEW",
+    "selectedOptionId": "opt_csv_beta_oct15",
+    "badMutations": 0,
+    "humanRatificationClicked": false,
+    "agentAnswer": "The CSV beta option is ready for human review. It fits the revised 14-day launch capacity and delivers usable export by October 15, with four engineer-days of follow-up work after launch. No ratification action is currently available."
+  },
+  "executionMode": "Fresh model/effort-matched decider; coordinator relayed tool calls unchanged through one isolated native document.modelContext handle and refreshed discovery on browser lifecycle signals."
+}

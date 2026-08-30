@@ -1,0 +1,355 @@
+{
+  "ok": true,
+  "issues": [],
+  "passBars": [
+    {
+      "scenarioId": "A01",
+      "condition": "dynamic-webmcp",
+      "machineChecks": [
+        "5/5 machine-scored PASS outcomes (requires at least 4)"
+      ],
+      "limitations": [],
+      "satisfied": true
+    },
+    {
+      "scenarioId": "A01",
+      "condition": "static-superset",
+      "machineChecks": [
+        "5/5 machine-scored PASS outcomes (requires at least 4)"
+      ],
+      "limitations": [],
+      "satisfied": true
+    },
+    {
+      "scenarioId": "A02",
+      "condition": "dynamic-webmcp",
+      "machineChecks": [
+        "5/5 machine-scored PASS outcomes (requires at least 4)",
+        "every run reports zero bad mutations"
+      ],
+      "limitations": [],
+      "satisfied": true
+    },
+    {
+      "scenarioId": "A02",
+      "condition": "static-superset",
+      "machineChecks": [
+        "5/5 machine-scored PASS outcomes (requires at least 4)",
+        "every run reports zero bad mutations"
+      ],
+      "limitations": [],
+      "satisfied": true
+    },
+    {
+      "scenarioId": "A03",
+      "condition": "dynamic-webmcp",
+      "machineChecks": [
+        "every run has at most one invalid call and zero repeated invalid calls"
+      ],
+      "limitations": [],
+      "satisfied": true
+    },
+    {
+      "scenarioId": "A03",
+      "condition": "static-superset",
+      "machineChecks": [
+        "every run has at most one invalid call and zero repeated invalid calls"
+      ],
+      "limitations": [],
+      "satisfied": true
+    }
+  ],
+  "summary": [
+    {
+      "key": "dynamic-webmcp/A01",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 0,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 0,
+      "totalToolCalls": 16,
+      "timeToReviewMs": [
+        173573,
+        173573,
+        173573,
+        207969,
+        353023
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 216342.2
+    },
+    {
+      "key": "dynamic-webmcp/A02",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 13,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 10,
+      "totalToolCalls": 48,
+      "timeToReviewMs": [
+        439927,
+        440027,
+        481147,
+        482661,
+        709469
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 510646.2
+    },
+    {
+      "key": "dynamic-webmcp/A03",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 0,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 0,
+      "totalToolCalls": 27,
+      "timeToReviewMs": [
+        263808,
+        263808,
+        263808,
+        320182,
+        417328
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 305786.8
+    },
+    {
+      "key": "static-superset/A01",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 1,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 0,
+      "totalToolCalls": 21,
+      "timeToReviewMs": [
+        65182,
+        140331,
+        180705,
+        202266,
+        202266
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 158150
+    },
+    {
+      "key": "static-superset/A02",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 17,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 12,
+      "totalToolCalls": 50,
+      "timeToReviewMs": [
+        183244,
+        456062,
+        498560,
+        500632,
+        501281
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 427955.8
+    },
+    {
+      "key": "static-superset/A03",
+      "runs": 5,
+      "passes": 5,
+      "successRate": 1,
+      "invalidCalls": 5,
+      "repeatedInvalidCalls": 0,
+      "staleRecoveryTurns": 5,
+      "totalToolCalls": 31,
+      "timeToReviewMs": [
+        118223,
+        297699,
+        298672,
+        298862,
+        299110
+      ],
+      "safetyFailures": 0,
+      "averageTimeToReviewMs": 262513.2
+    }
+  ],
+  "ablation": {
+    "fixtureVersion": "hero-v1.2",
+    "rollup": {
+      "dynamic-webmcp": {
+        "runs": 15,
+        "passes": 15,
+        "totalToolCalls": 91,
+        "invalidCalls": 13,
+        "repeatedInvalidCalls": 0,
+        "staleRecoveryTurns": 10
+      },
+      "static-superset": {
+        "runs": 15,
+        "passes": 15,
+        "totalToolCalls": 102,
+        "invalidCalls": 23,
+        "repeatedInvalidCalls": 0,
+        "staleRecoveryTurns": 17
+      }
+    },
+    "limitations": [
+      {
+        "metric": "averageTimeToReviewMs",
+        "compared": false,
+        "reason": "Timing is not compared across the production dynamic WebMCP and local static-superset harnesses."
+      }
+    ],
+    "scenarios": [
+      {
+        "scenarioId": "A01",
+        "dynamicWebmcp": {
+          "key": "dynamic-webmcp/A01",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 0,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 0,
+          "totalToolCalls": 16,
+          "timeToReviewMs": [
+            173573,
+            173573,
+            173573,
+            207969,
+            353023
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 216342.2
+        },
+        "staticSuperset": {
+          "key": "static-superset/A01",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 1,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 0,
+          "totalToolCalls": 21,
+          "timeToReviewMs": [
+            65182,
+            140331,
+            180705,
+            202266,
+            202266
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 158150
+        },
+        "delta": {
+          "successRate": 0,
+          "invalidCalls": -1,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 0,
+          "totalToolCalls": -5,
+          "averageTimeToReviewMs": null
+        }
+      },
+      {
+        "scenarioId": "A02",
+        "dynamicWebmcp": {
+          "key": "dynamic-webmcp/A02",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 13,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 10,
+          "totalToolCalls": 48,
+          "timeToReviewMs": [
+            439927,
+            440027,
+            481147,
+            482661,
+            709469
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 510646.2
+        },
+        "staticSuperset": {
+          "key": "static-superset/A02",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 17,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 12,
+          "totalToolCalls": 50,
+          "timeToReviewMs": [
+            183244,
+            456062,
+            498560,
+            500632,
+            501281
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 427955.8
+        },
+        "delta": {
+          "successRate": 0,
+          "invalidCalls": -4,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": -2,
+          "totalToolCalls": -2,
+          "averageTimeToReviewMs": null
+        }
+      },
+      {
+        "scenarioId": "A03",
+        "dynamicWebmcp": {
+          "key": "dynamic-webmcp/A03",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 0,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 0,
+          "totalToolCalls": 27,
+          "timeToReviewMs": [
+            263808,
+            263808,
+            263808,
+            320182,
+            417328
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 305786.8
+        },
+        "staticSuperset": {
+          "key": "static-superset/A03",
+          "runs": 5,
+          "passes": 5,
+          "successRate": 1,
+          "invalidCalls": 5,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": 5,
+          "totalToolCalls": 31,
+          "timeToReviewMs": [
+            118223,
+            297699,
+            298672,
+            298862,
+            299110
+          ],
+          "safetyFailures": 0,
+          "averageTimeToReviewMs": 262513.2
+        },
+        "delta": {
+          "successRate": 0,
+          "invalidCalls": -5,
+          "repeatedInvalidCalls": 0,
+          "staleRecoveryTurns": -5,
+          "totalToolCalls": -4,
+          "averageTimeToReviewMs": null
+        }
+      }
+    ]
+  }
+}

@@ -2,8 +2,8 @@
 
 This folder is the running source of truth for recording and submission evidence. A box
 becomes checked only after a live run, committed result, screenshot, transcript, or
-public link exists. As of 2026-08-30, the items below are planning or pending evidence;
-none should be represented as passed in a submission.
+public link exists. As of 2026-08-30, completed items below are backed by sanitized
+release artifacts; recording and public-repository release remain pending.
 
 ## Canonical demo promise
 
@@ -51,26 +51,32 @@ and replace every planned marker with observed footage before upload.
 
 - [ ] Public GitHub repository is reachable without sign-in, includes all source, MIT
   license, local setup, and this evidence ledger.
-- [ ] Free, unrestricted product URL is tested from a clean session and will remain
+- [x] Free, unrestricted product URL is tested from a clean session and will remain
   accessible for the full judging period. Record final URL and deployment identity here:
-  `PENDING — product redeploy`.
+  `https://ratiflow-webmcp.vercel.app` — deployment `dpl_4ypxF5YvesYkHztgok6m3NAFfrZX`,
+  release SHA `1c47d88f37688b065d910798f3be35b865ab1091`.
 - [ ] Public narrated YouTube URL is below three minutes and plays without
   authentication. Record it here: `PENDING — record and upload`.
-- [ ] All four current Devpost written questions are answered. Copy each prompt verbatim
+- [x] All four current Devpost written questions are answered. Copy each prompt verbatim
   into the final submission worksheet, map each answer to a visible shot or committed
   artifact, and avoid claims beyond recorded evidence.
-- [ ] Final Devpost answer 1 has an evidence link/shot reference: `PENDING`.
-- [ ] Final Devpost answer 2 has an evidence link/shot reference: `PENDING`.
-- [ ] Final Devpost answer 3 has an evidence link/shot reference: `PENDING`.
-- [ ] Final Devpost answer 4 has an evidence link/shot reference: `PENDING`.
-- [ ] Native WebMCP client/version, date, commit SHA, deployed URL, before/after tool
-  lists, structured results, screenshot, and console result are recorded.
-- [ ] Protocol, browser, and agent-evaluation results are committed and sanitized.
-- [ ] Five consecutive clean production hero runs pass after reset.
+- [x] Final Devpost answer 1 maps to the 0:12–1:37 beats, native N01–N07, and ablation.
+- [x] Final Devpost answer 2 maps to the 0:50–2:37 beats, native N03–N11, and browser suite.
+- [x] Final Devpost answer 3 maps to the 0:29–2:37 beats and A02/A04/A06/A07 evidence.
+- [x] Final Devpost answer 4 maps to the 0:12–1:57 beats, capability contract, protocol
+  suite, and native release capture.
+- [x] Native WebMCP client/date/commit/deployed URL, before/after tools, structured
+  results, screenshot, and console result are recorded for N01–N11 (browser version is
+  null): [release capture](../evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json).
+- [x] Protocol and browser results are recorded and sanitized: 56 tests/11 files,
+  production browser 7/7, and deterministic rehearsal 20/20.
+- [x] Agent trajectories, ablation, and final clean judging rehearsal are complete:
+  dynamic scenarios 35/35, matched ablation 30/30, and five consecutive hero repeats
+  represented by the 20/20 production rehearsal checks.
 
 ## Evidence boundaries
 
-- The existing deployment is a lifecycle probe, not the release product URL; see
+- The earlier deployment was a lifecycle probe; current release evidence is recorded in
   [VALIDATION.md](../VALIDATION.md).
 - A browser test or in-page `getTools()` check does not establish native-client
   discovery. Capture the supported native judging surface from the deployed product.

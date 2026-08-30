@@ -1,0 +1,214 @@
+{
+  "evidenceClass": "NATIVE_CAPTURED",
+  "status": "PASS",
+  "fixtureVersion": "hero-v1.2",
+  "commitSha": "1c47d88f37688b065d910798f3be35b865ab1091",
+  "deploymentId": "dpl_4ypxF5YvesYkHztgok6m3NAFfrZX",
+  "deployedUrl": "https://ratiflow-webmcp.vercel.app",
+  "startedAtUtc": "2026-08-30T14:18:42.521Z",
+  "completedAtUtc": "2026-08-30T14:20:48.290Z",
+  "durationMs": 125769,
+  "browserSurface": "Codex In-app Browser",
+  "browserVersion": null,
+  "model": "gpt-5.6-sol",
+  "reasoningEffort": "ultra",
+  "standardsPath": "document.modelContext",
+  "releaseSource": {
+    "method": "Vercel direct file deployment",
+    "trackedFiles": 96,
+    "integrity": "Every deployed file was read from git HEAD and byte-checked against its git tree entry before upload. Uncommitted artifacts were excluded."
+  },
+  "assertions": [
+    {
+      "id": "N01",
+      "status": "PASS",
+      "observation": "The deployed top-level document exposed the exact state- and selection-scoped catalog through the native client without connector setup."
+    },
+    {
+      "id": "N02",
+      "status": "PASS",
+      "observation": "Native inspect_decision returned a JSON-serializable authoritative workspace at revision 7, READY, selected O1, 18 engineer-days, and zero provenance events."
+    },
+    {
+      "id": "N03",
+      "status": "PASS",
+      "observation": "The visible single-window synthetic-Jordan control used the real Jordan-authorized ordinary-UI mutation. The workspace advanced 7 to 8, capacity changed 18 to 14, state became CONTESTED, discovery changed 8 to 7 tools, and prepare_decision disappeared.",
+      "provenance": {
+        "actor": "Jordan Lee",
+        "actorType": "HUMAN",
+        "origin": "ORDINARY_UI",
+        "reason": "Four-day incident rotation",
+        "eventId": "evt_0008_capacity_reduced"
+      }
+    },
+    {
+      "id": "N04",
+      "status": "PASS",
+      "observation": "A cached revision-7 add_evidence call reached page code after Jordan's update and returned STALE_WORK_STATE with expected revision 7, actual revision 8, Jordan attribution, and the prescribed inspect/refetch/retry action."
+    },
+    {
+      "id": "N05",
+      "status": "PASS",
+      "observation": "Calling the removed prepare_decision handle was rejected by the native client before dispatch with: WebMCP tool registration is stale. Call fetchTools() again."
+    },
+    {
+      "id": "N06",
+      "status": "PASS",
+      "observation": "O1 selection exposed inspect_selected_option at epoch 2. Selecting O2 advanced to epoch 3; the cached O1 handle was rejected as stale, and refetched discovery inspected O2."
+    },
+    {
+      "id": "N07",
+      "status": "PASS",
+      "observation": "No ratify or commit tool appeared in READY, CONTESTED, REVIEW, or COMMITTED discovery. Native why_not reported that ratification is never available through WebMCP and Maya must act in the ordinary UI. The server-side rejection path is separately covered by D08 and D09."
+    },
+    {
+      "id": "N08",
+      "status": "PASS",
+      "observation": "After native recovery and preparation, Maya's visible UI action advanced revision 10 to 11 COMMITTED. Selecting customer-launch-brief advanced the page epoch to 4 and added inspect_followup with READY status and inherited context."
+    },
+    {
+      "id": "N09",
+      "status": "PASS_WITH_RECORDED_LIMITS",
+      "observation": "The judging client exposed fetchTools/call and delivered catalog-change notifications that required refetch. Its wrapper did not expose raw getTools or executeTool names, and callback cancellation-signal state was not directly observable on this surface."
+    },
+    {
+      "id": "N10",
+      "status": "PASS_AUTOMATED_COMPANION",
+      "observation": "The same deployment passed the ordinary two-window end-to-end flow with no WebMCP global in Playwright, five consecutive times. This is labeled automated fallback evidence, not native invocation evidence."
+    },
+    {
+      "id": "N11",
+      "status": "PASS",
+      "observation": "The complete native trajectory produced no page-console entries. The final production browser suite passed 7 of 7 checks, including the 390 CSS pixel smoke and reset rebinding regression."
+    }
+  ],
+  "trajectory": [
+    {
+      "step": "reset-rebind",
+      "result": "PASS",
+      "oldHandleResult": "WebMCP tool registration is stale. Call fetchTools() again.",
+      "freshState": {
+        "workspaceRevision": 7,
+        "state": "READY",
+        "selectedOptionId": "opt_csv_ga_oct15",
+        "launchCapacityEngineerDays": 18,
+        "provenanceCount": 0
+      }
+    },
+    {
+      "step": "selection-context",
+      "result": "PASS",
+      "o1": {
+        "workspaceRevision": 7,
+        "contextEpoch": 2,
+        "optionId": "opt_csv_ga_oct15"
+      },
+      "oldHandleResult": "WebMCP tool inspect_selected_option is stale. Call fetchTools() again.",
+      "o2": {
+        "workspaceRevision": 7,
+        "contextEpoch": 3,
+        "optionId": "opt_csv_beta_oct15"
+      }
+    },
+    {
+      "step": "jordan-capacity-change",
+      "result": "PASS",
+      "trigger": "visible synthetic-Jordan rehearsal control",
+      "serverPath": "existing Jordan-authorized collaborator mutation",
+      "revisionTransition": "7->8",
+      "state": "CONTESTED",
+      "capacityTransition": "18->14",
+      "toolCountTransition": "8->7",
+      "prepareDecisionPresent": false
+    },
+    {
+      "step": "cached-stale-write",
+      "result": "PASS",
+      "tool": "add_evidence",
+      "expectedWorkspaceRevision": 7,
+      "actualWorkspaceRevision": 8,
+      "code": "STALE_WORK_STATE",
+      "message": "Workspace advanced from revision 7 to 8."
+    },
+    {
+      "step": "why-not",
+      "result": "PASS",
+      "action": "prepare_decision",
+      "available": false,
+      "unmetPredicates": [
+        "selected option requires 18 engineer-days but launch capacity is 14"
+      ]
+    },
+    {
+      "step": "recover-recommendation",
+      "result": "PASS",
+      "revisionTransition": "8->9",
+      "selectedOptionId": "opt_csv_beta_oct15",
+      "state": "READY",
+      "contextEpochAfterPageSync": 3,
+      "toolCount": 8
+    },
+    {
+      "step": "prepare-for-human-review",
+      "result": "PASS",
+      "revisionTransition": "9->10",
+      "state": "REVIEW",
+      "availableTools": [
+        "inspect_decision",
+        "trace_decision",
+        "why_not"
+      ],
+      "ratifyOrCommitToolPresent": false
+    },
+    {
+      "step": "human-ratification",
+      "result": "PASS",
+      "surface": "ordinary UI",
+      "actor": "Maya Chen",
+      "revisionTransition": "10->11",
+      "state": "COMMITTED"
+    },
+    {
+      "step": "followup-scope",
+      "result": "PASS",
+      "workspaceRevision": 11,
+      "contextEpoch": 4,
+      "selection": "fu_customer_launch_brief",
+      "availableTools": [
+        "inspect_decision",
+        "trace_decision",
+        "inspect_followup",
+        "why_not"
+      ],
+      "followup": {
+        "status": "READY",
+        "ownerId": "usr_maya_chen",
+        "dueDate": "2026-10-16",
+        "inheritedContext": [
+          "Northstar beta Oct 15, 2026",
+          "GA Nov 1, 2026",
+          "Capacity reduced to 14 engineer-days after a four-day incident rotation"
+        ]
+      }
+    }
+  ],
+  "productionCompanions": {
+    "browserSuite": "7/7 PASS",
+    "fiveConsecutiveHeroRehearsals": "20/20 PASS",
+    "build": "READY with no build errors",
+    "runtimeErrors": "None in the post-release 30-minute scan",
+    "runtimeStatusCounts": {
+      "200": 739,
+      "304": 12
+    },
+    "consoleEntries": []
+  },
+  "screenshots": [
+    "evals/results/native/codex-in-app-browser/2026-08-30T141842Z/final-committed.jpg"
+  ],
+  "limitations": [
+    "The browser surface did not expose a client version string.",
+    "The native capture used the clearly labeled single-window synthetic-Jordan control because the in-app browser does not expose spawned windows for automation. The separate real two-window Jordan flow passed on the same deployment in the production browser suite.",
+    "Raw optional getTools/executeTool method names and callback cancellation-signal state were not exposed by the judging-client wrapper; the observed wrapper methods were fetchTools/call."
+  ]
+}

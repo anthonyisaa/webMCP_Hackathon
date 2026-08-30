@@ -1,6 +1,6 @@
 # Native WebMCP validation record
 
-Status: **go for contract freeze; Chrome-enabled release check remains open**
+Status: **production native capture recorded; connected Chrome limitation observed**
 
 Started: 2026-08-30 (SGT)
 
@@ -19,17 +19,38 @@ State `collect` exposes `ratiflow_probe_add_signal`; state `review` aborts that
 registration and exposes `ratiflow_probe_prepare_summary`. The page also provides an
 in-page `getTools()` → `executeTool()` check and a cancellable delay tool.
 
-## Deployed evidence — observed 2026-08-30 SGT
+## Historical probe evidence
+
+The earlier lifecycle probe is historical and does not represent the current product
+release. Its Chrome namespace result was a setup gap, not a production product failure.
+
+## Production release evidence — observed 2026-08-30 SGT
 
 Production URL: <https://ratiflow-webmcp.vercel.app/>
 
-Deployment: `dpl_5V5kaQeGee221fwbYWejfamEpGtV`
+Deployment: `dpl_4ypxF5YvesYkHztgok6m3NAFfrZX` (READY, production, `iad1`)
 
-The first column is a native WebMCP run in Codex desktop's in-app Browser. It is strong
-implementation evidence from an OpenAI client, but the final ChatGPT submission surface
-must still be rerun during release rehearsal. The connected Chrome instance loaded the
-page but did not expose either `modelContext` namespace; its WebMCP flag/Inspector setup
-is therefore an explicit manual release prerequisite, not a claimed pass.
+Release commit: `1c47d88f37688b065d910798f3be35b865ab1091`
+
+The sanitized capture at
+`evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json` covers
+N01–N11 and the complete revision 7→11 sequence. It records browser version `null`.
+
+The Codex desktop in-app Browser run is native release evidence from an OpenAI client.
+Optional raw `getTools`/`executeTool` and cancellation fields were unavailable in this
+wrapper.
+
+An exact-production Chrome recheck at `2026-08-30T17:04:05.586Z` loaded the product
+with zero console errors, but that connected client exposed neither
+`document.modelContext` nor a WebMCP tab capability. No mutation was attempted. The
+sanitized negative observation is
+`evals/results/native/chrome-extension/2026-08-30T170405Z/release.json`; it records a
+client-setup limitation and is not presented as a product failure or native pass.
+
+### Historical probe matrix (not the current product catalog)
+
+The following table records the earlier probe’s lifecycle checks only; the current
+product assertions and revision 7→11 sequence are in the linked release artifact.
 
 | Question | Codex desktop in-app Browser | Connected Chrome |
 |---|---|---|
@@ -44,8 +65,9 @@ is therefore an explicit manual release prerequisite, not a claimed pass.
 | Narrow layout after live flow | Pass at 390 CSS px: `scrollWidth === clientWidth`, primary action visible | Not run |
 | Runtime health | Zero page console errors after read → cancellation probe → state switch | Zero page console errors; WebMCP controls disabled honestly |
 
-The same lifecycle was first reproduced locally at `http://localhost:3000/`. On the
-production run, collect discovery returned `ratiflow_probe_read_context`,
+The same lifecycle was first reproduced locally at `http://localhost:3000/`; that is
+historical probe evidence. On the historical production probe, collect discovery returned
+`ratiflow_probe_read_context`,
 `ratiflow_probe_wait`, and `ratiflow_probe_add_signal`; review discovery returned the
 two base tools plus `ratiflow_probe_prepare_summary`.
 
@@ -59,8 +81,7 @@ These observations establish three product rules:
 
 ## Go/no-go rule
 
-The contract freeze may proceed because native discovery, invocation, dynamic removal,
-and deployed HTTPS behavior are observed end to end on one OpenAI client. Product release
-remains blocked until the same deployed flow passes in the final ChatGPT surface and in
-Chrome with WebMCP explicitly enabled. The connected Chrome result above is a setup gap,
-not evidence that the site or the specification failed.
+The native release trajectory is recorded for one OpenAI client, and the unsupported
+connected Chrome surface is recorded separately without overstating it. Agent
+trajectories and ablation are complete in [EVAL_RESULTS.md](EVAL_RESULTS.md). Public
+repository release and the narrated video remain the submission gates.
