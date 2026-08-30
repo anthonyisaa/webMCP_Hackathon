@@ -10,6 +10,9 @@ const ids = {
   ratify: "55555555-5555-4555-8555-555555555555",
   replay: "66666666-6666-4666-8666-666666666666",
   invalidDate: "77777777-7777-4777-8777-777777777777",
+  alternateRecommend: "88888888-8888-4888-8888-888888888888",
+  alternatePrepare: "99999999-9999-4999-8999-999999999999",
+  alternateRatify: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
 };
 
 describe("LocalRatiflowService", () => {
@@ -73,7 +76,37 @@ describe("LocalRatiflowService", () => {
       recommendation: "Invite-only Northstar beta on Oct 15, then GA Nov 1.",
       customerMessage: "Northstar will receive an invite-only beta on Oct 15 and GA on Nov 1.",
     });
-    expect(ratified).toMatchObject({ ok: true, data: { resultingRevision: 11, workspace: { decision: { state: "COMMITTED" }, followup: { status: "READY", ownerId: "usr_maya_chen", dueDate: "2026-10-16" } } } });
+    expect(ratified).toMatchObject({ ok: true, data: { resultingRevision: 11, workspace: { decision: { state: "COMMITTED" }, followup: { status: "READY", ownerId: "usr_maya_chen", dueDate: "2026-10-16", inheritedContext: ["Northstar beta Oct 15, 2026", "GA Nov 1, 2026", "Capacity reduced to 14 engineer-days after a four-day incident rotation"] } } } });
+  });
+
+  it("derives follow-up context from the ratified alternative instead of a golden capacity event", async () => {
+    const service = new LocalRatiflowService();
+    const sessions = service.issueDemoSessions();
+    const recommended = await service.mutateFromWebMCP({
+      sessionToken: sessions.agentSessionToken,
+      toolName: "recommend_option",
+      capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
+      capturedContextEpoch: 1,
+      envelope: { expectedWorkspaceRevision: 7, contextEpoch: 1, requestId: ids.alternateRecommend, rationale: "The deferred option fits the customer commitment.", payload: { optionId: "opt_csv_defer_nov1" } },
+    });
+    expect(recommended).toMatchObject({ ok: true, data: { resultingRevision: 8, workspace: { decision: { selectedOptionId: "opt_csv_defer_nov1", state: "READY" } } } });
+
+    const prepared = await service.mutateFromWebMCP({
+      sessionToken: sessions.agentSessionToken,
+      toolName: "prepare_decision",
+      capturedSelection: { kind: "OPTION", id: "opt_csv_defer_nov1" },
+      capturedContextEpoch: 2,
+      envelope: { expectedWorkspaceRevision: 8, contextEpoch: 2, requestId: ids.alternatePrepare, rationale: "Prepare the deferred scope for human review.", payload: { optionId: "opt_csv_defer_nov1", recommendation: "Defer CSV export to Nov 1.", risks: ["No Oct 15 export."], customerMessageDraft: "Northstar will receive CSV export on Nov 1." } },
+    });
+    expect(prepared).toMatchObject({ ok: true, data: { resultingRevision: 9, workspace: { decision: { state: "REVIEW" } } } });
+
+    const ratified = await service.ratifyFromHumanUi(sessions.mayaSessionToken, {
+      expectedWorkspaceRevision: 9,
+      requestId: ids.alternateRatify,
+      recommendation: "Defer CSV export to Nov 1.",
+      customerMessage: "Northstar will receive CSV export on Nov 1.",
+    });
+    expect(ratified).toMatchObject({ ok: true, data: { workspace: { followup: { inheritedContext: ["Defer export Nov 1, 2026", "GA Nov 1, 2026", "Launch capacity is 18 engineer-days"] } } } });
   });
 
   it("rejects an agent handle at the human ratification boundary", async () => {

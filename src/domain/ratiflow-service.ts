@@ -145,6 +145,45 @@ function omitStoredFields<T extends object, K extends keyof T>(value: T, keys: r
   return copy;
 }
 
+// Match the frozen follow-up copy while deriving every value from live decision state.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+function formatFollowupDate(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  return `${MONTHS[month - 1]} ${day}, ${year}`;
+}
+
+function capacityFollowupContext(workspace: StoredWorkspace): string {
+  const capacityChange = [...workspace.events].reverse().flatMap((event) => event.changes
+    .filter((change) => change.field === "decision.launchCapacityEngineerDays"
+      && typeof change.before === "number"
+      && typeof change.after === "number"
+      && change.after === workspace.decision.launchCapacityEngineerDays)
+    .map((change) => ({ event, before: change.before as number, after: change.after as number })))[0];
+  if (!capacityChange) return `Launch capacity is ${workspace.decision.launchCapacityEngineerDays} engineer-days`;
+
+  const direction = capacityChange.after < capacityChange.before
+    ? "reduced"
+    : capacityChange.after > capacityChange.before
+      ? "increased"
+      : "updated";
+  const reason = `${capacityChange.event.rationale.charAt(0).toLowerCase()}${capacityChange.event.rationale.slice(1)}`;
+  const article = /^(a|an|the)\s/i.test(reason) ? "" : /^[aeiou]/i.test(reason) ? "an " : "a ";
+  return `Capacity ${direction} to ${workspace.decision.launchCapacityEngineerDays} engineer-days after ${article}${reason}`;
+}
+
+function followupContext(workspace: StoredWorkspace): string[] {
+  const optionId = workspace.preparedDecision?.optionId ?? workspace.decision.selectedOptionId;
+  const option = workspace.options.find((candidate) => candidate.id === optionId);
+  if (!option) return [`Launch capacity is ${workspace.decision.launchCapacityEngineerDays} engineer-days`];
+  const customerDeadline = formatFollowupDate(workspace.customer.usableExportDueDate);
+  return [
+    `${option.title} ${formatFollowupDate(option.launchDate)}`,
+    option.postLaunchEngineerDays > 0 ? `GA ${customerDeadline}` : `Usable CSV export by ${customerDeadline}`,
+    capacityFollowupContext(workspace),
+  ];
+}
+
 function seedWorkspace(): StoredWorkspace {
   const options: WorkspaceView["options"] = [
     { id: "opt_csv_ga_oct15", title: "Full CSV export", summary: "Full CSV export, GA Oct 15, 2026", launchDate: "2026-10-15", exportEngineerDays: 8, totalEngineerDays: 18, postLaunchEngineerDays: 0 },
@@ -312,7 +351,7 @@ export class LocalRatiflowService implements RatiflowServicePort {
       workspace.preparedDecision.ratifiedBy = MAYA.actor;
       workspace.decision.state = "COMMITTED";
       workspace.followup.status = "READY";
-      workspace.followup.inheritedContext = ["Northstar beta Oct 15, 2026", "GA Nov 1, 2026", "Capacity reduced to 14 engineer-days after a four-day incident rotation"];
+      workspace.followup.inheritedContext = followupContext(workspace);
       return this.commit(session.run, session.member, "ORDINARY_UI", undefined, input.recommendation, "RATIFIED", [DECISION_ID, workspace.preparedDecision.id, workspace.followup.id], [
         { field: "decision.state", before: "REVIEW", after: "COMMITTED" },
         { field: "preparedDecision.reviewStatus", before: "PROPOSED", after: "RATIFIED" },
