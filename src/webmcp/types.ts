@@ -48,6 +48,8 @@ export interface MutableWebMCPRuntimeRef {
 export interface WebMCPRuntimeDependencies {
   latest: MutableWebMCPRuntimeRef;
   service: RatiflowServicePort;
+  /** Preview-only static-superset evaluation lets the server decide unavailable mutations. */
+  bypassClientAvailabilityGate?: boolean;
   onAuthoritativeSnapshot?: (
     workspace: WorkspaceView,
     compiled: CompiledCapabilities,

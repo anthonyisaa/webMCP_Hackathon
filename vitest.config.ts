@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     include: [
+      "evals/agent/**/*.test.ts",
       "evals/protocol/**/*.test.ts",
       "src/capabilities/**/*.test.ts",
       "src/domain/**/*.test.ts",

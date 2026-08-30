@@ -17,6 +17,7 @@ import type {
   WorkspaceView,
 } from "@/contracts";
 import type { WebMCPBridgeStatus } from "@/webmcp/types";
+import type { WebMCPRegistrationMode } from "@/webmcp";
 
 type PageMember = "MAYA" | "JORDAN";
 
@@ -69,7 +70,11 @@ function readMayaSessions(): DemoSessions | null {
     : null;
 }
 
-export function DecisionWorkspace() {
+export function DecisionWorkspace({
+  registrationMode = "dynamic",
+}: {
+  registrationMode?: WebMCPRegistrationMode;
+}) {
   const [member, setMember] = useState<PageMember | null>(null);
   const [sessions, setSessions] = useState<DemoSessions | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceView | null>(null);
@@ -444,6 +449,7 @@ export function DecisionWorkspace() {
           memberSessionInstanceId={memberSessionInstanceId}
           sessionToken={sessions.agentSessionToken}
           service={httpRatiflowService}
+          registrationMode={registrationMode}
           onStatusChange={setBridgeStatus}
           onAuthoritativeSnapshot={acceptAuthoritativeWorkspace}
         />
@@ -466,6 +472,7 @@ export function DecisionWorkspace() {
         onSelect={selectTarget}
         onStaleWrite={runStaleAgentWrite}
         recommendation={reviewRecommendation}
+        registrationMode={registrationMode}
         selection={selection}
         workspace={workspace}
       />
@@ -519,6 +526,7 @@ function WorkspaceViewSurface({
   onSelect,
   onStaleWrite,
   recommendation,
+  registrationMode,
   selection,
   workspace,
 }: {
@@ -539,6 +547,7 @@ function WorkspaceViewSurface({
   onSelect: (selection: PageSelection) => void;
   onStaleWrite: () => void;
   recommendation: string;
+  registrationMode: WebMCPRegistrationMode;
   selection: PageSelection;
   workspace: WorkspaceView;
 }) {
@@ -551,7 +560,8 @@ function WorkspaceViewSurface({
       <Topbar member="MAYA" workspace={workspace} />
       <section className="workspace" id="workspace">
         <DecisionHeading workspace={workspace} />
-        <WebMCPNotice status={bridgeStatus} />
+        {registrationMode === "static-superset" && <div className="system-notice system-notice-supported has-error" role="status"><span className="status-dot status-dot-amber" /><div><b>Eval-only static-superset preview.</b> When WebMCP is supported, all 10 existing tools are registered for comparison; the Capability Field stays dynamic and the server rejects unavailable actions.</div><span className="mono system-notice-tag">ablation</span></div>}
+        <WebMCPNotice registrationMode={registrationMode} status={bridgeStatus} />
 
         <div className="workspace-grid">
           <section className="main-column" aria-label="Decision options">
@@ -645,10 +655,19 @@ function DecisionContext({ workspace }: { workspace: WorkspaceView }) {
   return <article className="panel context-panel"><div className="section-kicker">Authoritative decision context</div><div className="context-grid"><div><span>Customer</span><strong>{workspace.customer.name}</strong></div><div><span>Annual renewal</span><strong>{formatCurrency(workspace.customer.annualRenewalUsd)}</strong></div><div><span>Usable export due</span><strong>{formatDate(workspace.customer.usableExportDueDate)}</strong></div><div><span>Launch capacity</span><strong>{workspace.decision.launchCapacityEngineerDays} engineer-days</strong></div></div></article>;
 }
 
-function WebMCPNotice({ status }: { status: WebMCPBridgeStatus | null }) {
+function WebMCPNotice({
+  registrationMode,
+  status,
+}: {
+  registrationMode: WebMCPRegistrationMode;
+  status: WebMCPBridgeStatus | null;
+}) {
   if (!status) return <div className="system-notice" role="status"><span className="status-dot status-dot-amber" /><div><b>Checking native WebMCP support…</b> The ordinary human UI remains available.</div><span className="mono system-notice-tag">detecting</span></div>;
   if (!status.supported) return <div className="system-notice" role="status"><span className="status-dot status-dot-amber" /><div><b>WebMCP not detected in this browser.</b> Real human and synthetic rehearsal routes remain available; native agent tools require a supported surface.</div><span className="mono system-notice-tag">fallback UI</span></div>;
-  return <div className={`system-notice system-notice-supported ${status.error ? "has-error" : ""}`} role="status"><span className={`status-dot ${status.error ? "status-dot-amber" : "status-dot-green"}`} /><div><b>{status.error ? "WebMCP registration needs attention." : `WebMCP active via ${status.namespace}.`}</b> {status.error ?? `${status.registeredTools.length} native tools mirror the visible Capability Field.`}</div><span className="mono system-notice-tag">native</span></div>;
+  const registrationDetail = registrationMode === "static-superset"
+    ? `${status.registeredTools.length} static evaluation tools are registered; the visible Capability Field remains dynamic.`
+    : `${status.registeredTools.length} native tools mirror the visible Capability Field.`;
+  return <div className={`system-notice system-notice-supported ${status.error ? "has-error" : ""}`} role="status"><span className={`status-dot ${status.error ? "status-dot-amber" : "status-dot-green"}`} /><div><b>{status.error ? "WebMCP registration needs attention." : `WebMCP active via ${status.namespace}.`}</b> {status.error ?? registrationDetail}</div><span className="mono system-notice-tag">native</span></div>;
 }
 
 function CapabilityField({ compiled }: { compiled: CompiledCapabilities }) {

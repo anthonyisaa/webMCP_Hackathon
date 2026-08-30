@@ -12,9 +12,11 @@ import {
   WebMCPRegistrationManager,
   detectModelContext,
   makeRegistrationContextKey,
+  registeredToolNames,
   type MutableWebMCPRuntimeRef,
   type RegistrationDiff,
   type WebMCPBridgeStatus,
+  type WebMCPRegistrationMode,
 } from "../../webmcp";
 
 export interface WebMCPBridgeProps {
@@ -25,6 +27,7 @@ export interface WebMCPBridgeProps {
   memberSessionInstanceId: string;
   sessionToken: string;
   service: RatiflowServicePort;
+  registrationMode?: WebMCPRegistrationMode;
   onStatusChange?: (status: WebMCPBridgeStatus) => void;
   onAuthoritativeSnapshot?: (
     workspace: WorkspaceView,
@@ -50,6 +53,7 @@ export function WebMCPBridge({
   memberSessionInstanceId,
   sessionToken,
   service,
+  registrationMode = "dynamic",
   onStatusChange,
   onAuthoritativeSnapshot,
 }: WebMCPBridgeProps) {
@@ -94,13 +98,18 @@ export function WebMCPBridge({
     const manager = new WebMCPRegistrationManager(detected.context, {
       latest,
       service,
+      bypassClientAvailabilityGate: registrationMode === "static-superset",
       onAuthoritativeSnapshot: (nextWorkspace, nextCompiled) => {
         authoritativeCallbackRef.current?.(nextWorkspace, nextCompiled);
         const key = makeRegistrationContextKey(
           latest.current.memberSessionInstanceId,
           nextCompiled.contextEpoch,
         );
-        void managerRef.current?.reconcile(nextCompiled, key).then(
+        const registrationCompiled = {
+          ...nextCompiled,
+          availableTools: registeredToolNames(registrationMode, nextCompiled),
+        };
+        void managerRef.current?.reconcile(registrationCompiled, key).then(
           (lastDiff) => {
             statusCallbackRef.current?.({
               namespace: namespaceRef.current,
@@ -133,7 +142,7 @@ export function WebMCPBridge({
       manager.dispose();
       if (managerRef.current === manager) managerRef.current = null;
     };
-  }, [service]);
+  }, [registrationMode, service]);
 
   useEffect(() => {
     const manager = managerRef.current;
@@ -146,7 +155,13 @@ export function WebMCPBridge({
     );
     let superseded = false;
 
-    void manager.reconcile(current.compiled, registrationContextKey).then(
+    // The overlay affects registration only; latest.current.compiled remains the
+    // dynamically compiled object used in all callback results.
+    const registrationCompiled = {
+      ...current.compiled,
+      availableTools: registeredToolNames(registrationMode, current.compiled),
+    };
+    void manager.reconcile(registrationCompiled, registrationContextKey).then(
       (lastDiff) => {
         if (superseded) return;
         statusCallbackRef.current?.({
@@ -171,7 +186,7 @@ export function WebMCPBridge({
     return () => {
       superseded = true;
     };
-  }, [compiled.signature, compiled.contextEpoch, memberSessionInstanceId]);
+  }, [compiled.signature, compiled.contextEpoch, memberSessionInstanceId, registrationMode]);
 
   return null;
 }

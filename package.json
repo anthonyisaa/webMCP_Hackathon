@@ -2,6 +2,7 @@
   "name": "ratiflow",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "description": "A WebMCP-native decision room where agents prepare and people ratify.",
   "license": "MIT",
   "packageManager": "pnpm@11.1.1",
@@ -13,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "eval:protocol": "vitest run",
-    "eval:native": "playwright test"
+    "eval:native": "playwright test e2e/native.spec.ts",
+    "eval:agent": "node evals/agent/validate.ts",
+    "eval:rehearse": "playwright test e2e/hero.spec.ts --repeat-each=5 --workers=1 --reporter=line"
   },
   "dependencies": {
     "next": "^16.3.3",

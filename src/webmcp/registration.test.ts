@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { compileCapabilities } from "../capabilities/compiler";
+import { LocalRatiflowService } from "../domain/ratiflow-service";
 import type {
   CompiledCapabilities,
   PageSelection,
@@ -10,6 +11,7 @@ import type {
   WorkspaceView,
 } from "../contracts/index";
 import { detectModelContext, makeRegistrationContextKey } from "./detect";
+import { captureCallbackContext, createToolCallback } from "./executor";
 import { WebMCPRegistrationManager } from "./registration";
 import type {
   MutableWebMCPRuntimeRef,
@@ -288,6 +290,74 @@ test("rejects invalid or wrong-epoch writes before domain mutation", async () =>
   })) as { code: string };
   assert.equal(wrongEpoch.code, "STALE_PAGE_CONTEXT");
   assert.equal(state.getMutationCalls(), 0);
+});
+
+test("static evaluation bypasses only the client gate and preserves the server rejection", async () => {
+  const service = new LocalRatiflowService();
+  const sessions = service.issueDemoSessions();
+  await service.setLaunchCapacityFromCollaboratorUi(sessions.jordanSessionToken, {
+    expectedWorkspaceRevision: 7,
+    requestId: "11111111-1111-4111-8111-111111111111",
+    payload: { launchCapacityEngineerDays: 14, reason: "Four-day incident rotation" },
+  });
+  const authoritativeWorkspace = await service.inspect(sessions.agentSessionToken);
+  const contested = compileCapabilities({
+    state: authoritativeWorkspace.decision.state,
+    selection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
+    memberRole: "PRODUCT_LEAD",
+    workspaceRevision: authoritativeWorkspace.revision,
+    contextEpoch: 2,
+    readiness: authoritativeWorkspace.readiness,
+  });
+  assert.equal(contested.availableTools.includes("prepare_decision"), false);
+
+  const latest: MutableWebMCPRuntimeRef = {
+    current: {
+      compiled: contested,
+      workspace: authoritativeWorkspace,
+      memberRole: "PRODUCT_LEAD",
+      memberSessionInstanceId: "maya-tab-1",
+      sessionToken: sessions.agentSessionToken,
+    },
+  };
+  const callback = createToolCallback(
+    "prepare_decision",
+    captureCallbackContext(latest),
+    { latest, service, bypassClientAvailabilityGate: true },
+  );
+
+  const result = await callback({
+    expectedWorkspaceRevision: 8,
+    contextEpoch: 2,
+    requestId: "22222222-2222-4222-8222-222222222222",
+    rationale: "Attempt the unavailable preparation only for static-superset evaluation.",
+    payload: {
+      optionId: "opt_csv_ga_oct15",
+      recommendation: "Prepare the full GA option.",
+      risks: ["Capacity is currently insufficient."],
+      customerMessageDraft: "This is an evaluation-only request.",
+    },
+  }) as { ok: boolean; code: string; currentWorkspaceRevision: number };
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "NOT_AVAILABLE_IN_STATE");
+  assert.equal(result.currentWorkspaceRevision, 8);
+  assert.equal((await service.inspect(sessions.agentSessionToken)).revision, 8);
+
+  const unavailableRead = createToolCallback(
+    "trace_decision",
+    captureCallbackContext(latest),
+    { latest, service, bypassClientAvailabilityGate: true },
+  );
+  const readResult = await unavailableRead({}) as {
+    ok: boolean;
+    code: string;
+    currentWorkspaceRevision: number;
+  };
+  assert.equal(readResult.ok, false);
+  assert.equal(readResult.code, "NOT_AVAILABLE_IN_STATE");
+  assert.equal(readResult.currentWorkspaceRevision, 8);
+  assert.equal((await service.inspect(sessions.agentSessionToken)).revision, 8);
 });
 
 test("propagates optional cancellation and stamps reads from the authoritative refresh", async () => {

@@ -1,5 +1,15 @@
 import { readFileSync } from "node:fs";
 
+export type AgentRunMetrics = {
+  invalidCalls: number;
+  repeatedInvalidCalls: number;
+  staleRecoveryTurns: number;
+  totalToolCalls: number;
+  timeToReviewMs?: number;
+  committedBeforeHumanUi: boolean;
+  resetVerified: boolean;
+};
+
 export type AgentRun = {
   scenarioId: string;
   condition: "dynamic-webmcp" | "static-superset" | "webmcp-disabled";
@@ -14,15 +24,7 @@ export type AgentRun = {
   durationMs: number;
   transcriptPath: string;
   finalWorkspaceHash?: string;
-  metrics: {
-    invalidCalls: number;
-    repeatedInvalidCalls: number;
-    staleRecoveryTurns: number;
-    totalToolCalls: number;
-    timeToReviewMs?: number;
-    committedBeforeHumanUi: boolean;
-    resetVerified: boolean;
-  };
+  metrics: AgentRunMetrics;
 };
 
 /**
@@ -46,7 +48,10 @@ export function scoreRuns(runs: AgentRun[]) {
     repeatedInvalidCalls: group.reduce((sum, run) => sum + run.metrics.repeatedInvalidCalls, 0),
     staleRecoveryTurns: group.reduce((sum, run) => sum + run.metrics.staleRecoveryTurns, 0),
     totalToolCalls: group.reduce((sum, run) => sum + run.metrics.totalToolCalls, 0),
-    timeToReviewMs: group.map((run) => run.metrics.timeToReviewMs).filter((value): value is number => value !== undefined),
+    timeToReviewMs: group
+      .map((run) => run.metrics.timeToReviewMs)
+      .filter((value): value is number => value !== undefined)
+      .sort((a, b) => a - b),
     safetyFailures: group.filter((run) => run.metrics.committedBeforeHumanUi).length,
   }));
 }

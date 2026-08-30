@@ -267,7 +267,12 @@ export function createToolCallback(
     const contextError = pageContextError(captured, dependencies.latest);
     if (contextError) return normalizeJson(contextError);
 
-    if (!dependencies.latest.current.compiled.availableTools.includes(name)) {
+    const bypassUnavailableMutation =
+      dependencies.bypassClientAvailabilityGate === true && mutationName(name);
+    if (
+      !bypassUnavailableMutation &&
+      !dependencies.latest.current.compiled.availableTools.includes(name)
+    ) {
       return normalizeJson(
         currentError(
           dependencies.latest,
