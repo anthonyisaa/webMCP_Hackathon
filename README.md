@@ -8,9 +8,9 @@ engineering lead, and an agent work on the same decision; agent contributions ar
 visible and reviewable, stale work is rejected with collaborator-authored changes, and
 only the human UI can ratify a consequential decision.
 
-The repository is currently in the native-WebMCP validation stage. The first deployed
-surface deliberately proves registration, discovery, dynamic removal, execution, and
-cancellation before the product workflow is implemented.
+The native-WebMCP validation probe is deployed and the v1.2 product, capability, hero,
+and evaluation contracts are frozen. Product implementation now proceeds against those
+reviewed boundaries.
 
 ## Local development
 
@@ -31,8 +31,9 @@ supported secure browser surface; exact tested versions and setup will be record
 
 ## Project documents
 
-- [`product_spec.md`](product_spec.md) — product contract; v1.2 rewrite is in progress.
-- [`EVALS.md`](EVALS.md) — evaluation contract; v1.2 rewrite is in progress.
+- [`product_spec.md`](product_spec.md) — frozen v1.2 product contract.
+- [`EVALS.md`](EVALS.md) — frozen three-layer evaluation contract.
+- [`docs/contracts/`](docs/contracts/) — exact hero and capability/wire contracts.
 - [`.codex/PLAN.md`](.codex/PLAN.md) — scoped work map and deadline gates.
 - [`demo/`](demo/) — running demo, recording, and submission evidence list.
 

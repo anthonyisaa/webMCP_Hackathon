@@ -1,5 +1,5 @@
 # Plan — Build and submit Ratiflow to the WebMCP Challenge
-_Updated: 2026-08-30T17:49:20+08:00_
+_Updated: 2026-08-30T18:36:17+08:00_
 
 ## Goal and ambition mode
 
@@ -22,8 +22,9 @@ The rewrite explicitly removes v1.1 stories H1, H2, H10, A9, the S0 brain-dump f
 three-word bearer access, and reusable-package/conformance claims. The pure compiler
 remains a first-class application module with a stable boundary; packaging it is P1.
 
-Provisional public name: **Ratiflow**. Internal codename `Aperture` may remain in old
-notes only. Positioning: “Agents prepare. People ratify. Work moves.”
+Public hackathon name: **Ratiflow — WebMCP collaboration workspace**. Positioning:
+“Agents prepare. People ratify. Work moves.” A live collision screen found no exact
+product conflict; the qualifier distinguishes the name from the unrelated RatioFlow.
 
 ## Chokepoint — freeze first
 
@@ -61,7 +62,7 @@ when a native client rejects a removed tool before dispatch.
 
 ## Streams
 
-### G0 — Repository foundation and native validation probe — active
+### G0 — Repository foundation and native validation probe — completed
 - Owner / worktree: coordinating task in the root checkout until the first base commit.
 - Scope and key files: repository initialization/linking, `AGENTS.md`, `.codex/verify.sh`,
   minimal Next.js shell, one-page WebMCP probe, `VALIDATION.md`, first Vercel preview.
@@ -72,7 +73,7 @@ when a native client rejects a removed tool before dispatch.
   rendering are observed on every available judging surface and recorded with browser,
   client, URL, and date.
 
-### C0 — Product and interface contract freeze — pending
+### C0 — Product and interface contract freeze — completed
 - Owner / worktree: coordinating task in the root checkout; serial dependency on G0.
 - Scope and key files: every chokepoint file listed above, final P0 cuts, exact name
   replacement, judge-surface evidence matrix, domain/service façade signatures, and
@@ -171,9 +172,10 @@ when a native client rejects a removed tool before dispatch.
   rescope before investing in UI.
 - Removed-tool behavior bypasses page callbacks -> retain callback revalidation but
   remove the universal `NOT_AVAILABLE_IN_STATE` claim.
-- Two-person realtime adds nondeterminism after one focused repair pass -> keep the real
-  second window for the video and use a clearly labeled deterministic synthetic driver
-  only in automated evals.
+- Two-person realtime adds nondeterminism after one focused repair pass -> keep a real
+  second browser session for the video; it may be operated by a person or a clearly
+  labeled deterministic synthetic driver using the same UI/service path, never a timer
+  or single-window mock.
 - The exact hero flow cannot complete 4/5 by 2026-09-02 SGT -> cut secondary screens,
   setup, and non-hero tools; do not cut native discovery, dynamic capability diff,
   stale recovery, ratification, or downstream propagation.
@@ -225,14 +227,12 @@ and their managed worktrees exist.
 
 ## Risks and open decisions
 
-- GitHub `anthonyisaa/webMCP_Hackathon` exists but is currently private and empty. Keep
-  private during build; public visibility is a release gate.
-- The current local directory is not a git checkout. Link it to the empty remote before
-  implementation and preserve the existing two planning documents.
+- GitHub `anthonyisaa/webMCP_Hackathon` is linked and the reviewed baseline is pushed.
+  It remains private during build; public visibility is a release gate.
 - The competition deadline is 2026-09-04 04:00 SGT. Target a submission-ready freeze by
   2026-09-03 12:00 SGT, leaving sixteen hours for judge-surface rehearsal and upload.
-- Ratiflow is provisional until C0 and must be finalized by 2026-08-31 06:00 SGT. The
-  coordinator owns the one-time replacement across specs, UI copy, and submission docs.
+- Ratiflow is frozen for the hackathon with the public qualifier “WebMCP collaboration
+  workspace.” Commercial use would require a separate trademark clearance.
 - Supabase/Vercel creation is authorized, but cloud resources wait until contracts are
   frozen to avoid duplicate projects and migrations.
 - Human-only means: no WebMCP tool or agent-specific endpoint can ratify. It is not a
