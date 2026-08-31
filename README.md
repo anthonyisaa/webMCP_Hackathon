@@ -127,17 +127,18 @@ As of **2026-09-01 (Singapore time)**:
 
 | Evidence | Result |
 | --- | --- |
-| Production | `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` is `READY` at [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/). |
+| Production | `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/). |
+| Runtime source | GitHub `main` commit `8be25fb` contains the deployed live-loop source. |
 | Repository gate | TypeScript, ESLint, and 161/161 unit/protocol tests passed across 25 files. |
 | Production build | Next.js 16.3.3 webpack build compiled and typechecked successfully. |
-| Hosted browser suite | 19/19 scenarios passed against the canonical production URL, including the full live task/question loop and stale equal-revision regression. |
-| Native supported surface | Codex in-app Browser discovered the exact two fresh tools, executed `join_session`, observed the expanded catalog, executed `get_state_brief` and `catch_up`, read the persisted `AGENT_JOINED` event, then executed `leave_session` and observed collapse to two tools. |
+| Hosted browser suite | 19/19 release scenarios passed; the focused live-loop suite was re-run against the current production deployment and passed 3/3. |
+| Native supported surface | Codex in-app Browser discovered exactly `join_session` and `catch_up`, caught up, joined, woke `wait_for_activity` from an ordinary-UI task, claimed it without exposing `claimId`, resolved it through the retained private claim, then left and observed collapse to two tools. |
 | Runtime health | Post-traffic Vercel scan found no runtime error clusters and no 5xx responses on the deployment. |
 | Database | Remote migrations include live-session persistence plus repairs for lease renewal, required null task claims, and the canonical `Ratiflow Agent` identity. |
 | Independent visual grade | Pending: the configured read-only `design-judge` role was unavailable. Functional mobile and accessibility browser scenarios passed, but that is not relabeled as an independent design verdict. |
 
-The public GitHub release and narrated public YouTube submission remain owner-controlled
-release steps; neither is claimed complete here.
+The runtime source is pushed to GitHub. Public-repository reachability and the narrated
+public YouTube submission remain explicit submission checks below.
 
 ## Run locally
 

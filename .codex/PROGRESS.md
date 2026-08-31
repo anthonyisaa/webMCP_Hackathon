@@ -1,52 +1,46 @@
 # Progress — Ratiflow
-_Updated: 2026-09-01T02:21:57+08:00_
+_Updated: 2026-09-01T07:41:10+08:00_
 
 ## Next action
-Push the verified live-loop source to `origin/main`, promote the corrected build to
-production, then natively confirm claim → task-linked write returns no model-visible
-`claimId`.
+Make the GitHub repository publicly reachable, then verify the unauthenticated release
+URL returns the intended `main` source.
 
 ## In flight
-- Preview `dpl_FZqrq8ppGF5MoKe84vQ5K8mJWzh8` is `READY` with the redaction fix.
-  Its protected URL was not opened with the temporary share token; the same source was
-  driven locally through the supported native Browser.
-- Production `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` runs the prior source. The native
-  teammate loop works, but claim output exposes its private generation. Do not call
-  production fully corrected before promotion and recheck.
-- Owner explicitly authorized the GitHub push and production promotion from this
-  detached, isolated worktree.
+- Production `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at
+  `https://ratiflow-webmcp.vercel.app/`.
+- Runtime source commit `8be25fb` is pushed to `origin/main`; unauthenticated GitHub
+  requests currently return 404, so public submission reachability is not claimed.
 
 ## Verified
 - `.codex/verify.sh` — TypeScript, ESLint, 161/161 tests across 25 files.
 - `pnpm build` — Next.js 16.3.3 webpack production build passed.
-- Hosted `e2e/live-agent-session.spec.ts` — 3/3 after final migration; earlier hosted
-  release suite 19/19.
-- Supported production native run — join; real wait wake from Maya's task; claim;
-  attributed comment; question/release; human answer; catch-up; fresh claim; resolve;
-  leave; final two-tool catalog. This exposed the claim leak.
-- Corrected local native run — `claimOk: true`, `claimIdVisible: false`,
-  `taskOwned: true`; a subsequent task-linked comment succeeded, proving private
-  adapter retention.
-- Preview is `READY`; current production has no post-cutover runtime error cluster or
-  5xx. Supabase lists nine migrations through `normalize_agent_display_name`.
-- `git diff --check` — clean.
+- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm exec playwright test
+  e2e/live-agent-session.spec.ts` — 3/3 on the current production deployment; the
+  earlier complete release suite passed 19/19.
+- Supported production-native Browser — fresh two-tool discovery; catch-up; join;
+  ordinary-UI task woke `wait_for_activity`; claim returned `ok: true`,
+  `ownedByCurrentSession: true`, `claimIdVisible: false`; task-linked resolve returned
+  `DONE`; leave returned `AWAY` and collapsed discovery to two tools.
+- Vercel — canonical alias resolves to the current `READY` deployment; no post-cutover
+  runtime error cluster or deployment 5xx response.
+- `git push origin HEAD:main` — `65aadb7..8be25fb`.
 
 ## Done this block
-- Replaced the one-shot demo with leases, opaque activity, fenced tasks,
-  questions/answers, attribution, one registry, and human-only ratification.
-- Fixed lease renewal ambiguity, null task serialization, agent identity,
-  equal-revision UI races, and the model-visible claim leak. Updated contracts and
-  submission copy to the honest no-wakeup loop.
+- Shipped the single-registry live/catch-up teammate loop, leases, opaque activity,
+  fenced tasks, human questions/answers, attribution, and human-only ratification.
+- Redacted the private claim generation from every model-visible result while retaining
+  it inside the trusted page adapter for task-linked writes.
+- Updated release evidence to require an observed native human-event trajectory.
 
 ## Files touched
-- `src/domain/`, `src/app/api/workspace/`, `supabase/migrations/` — persistence and
-  authoritative routes.
-- `src/webmcp/`, `src/components/system/WebMCPBridge.tsx` — registry, lifecycle,
+- `src/domain/`, `src/app/api/workspace/`, `supabase/migrations/` — authoritative live
+  collaboration persistence and routes.
+- `src/webmcp/`, `src/components/system/WebMCPBridge.tsx` — one registry, lifecycle,
   private claim retention/redaction.
-- `src/components/product/`, `src/app/`, `e2e/`, `docs/contracts/`, `demo/` —
-  flagship UI, verification, contracts, and release story.
+- `README.md`, `.codex/PLAN.md`, `demo/README.md` — current deployment and native proof.
 
 ## Open decisions / risks
-- Production promotion needs approval; public source/video remain owner-controlled.
-- Auto pickup stays unavailable; no background/wakeup claim is made.
+- Auto pickup stays visibly unavailable; no page wakeup, background, or autonomous
+  runner claim is made.
 - `design-judge` was unavailable; no independent visual verdict is claimed.
+- Public narrated video is still pending.

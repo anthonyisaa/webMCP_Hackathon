@@ -89,18 +89,18 @@ HTTP service—no UI-only state vocabulary.
 ## Outcome and release evidence
 
 - Core loop implemented through one registry and one server-authoritative state model.
-- Production deployment `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` is `READY` at the
+- Production deployment `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at the
   canonical URL; the current deployment has no post-cutover runtime error clusters or
   5xx responses.
 - `.codex/verify.sh` passes TypeScript, ESLint, and 161/161 tests across 25 files;
   `pnpm build` passes the Next.js 16.3.3 webpack production build.
 - Hosted production browser evidence passes 19/19 scenarios; the focused live loop was
-  re-run after the final migration and passes 3/3.
+  re-run against the current deployment and passes 3/3.
 - The supported in-app Browser natively discovered the exact fresh two-tool catalog,
-  invoked join/state-brief/catch-up/leave, observed persisted activity and the canonical
-  `Ratiflow Agent` identity, and saw live expansion plus leave contraction. A complete
-  wait/question/resume chain is proven through the deployed browser harness, not
-  relabeled as a fully recorded native client trajectory.
+  caught up, joined as the canonical `Ratiflow Agent`, and woke a pending
+  `wait_for_activity` from a task created in the ordinary UI. It claimed the task with
+  no model-visible `claimId`, resolved it through the adapter's retained private claim,
+  left, and observed contraction back to the two fresh tools.
 - The read-only `design-judge` role was unavailable. Mobile and accessibility flows
   passed, but no independent visual verdict is claimed.
 

@@ -51,15 +51,15 @@ proof, not a substitute for the teammate loop.
 
 ## Submission gates
 
-- [x] Production deployment `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` is `READY` at
+- [x] Production deployment `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at
   [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/).
 - [x] Live-session persistence and the three production repair migrations are applied
   to Supabase project `klhedesewgixoeslxiti`; advisors were reviewed.
 - [x] The hosted browser suite passed 19/19 scenarios, including the complete
   task/question loop and the stale equal-revision response regression.
-- [x] A supported native client discovered the exact fresh catalog; invoked join,
-  state brief, catch-up, and leave; observed persisted activity; and saw catalog
-  expansion and collapse on the deployed build.
+- [x] A supported native client discovered the exact fresh catalog; caught up; joined;
+  woke on an ordinary-UI task; claimed without a model-visible `claimId`; resolved via
+  the retained private claim; left; and saw catalog expansion and collapse.
 - [x] Post-traffic production logs showed no runtime error cluster or 5xx response.
 - [ ] A fresh independent visual grade passes. The configured read-only
   `design-judge` role was unavailable; mobile and accessibility tests are not
@@ -75,17 +75,21 @@ On **2026-09-01 (Singapore time)**, Codex's supported in-app Browser opened the 
 production deployment and observed:
 
 1. Fresh discovery: `join_session`, `catch_up`.
-2. `join_session`: successful MCP content plus matching `structuredContent`;
-   participant name **Ratiflow Agent**; presence `LIVE`.
-3. Dynamic expansion: live coordination tools and workflow-valid decision tools.
-4. `get_state_brief` and `catch_up`: successful; catch-up returned the persisted
-   `AGENT_JOINED` event, a valid opaque cursor, and `hasMore: false`.
-5. `leave_session`: successful; presence `AWAY`; discovery collapsed to the two
-   fresh tools.
+2. `catch_up`: successful MCP content plus matching `structuredContent`, a valid opaque
+   cursor, bounded activity, and `hasMore: false`.
+3. `join_session`: participant name **Ratiflow Agent**; presence `LIVE`; dynamic
+   expansion added live coordination and workflow-valid decision tools.
+4. A task created in the ordinary UI resolved the pending native
+   `wait_for_activity` with its attributed `TASK_CREATED` event and inbox item.
+5. `claim_agent_task`: `ok: true`, `ownedByCurrentSession: true`, and the complete
+   model-visible result contained no `claimId`.
+6. `resolve_task`: successful through the adapter's retained private claim; task
+   status became `DONE`.
+7. `leave_session`: presence `AWAY`; discovery collapsed to the two fresh tools.
 
-The hosted full-loop test adds task, claim-race, comment, human-question, answer,
-fresh-claim, resolution, cancellation, and abort evidence. Automation-only lifecycle
-tests are not presented as native-client proof.
+The hosted full-loop test adds the claim race, attributed comment, human-question,
+answer, fresh-claim, cancellation, and abort evidence that were not repeated in this
+focused native release check.
 
 ## Evidence boundaries
 
