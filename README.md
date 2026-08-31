@@ -1,225 +1,222 @@
-# Ratiflow — WebMCP collaboration workspace
+# Ratiflow — a live decision room for people and agents
 
 > **Agents prepare. People ratify. Work moves.**
 
-Ratiflow is a decision room for the moment a team must make a consequential call while
-the facts are still changing. In the demo, Maya (Product Lead), Jordan (Engineering
-Lead), and an agent decide how to ship CSV export for Northstar Health's renewal. The
-agent can inspect, compare, recommend, and prepare a decision; Maya alone ratifies it
-in the ordinary UI. Every action stays visible with its actor, origin, revision, and
-consequence.
+Ratiflow is a shared launch-scope workspace where a browser agent can join as a visible
+teammate, catch up on server activity, wait for addressed work, claim one task, leave an
+attributed comment, ask a person a question, resume after the answer, and resolve the
+task. The human interface and native WebMCP tools read and write the same authoritative
+state.
 
-The product idea is **capability compilation**:
+The page is honest about the browser boundary: adding work to the inbox does **not**
+start or wake an external model. A supported browser-agent turn must discover the page,
+call `join_session`, and wait or catch up. Optional in-page auto-pickup stays visibly
+unavailable until its model, native-loop, and spend gate passes.
 
-```text
-effective WebMCP tools = f(workflow state, page selection, member session, revision)
-```
+## Product surfaces
 
-React made the interface a function of state. WebMCP lets the agent's action space be a
-function of state.
-
-## Submission status
-
-| Item | Current status |
+| Route | Purpose |
 | --- | --- |
-| Judging app | **Production live.** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/) — release SHA `1c47d88f37688b065d910798f3be35b865ab1091`, deployment `dpl_4ypxF5YvesYkHztgok6m3NAFfrZX`. |
-| Public source repository | **Pending release.** This repository must be public, include this README and the MIT license, and remain accessible through judging. |
-| Narrated demo | **Pending recording/upload.** The required public YouTube video must be narrated and shorter than three minutes; the 2:46 recording script is in [demo/shot-script.md](demo/shot-script.md). |
-| Evidence | `.codex/verify.sh` passes 56 tests across 11 files; production browser checks pass 7/7, `eval:rehearse` passes 20/20, the dynamic agent ledger passes 35/35, and the matched ablation passes 30/30. Native N01–N11 release capture is recorded; only public-repo release and the user-owned video remain submission gates. See [EVAL_RESULTS.md](EVAL_RESULTS.md). |
+| `/` | Flagship Northstar decision room with the live human-agent loop. |
+| `/decision-demo` | Stable alias of the flagship decision room. |
+| `/document` and `/document/[shareToken]` | Preserved pageless shared note with human stages and a paired-agent annotation queue. |
+| `/webmcp-probe` | Narrow lifecycle probe used only for protocol diagnosis. |
 
-Ratiflow is intended to be freely reachable by judges for the full judging period. The
-source repository remains private until the user authorizes public release.
+All seed names and facts are deterministic fiction. Northstar Health, its $180,000
+renewal, Maya, Jordan, and the launch options are not customer data.
 
-## Why this is native WebMCP
+## Try the live loop
 
-Ratiflow does not expose a remote MCP server, an OAuth-connected integration, or a
-static REST/API catalog. The top-level web page uses `document.modelContext` to register
-the tools that are valid **on this page, for this session, at this revision**. A
-compatibility observation of `navigator.modelContext` is supported when present, but is
-not the standards path.
+1. Open [the production workspace](https://ratiflow-webmcp.vercel.app/) and choose
+   **Launch deterministic workspace**. The decision starts at revision 7 with 18
+   engineer-days of capacity.
+2. A fresh supported client discovers exactly `join_session` and `catch_up`.
+3. Call `join_session`. Ratiflow Agent becomes visibly `LIVE`; the renewable browser
+   lease expands the coordination tools and the current decision tools.
+4. Select **Northstar beta**, write a bounded task in **Ask Ratiflow Agent**, and add it
+   to the inbox. This records work but does not claim to start an agent.
+5. `wait_for_activity` returns the addressed event and inbox item. The agent calls
+   `claim_agent_task`; concurrent claim attempts cannot acquire a second generation.
+6. The agent may call `post_comment` or `request_human_input`. A task-linked question
+   releases the claim and moves the task to `WAITING_HUMAN`.
+7. A person answers in the ordinary UI. `catch_up` returns the attributed answer and the
+   reopened task; the agent takes a fresh claim and calls `resolve_task`.
+8. `leave_session` revokes the page lease, moves presence to `AWAY`, and collapses the
+   native catalog back to the two fresh-session tools. Collaboration history remains.
 
-The same compiled capability object drives both the human-visible Capability Field and
-the native registrations. When Maya selects an option, option-scoped tools appear. When
-Jordan changes capacity from 18 to 14 engineer-days in a separate session, the decision
-becomes contested and `prepare_decision` is removed from native discovery. The agent
-must refresh its view of the page before proceeding. That live, state-dependent action
-surface—and the ordinary UI fallback when WebMCP is unavailable—is the point of the
-project.
+Maya alone can ratify a prepared decision through the ordinary UI. There is no
+`ratify_decision`, `finalize_decision`, or equivalent WebMCP tool.
 
-## The Northstar decision story
-
-At revision 7, the team has 18 engineer-days and recommends full CSV export on October
-15. Maya selects that option, exposing option-specific native tools. Jordan then records
-a four-day incident rotation in a genuine second browser session. Capacity falls to 14,
-the decision moves from `READY` to `CONTESTED`, and the agent's old revision-7 write is
-rejected with the exact collaborator-authored diff.
-
-The agent inspects the new state, compares alternatives, and recommends an invite-only
-Northstar beta: 14 days at launch, with GA on November 1. It prepares an editable review
-card. Maya may revise the wording, then ratifies in the human UI. The decision commits,
-the `customer-launch-brief` changes from `BLOCKED` to `READY`, and the provenance trail
-shows who did what and why.
-
-All seed facts are synthetic. Northstar Health, the $180,000 renewal, Maya, Jordan, and
-the options are a deterministic fictional scenario—not customer data. A clearly labeled
-synthetic collaborator driver is allowed only when it takes the same UI and service path
-as a second browser session; a timer, fabricated UI state, or bypassed domain mutation
-does not count as collaboration evidence.
-
-## Five workflow states, ten tools
-
-The server derives state from persisted facts and append-only events; clients cannot set
-it directly. Workspace revision advances only for accepted domain mutations.
-
-| State | Meaning | Base native tools |
-| --- | --- | --- |
-| `OPTIONS` | Evidence or recommendation is incomplete | `inspect_decision`, `recommend_option`, `add_evidence`, `why_not` |
-| `CONTESTED` | A live constraint or blocking challenge conflicts with the recommendation | `inspect_decision`, `recommend_option`, `add_evidence`, `compare_options`, `why_not` |
-| `READY` | A feasible, evidenced recommendation is ready for review | `inspect_decision`, `recommend_option`, `add_evidence`, `compare_options`, `prepare_decision`, `why_not` |
-| `REVIEW` | A prepared decision awaits a person | `inspect_decision`, `trace_decision`, `why_not` |
-| `COMMITTED` | A person ratified; downstream work may proceed | `inspect_decision`, `trace_decision`, `why_not` |
-
-The stable catalog has exactly ten tools:
-
-1. `inspect_decision`
-2. `inspect_selected_option`
-3. `recommend_option`
-4. `challenge_option`
-5. `add_evidence`
-6. `compare_options`
-7. `prepare_decision`
-8. `trace_decision`
-9. `inspect_followup`
-10. `why_not`
-
-Selecting an option in `OPTIONS`, `CONTESTED`, or `READY` adds
-`inspect_selected_option` and `challenge_option`. Selecting the committed
-`customer-launch-brief` adds `inspect_followup`. Changing selection invalidates old
-page context even when a tool name remains the same.
-
-There is deliberately no `ratify_decision` or `commit_decision` WebMCP tool. Maya's
-ordinary UI route requires her server-issued session, the current revision, `REVIEW`
-state, and an explicit interaction. This is a product authority boundary, not a claim
-to prevent someone who controls Maya's active browser session from imitating a click.
-
-## Architecture
+## The contract in one picture
 
 ```text
-Top-level Next.js page
-  ├─ Capability compiler → visible Capability Field + document.modelContext registrations
-  ├─ Ordinary human UI → authenticated domain routes
-  └─ WebMCP callbacks → validated mutation route
-                         ↓
-             Supabase RPC boundary / Postgres transaction
-                         ↓
-          append-only provenance + monotonic workspace revision
-                         ↓
-        collaborator notice → refetch authoritative state → recompile
+ordinary human UI ───────┐
+                        ├─ validated Next.js routes ── Supabase RPC transaction
+native browser WebMCP ──┘                                │
+                                                        ├─ append-only activity cursor
+                                                        ├─ renewable presence lease
+                                                        ├─ fenced task claim
+                                                        ├─ idempotency ledger
+                                                        └─ authoritative workspace view
+
+notice / timer → refetch authoritative view → recompile UI + native tool projection
 ```
 
-- Next.js App Router, React, TypeScript, CSS, and pnpm run the application.
-- A pure compiler produces the one capability object consumed by both UI and WebMCP
-  registration; removed registrations are aborted with `AbortController`.
-- Supabase Postgres is authoritative. RPCs assign member, actor, and origin on the
-  server; compare-and-swap mutations and request IDs provide revision safety and
-  idempotent retry.
-- Realtime-style notices are notifications, not truth: the page refetches authoritative
-  state before recompiling capabilities.
-- Events record actor, actor type, origin, optional tool, base/result revisions,
-  rationale, review status, and changed entities.
+The effective native action space is compiled from server and page context:
+
+```text
+tools = f(workflow state, page selection, member authority, caller, engagement)
+```
+
+Tool presence guides the agent; it is not the security boundary. Server code derives
+workspace, actor, origin, and caller from opaque membership and page-session context.
+Model input cannot select those fields.
+
+## Coordination tools
+
+A fresh page exposes only:
+
+- `join_session`
+- `catch_up`
+
+A live browser session adds:
+
+- `wait_for_activity`
+- `leave_session`
+- `get_state_brief`
+- `get_thread`
+- `get_inbox`
+- `claim_agent_task`
+- `resolve_task`
+- `post_comment`
+- `request_human_input`
+
+The decision compiler adds only the reads and writes valid for the current workflow
+state and selection. Changing selection invalidates the old page context even when a
+tool name remains available. Removing a tool aborts its registration through an
+`AbortSignal`; execution cancellation is propagated to the server operation.
+
+Every native callback returns both MCP text content and the same JSON object as
+`structuredContent`. Current normative annotations are `readOnlyHint` and
+`untrustedContentHint`; Ratiflow does not invent a `destructiveHint` contract.
+
+## Correctness properties
+
+- Activity cursors are opaque, workspace-bound UUIDs backed by a private monotonic
+  sequence. Catch-up is bounded, paginated, and cannot skip relevant events.
+- Browser-live presence is a 45-second renewable lease. Invoked-but-not-live activity
+  uses a two-minute lease; abandoned sessions expire without trusting unload handlers.
+- Task claims are atomic 90-second generations. Claim IDs stay inside the trusted page
+  adapter and are required for task-linked writes and resolution.
+- Request IDs make writes idempotent; changed-content replay is rejected.
+- Agent questions pause and release a task. A human answer reopens it for a fresh claim.
+- Browser and optional auto-runner callers share one registry but use fixed server
+  routes. Caller, actor, and origin never come from model JSON.
+- Decision revision and collaboration activity cursor are separate clocks. UI fetches
+  are generation-fenced so an older equal-revision response cannot erase fresher agent
+  activity.
+- The ordinary human UI remains usable when WebMCP is absent.
+
+Exact DTOs and invariants live in
+[the live-session contract](docs/contracts/live-agent-session-contract.md) and
+[the capability contract](docs/contracts/capability-contract.md).
+
+## Production evidence
+
+As of **2026-09-01 (Singapore time)**:
+
+| Evidence | Result |
+| --- | --- |
+| Production | `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` is `READY` at [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/). |
+| Repository gate | TypeScript, ESLint, and 161/161 unit/protocol tests passed across 25 files. |
+| Production build | Next.js 16.3.3 webpack build compiled and typechecked successfully. |
+| Hosted browser suite | 19/19 scenarios passed against the canonical production URL, including the full live task/question loop and stale equal-revision regression. |
+| Native supported surface | Codex in-app Browser discovered the exact two fresh tools, executed `join_session`, observed the expanded catalog, executed `get_state_brief` and `catch_up`, read the persisted `AGENT_JOINED` event, then executed `leave_session` and observed collapse to two tools. |
+| Runtime health | Post-traffic Vercel scan found no runtime error clusters and no 5xx responses on the deployment. |
+| Database | Remote migrations include live-session persistence plus repairs for lease renewal, required null task claims, and the canonical `Ratiflow Agent` identity. |
+| Independent visual grade | Pending: the configured read-only `design-judge` role was unavailable. Functional mobile and accessibility browser scenarios passed, but that is not relabeled as an independent design verdict. |
+
+The public GitHub release and narrated public YouTube submission remain owner-controlled
+release steps; neither is claimed complete here.
 
 ## Run locally
 
-Prerequisites: Node.js compatible with the checked-in pnpm version and pnpm 11.
+Prerequisites: Node.js and pnpm 11.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Without backend environment variables, development uses an in-memory deterministic
-service. It is useful for UI and protocol work, but is not a cross-session deployment.
-
-### Supabase environment and migration order
-
-To use the authoritative backend, configure these server-side deployment/local
-environment variables. They are intentionally named without `NEXT_PUBLIC_`; never put a
-service-role key, browser storage, or demo-session handle in the repository.
+Without Supabase variables, development uses the deterministic in-memory service. To
+exercise the durable backend, provide server-side variables (never `NEXT_PUBLIC_` and
+never a service-role key):
 
 ```bash
 RATIFLOW_SUPABASE_URL=https://your-project.supabase.co
 RATIFLOW_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Apply the SQL migrations in this filename order to the target Supabase project:
+Apply migrations in filename order. The live-loop additions are:
 
-1. `supabase/migrations/20260830104328_ratiflow_persistence_foundation.sql`
-2. `supabase/migrations/20260830190000_ratiflow_rpc_boundary.sql`
-3. `supabase/migrations/20260830201915_derive_followup_context.sql`
+1. `20260831153213_live_agent_session_persistence.sql`
+2. `20260831171049_disambiguate_agent_session_touch.sql`
+3. `20260831173240_preserve_null_task_claim.sql`
+4. `20260831174501_normalize_agent_display_name.sql`
 
-The second migration relies on the first migration's schema, types, and private session
-boundary. Use the team's normal Supabase migration workflow (for example, a configured
-`supabase db push`) rather than executing them out of order.
+Use the normal Supabase migration workflow rather than pasting functions out of order.
 
-### Verification
+## Verify
 
 ```bash
 .codex/verify.sh
-pnpm eval:protocol
-RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm eval:native
 pnpm build
+
+RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app \
+  pnpm exec playwright test \
+  e2e/accessibility.spec.ts \
+  e2e/document-collaboration.spec.ts \
+  e2e/document-editor.spec.ts \
+  e2e/document-webmcp.spec.ts \
+  e2e/followup-context.spec.ts \
+  e2e/hero.spec.ts \
+  e2e/live-agent-session.spec.ts \
+  e2e/webmcp-session-reset.spec.ts
 ```
 
-`pnpm eval:native` is browser automation, not by itself proof that a native client
-discovered the release page. Final native evidence must come from the deployed HTTPS
-URL on at least one supported native judging surface. Record additional client surfaces
-honestly: a client that does not expose WebMCP is an availability observation, not a
-required pass or a product failure. Release observations cover discovery, invocation,
-dynamic tool removal, stale-write handling, selection invalidation, absence of a ratify
-tool, downstream recompilation, available optional client APIs, WebMCP-off UI fallback,
-and runtime health. See [EVALS.md](EVALS.md) and [VALIDATION.md](VALIDATION.md).
+`e2e/native.spec.ts` checks the current draft API shape, but a regular automation
+browser is not proof of native availability. Release evidence must include a supported
+deployed surface that actually discovers and invokes the page-defined tools.
+
+## Preserved shared note
+
+The secondary document surface remains a real blank, shareable note with four
+human-controlled stages, presence/edit awareness, multiple targeted annotations,
+paired-agent ownership, exact-target application, safe rebase/stale behavior, and
+human undo. Its distinct catalog is cleaned up before the root decision page registers
+its own tools. See [the editor contract](docs/contracts/editor-contract.md).
 
 ## Security and privacy
 
-- Tool presence informs the agent; server-side session, revision, state, context, and
-  schema validation enforce the business rules.
-- WebMCP origin and ordinary-UI origin are server-assigned. Model input cannot choose an
-  actor, workspace, selected target, or origin.
-- Every write carries a request ID and expected revision. Replays with identical content
-  are idempotent; changed-content replays are rejected.
-- Human- and agent-authored text is treated as data and marked untrusted in read-tool
-  results. Inputs are bounded and results are JSON-serializable.
-- Demo launches issue separate high-entropy, per-tab handles. A one-time fragment
-  bootstrap may create the Jordan view, then exchanges into `sessionStorage` and scrubs
-  the URL. Do not commit handles, cookies, API keys, raw browser storage, or transcripts
-  containing them.
-
-## Historical probe and current evidence boundaries
-
-The earlier lifecycle probe established native `document.modelContext` behavior; it is
-historical evidence only. The current production release has a dated N01–N11 native
-capture in Codex desktop’s in-app Browser at [the release artifact](evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json).
-The wrapper did not expose raw `getTools`/`executeTool` or callback cancellation fields;
-browser version is null. A separate exact-production Chrome observation found
-`document.modelContext` unavailable on that connected client, with zero console errors
-and no mutations; it is recorded as a client-setup limitation, not a product pass or
-failure, in [the Chrome observation](evals/results/native/chrome-extension/2026-08-30T170405Z/release.json).
-
-The dynamic agent ledger is 35/35 and the matched A01–A03 ablation is 30/30. At equal
-task success, dynamic discovery used 11 fewer calls, 10 fewer invalid calls, and seven
-fewer stale-recovery turns than the static superset; cross-environment elapsed time is
-not compared. Public video and final public-repo release remain pending.
+- Tables are RPC-only: RLS is enabled with no broad table policies or direct anon/auth
+  grants. Public `SECURITY DEFINER` RPCs are intentionally handle-authenticated and use
+  fixed `search_path` values.
+- Demo membership handles are high entropy, hashed at rest, scoped to one isolated
+  workspace, stored only in tab session storage, and expire after eight hours.
+- Inputs are exact-key validated and bounded; outputs are JSON-serializable and agent
+  or human text is marked untrusted.
+- Do not commit handles, cookies, environment values, raw browser storage, or
+  unsanitized agent transcripts.
 
 ## Project documents
 
-- [Product specification](product_spec.md) — product promise and release contract.
-- [Capability contract](docs/contracts/capability-contract.md) — exact states, tools,
-  result envelopes, and authority rules.
-- [Hero scenario](docs/contracts/hero-scenario.md) — deterministic seed, revisions, and
-  video goldens.
-- [Evaluation contract](EVALS.md) — protocol, native-surface, trajectory, and ablation
-  gates.
-- [Demo ledger](demo/README.md) — submission checklist and evidence status.
+- [Product specification](product_spec.md)
+- [Live agent-session contract](docs/contracts/live-agent-session-contract.md)
+- [Capability contract](docs/contracts/capability-contract.md)
+- [Hero scenario](docs/contracts/hero-scenario.md)
+- [Shared-note contract](docs/contracts/editor-contract.md)
+- [Evaluation contract](EVALS.md)
+- [Demo and submission ledger](demo/README.md)
 
 ## License
 

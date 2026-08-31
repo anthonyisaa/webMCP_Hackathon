@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "A WebMCP-native decision room where agents prepare and people ratify.",
+  "description": "A clean shared document with human-defined stages and contextual WebMCP agent actions.",
   "license": "MIT",
   "packageManager": "pnpm@11.1.1",
   "scripts": {

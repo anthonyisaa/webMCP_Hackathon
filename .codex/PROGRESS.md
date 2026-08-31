@@ -1,37 +1,52 @@
 # Progress — Ratiflow
-_Updated: 2026-08-31T01:22:20+08:00_
+_Updated: 2026-09-01T02:21:57+08:00_
 
 ## Next action
-After explicit user authorization, make `anthonyisaa/webMCP_Hackathon` public and
-verify anonymous repository access before the user records/uploads the narrated video.
+Push the verified live-loop source to `origin/main`, promote the corrected build to
+production, then natively confirm claim → task-linked write returns no model-visible
+`claimId`.
 
 ## In flight
-- Only public GitHub visibility and the user-owned sub-three-minute video remain.
-- Production stays at product SHA `1c47d88f37688b065d910798f3be35b865ab1091`;
-  evidence/docs SHA `454cc14bdf38bc39dad403be599b862f32222cc4` is pushed.
+- Preview `dpl_FZqrq8ppGF5MoKe84vQ5K8mJWzh8` is `READY` with the redaction fix.
+  Its protected URL was not opened with the temporary share token; the same source was
+  driven locally through the supported native Browser.
+- Production `dpl_23TBRzj8rcKRE5eSCsbqJK7T2Dob` runs the prior source. The native
+  teammate loop works, but claim output exposes its private generation. Do not call
+  production fully corrected before promotion and recheck.
+- Owner explicitly authorized the GitHub push and production promotion from this
+  detached, isolated worktree.
 
 ## Verified
-- `.codex/verify.sh` — TypeScript, ESLint, and 56/56 tests across 11 files passed.
-- `pnpm build` — Next.js 16.3.3 production build passed.
-- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm exec playwright test e2e/hero.spec.ts e2e/accessibility.spec.ts e2e/followup-context.spec.ts e2e/webmcp-session-reset.spec.ts` — 7/7 passed, including real two-window collaboration.
-- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm eval:rehearse` — 20/20 passed.
-- `node evals/agent/validate.ts evals/results/agent --mode release` — all A01–A07 bars passed; 35/35 runs.
-- `node evals/agent/validate.ts evals/results/ablation/combined-runs.json --mode ablation` — all six bars passed; dynamic 91/13/10 calls/invalid/stale versus static 102/23/17; timing is non-comparable.
-- Cloud connectors — Supabase `ACTIVE_HEALTHY` with three migrations; Vercel production
-  `READY` in `iad1`, canonical alias present, no latest-hour runtime errors.
+- `.codex/verify.sh` — TypeScript, ESLint, 161/161 tests across 25 files.
+- `pnpm build` — Next.js 16.3.3 webpack production build passed.
+- Hosted `e2e/live-agent-session.spec.ts` — 3/3 after final migration; earlier hosted
+  release suite 19/19.
+- Supported production native run — join; real wait wake from Maya's task; claim;
+  attributed comment; question/release; human answer; catch-up; fresh claim; resolve;
+  leave; final two-tool catalog. This exposed the claim leak.
+- Corrected local native run — `claimOk: true`, `claimIdVisible: false`,
+  `taskOwned: true`; a subsequent task-linked comment succeeded, proving private
+  adapter retention.
+- Preview is `READY`; current production has no post-cutover runtime error cluster or
+  5xx. Supabase lists nine migrations through `normalize_agent_display_name`.
+- `git diff --check` — clean.
 
 ## Done this block
-- Committed and pushed sanitized native, agent, and ablation evidence.
-- Added machine-enforced A02/A06 bars and transcript-content secret scanning.
-- Closed the final independent claim audit and mapped all four Devpost answers to shots
-  and evidence.
-- Set GitHub About description/homepage; MIT license detection is confirmed.
+- Replaced the one-shot demo with leases, opaque activity, fenced tasks,
+  questions/answers, attribution, one registry, and human-only ratification.
+- Fixed lease renewal ambiguity, null task serialization, agent identity,
+  equal-revision UI races, and the model-visible claim leak. Updated contracts and
+  submission copy to the honest no-wakeup loop.
 
 ## Files touched
-- `evals/agent/`, `evals/results/` — validator and release evidence.
-- Release docs, `demo/`, and `.codex/` — final claims, mappings, and gates.
+- `src/domain/`, `src/app/api/workspace/`, `supabase/migrations/` — persistence and
+  authoritative routes.
+- `src/webmcp/`, `src/components/system/WebMCPBridge.tsx` — registry, lifecycle,
+  private claim retention/redaction.
+- `src/components/product/`, `src/app/`, `e2e/`, `docs/contracts/`, `demo/` —
+  flagship UI, verification, contracts, and release story.
 
 ## Open decisions / risks
-- Repository visibility remains `PRIVATE`; do not change it without explicit approval.
-- Video recording/upload is user-owned; use `demo/shot-script.md`.
-- Connected Chrome lacks `document.modelContext`; recorded as a client limitation.
+- Production promotion needs approval; public source/video remain owner-controlled.
+- Auto pickup stays unavailable; no background/wakeup claim is made.
+- `design-judge` was unavailable; no independent visual verdict is claimed.

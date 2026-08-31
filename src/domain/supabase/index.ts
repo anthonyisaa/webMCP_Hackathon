@@ -7,3 +7,12 @@ export {
   type SupabaseDemoLaunch,
   type SupabaseRatiflowServiceOptions,
 } from "./ratiflow-supabase-service";
+
+export {
+  SupabaseDocumentService,
+  isDocumentSurface,
+  normalizeDocumentResult,
+  normalizeDocumentSessionResult,
+  normalizeDocumentSurfaceResult,
+  type SupabaseDocumentServiceOptions,
+} from "./document-supabase-service";

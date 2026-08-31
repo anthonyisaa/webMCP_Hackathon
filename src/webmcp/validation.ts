@@ -81,10 +81,13 @@ function validate(schema: JsonSchema, value: unknown, path: string): string | nu
 
   if (expectedType === "string") {
     if (typeof value !== "string") return `${path} must be a string.`;
-    if (typeof schema.minLength === "number" && value.length < schema.minLength) {
+    // JSON Schema string lengths count Unicode code points, while JavaScript's
+    // String.length counts UTF-16 code units and therefore double-counts astral text.
+    const length = Array.from(value).length;
+    if (typeof schema.minLength === "number" && length < schema.minLength) {
       return `${path} is too short.`;
     }
-    if (typeof schema.maxLength === "number" && value.length > schema.maxLength) {
+    if (typeof schema.maxLength === "number" && length > schema.maxLength) {
       return `${path} is too long.`;
     }
     if (typeof schema.pattern === "string" && !new RegExp(schema.pattern, "u").test(value)) {

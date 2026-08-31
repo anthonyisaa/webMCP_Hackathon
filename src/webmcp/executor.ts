@@ -1,5 +1,6 @@
 import { compileCapabilities, summarizeCapabilities } from "../capabilities/compiler";
 import type {
+  AgentRegistryExecutionContext,
   CompareOptionsInput,
   ErrorResult,
   MutationToolName,
@@ -243,13 +244,17 @@ async function executeRead(
   }
 }
 
-export function captureCallbackContext(latest: MutableWebMCPRuntimeRef): CapturedCallbackContext {
+export function captureCallbackContext(
+  latest: MutableWebMCPRuntimeRef,
+  compiledOverride = latest.current.compiled,
+  sessionTokenOverride = latest.current.sessionToken,
+): CapturedCallbackContext {
   const current = latest.current;
   return {
-    contextEpoch: current.compiled.contextEpoch,
-    selection: { ...current.compiled.selection },
+    contextEpoch: compiledOverride.contextEpoch,
+    selection: { ...compiledOverride.selection },
     memberSessionInstanceId: current.memberSessionInstanceId,
-    sessionToken: current.sessionToken,
+    sessionToken: sessionTokenOverride,
     workspaceId: current.workspace.id,
     decisionId: current.workspace.decision.id,
   };
@@ -259,6 +264,7 @@ export function createToolCallback(
   name: ToolName,
   captured: CapturedCallbackContext,
   dependencies: WebMCPRuntimeDependencies,
+  executionContext?: AgentRegistryExecutionContext,
 ): (input: unknown, options?: WebMCPExecutionOptionsLike) => Promise<unknown> {
   return async (input, options) => {
     const signal = options?.signal;
@@ -311,12 +317,21 @@ export function createToolCallback(
       }
 
       const result = await dependencies.service.mutateFromWebMCP({
-        sessionToken: captured.sessionToken,
+        executionContext: {
+          caller: executionContext?.caller ?? "BROWSER_AGENT",
+          pageSessionId:
+            executionContext?.pageSessionId ?? captured.memberSessionInstanceId,
+          agentSessionToken:
+            executionContext?.agentSessionToken ?? captured.sessionToken,
+          ...(executionContext?.claimId
+            ? { claimId: executionContext.claimId }
+            : {}),
+          signal,
+        },
         toolName: name,
         envelope,
         capturedSelection: captured.selection,
         capturedContextEpoch: captured.contextEpoch,
-        signal,
       });
       throwIfAborted(signal);
       return normalizeJson(result);

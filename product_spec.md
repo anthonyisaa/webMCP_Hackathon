@@ -1,30 +1,96 @@
 # Ratiflow product specification
 
-Version 1.2 · Frozen for implementation · Owner: Ant · 2026-08-30
+Version 1.5 · Frozen for the live agent-session correction · Owner: Ant · 2026-08-31
 
 This file is the product source of truth. Exact seed facts live in
 [`docs/contracts/hero-scenario.md`](docs/contracts/hero-scenario.md); exact WebMCP and
-wire contracts live in
-[`docs/contracts/capability-contract.md`](docs/contracts/capability-contract.md).
+wire contracts live in [`docs/contracts/capability-contract.md`](docs/contracts/capability-contract.md)
+and [`docs/contracts/live-agent-session-contract.md`](docs/contracts/live-agent-session-contract.md)
+for the decision workspace, and [`docs/contracts/editor-contract.md`](docs/contracts/editor-contract.md)
+for the shared-document surface.
 Implementation may simplify presentation, but it may not invent a state, tool, actor,
 authority, seed fact, or error outside those contracts.
 
-## 1. Product promise
+## 0. Product surfaces
+
+Ratiflow has two deliberately separate products:
+
+- `/` is the flagship seeded decision room described in Sections 1–13. The same product
+  remains at `/decision-demo` as a stable alias.
+- `/document/[shareToken]` preserves the pageless shared note, four-stage harness,
+  presence/edit awareness, and collaborative annotation queue. A direct document URL or
+  its own New-note action creates a note; it no longer owns the flagship root.
+
+The shared note is pageless: borderless title/body dominate a continuous writing
+surface; a compact toolbar contains New note, current stage, presence, and share; a
+quiet 340px right rail contains target preview, annotation composer, ordered queue, and
+manual agent handoff. The rail becomes an accessible drawer on small screens. No launch
+card, paper sheet, dashboard, Capability Field, or permanent chat transcript appears.
+
+The note's stages are exactly `BRAINSTORMING`, `RESEARCHING`, `REFINE`, and
+`READY_TO_SHIP`. A human may choose any stage; agents can read but never change it. A
+forward human stage move atomically appends one target-stage preparation annotation for
+that human's paired agent. Backward/no-op moves append none. Stage-specific presets and
+custom instructions append multiple revision-anchored annotations instead of replacing
+one global request.
+
+Humans see all collaborators' annotations, while the server lets each paired agent list
+and apply only its human's pending items. Non-overlapping anchors safely rebase after
+edits; overlapping exact ranges become visibly stale. `Cmd/Ctrl+K` focuses the rail
+composer. Native mouse/keyboard context menus are never intercepted, preserving browser
+dictionary and spelling support.
+
+**Ask ChatGPT** copies a precise “process my queue” prompt and explicitly says it was not
+sent. WebMCP exposes page tools during an agent turn but provides no normative idle-agent
+wake-up API, so the product never claims an external model was notified or started.
+
+Shared notes are server-backed, account-free, temporary, and link-accessible. Participants
+see who is present and whether someone is editing the title/body. Whole-note autosaves
+use compare-and-swap revisions; a dirty client preserves its draft on remote change and
+requires an explicit conflict choice. This is collaboration awareness, not CRDT merging,
+remote cursors, or keystroke streaming. Exact behavior, DTOs, annotation mappings, errors,
+and release criteria live in the editor contract and `src/document/contracts.ts`.
+
+Shared-note secondary acceptance is:
+
+1. a direct New-note action becomes an empty editable note at a high-entropy
+   `/document/[shareToken]` URL without a launch gate;
+2. canonical reload reuses or safely rejoins the share route, and invalid/expired links
+   offer New note;
+3. autosave, human-only stages, atomic forward-stage preparation, sharing, presence/edit
+   awareness, safe conflicts, and revision-safe agent undo work without WebMCP;
+4. the right rail can append and retain multiple authored annotations, presents exact
+   target excerpts, and works as a drawer at 390px;
+5. native context menus remain available and `Cmd/Ctrl+K` focuses the rail composer;
+6. the copy/send handoff never claims an agent was started, while a real native paired
+   agent can list only its human's queue and apply exact captured targets in sequence;
+7. note and decision routes never expose each other's WebMCP tools.
+
+## 1. Decision-room product promise
 
 **Ratiflow is a WebMCP collaboration workspace where agents prepare, people ratify, and
-work moves.** Its demonstration is a consequential launch-scope decision shared by a
-product lead, an engineering lead, and an agent.
+work moves.** The flagship decision room is a consequential launch-scope decision shared
+by a product lead, an engineering lead, and an agent that appears as a real participant.
+
+The primary experience is not one request followed by one response. A browser agent can
+join with a renewable lease, catch up from an activity cursor, wait for addressed
+teammate activity, claim work, contribute under its own identity, ask for human input,
+and leave. If a browser turn ends, a person may explicitly enable a visible in-page
+runner to pick up queued work through the same registry while the page remains open.
+The page never claims it can wake ChatGPT or continue after it closes.
 
 The technical idea is **capability compilation**:
 
 ```text
-effective WebMCP tools = f(workflow state, page selection, member session, revision)
+effective WebMCP tools = f(agent engagement, workflow state, page selection, member session, revision)
 ```
 
-One compiled value drives both the page's visible Capability Field and its native
-WebMCP registrations. When the decision changes, the agent's actual discoverable action
-space changes. This is not a skinned MCP server or a REST API catalog: the live page,
-with the user's current session and selection, is the authority that exposes the tools.
+One registry combines engagement tools with the compiler's one decision-capability
+value; the page's visible Capability Field and native WebMCP registrations consume that
+same registry snapshot. When engagement, decision state, or selection changes, the
+agent's actual discoverable action space changes. This is not a skinned MCP server or a
+REST API catalog: the live page, with the user's current session and selection, is the
+authority that exposes the tools.
 
 Lineage line for the README and video:
 
@@ -39,8 +105,8 @@ qualifier keeps the brand distinct from similarly spelled products. Tagline:
 
 | Judging criterion | What judges can verify |
 |---|---|
-| WebMCP leverage | Native discovery with no connector setup; state-dependent registration; page-selection context; stale-handle behavior; the same compiled object rendered to humans and agents |
-| Execution | A deployed, resettable, two-person flow from live constraint change through agent recovery, human ratification, downstream propagation, and provenance |
+| WebMCP leverage | Native join/catch-up/live-wait loop; state-dependent decision registration; page-selection context; stale-handle behavior; one registry shared by native and page callers |
+| Execution | A deployed, resettable, two-person flow from addressed live work through agent recovery, human ratification, downstream propagation, and provenance |
 | Potential impact | Teams lose decisions in chat and stale documents; Ratiflow makes the current authority, constraints, and consequences legible to both humans and agents |
 | Creativity and ambition | Capability compilation turns WebMCP into a dynamic coordination primitive rather than a static menu of API wrappers |
 
@@ -58,8 +124,13 @@ second collaborator.
 
 The seeded workspace is READY at revision 7: launch capacity is 18 engineer-days and
 the domain recommendation, full GA, consumes all 18. The page initially selects the
-decision root; Maya selects O1 and the actual native surface adds its two option-scoped
-tools without changing workspace revision. While the agent is preparing a revision-7
+decision root. A browser agent calls `join_session`; Ratiflow Agent becomes `LIVE` and
+waits at the returned activity cursor. Maya creates an option-scoped task asking for a
+risk check. The wait resolves from the task event, the agent atomically claims it, and
+its attributed comment appears in the shared thread.
+
+Maya selects O1 and the actual native surface adds its two option-scoped decision tools
+without changing workspace revision. While the agent is preparing a revision-7
 contribution from that context, Jordan changes capacity to 14 because of incident rotation. Supabase
 Realtime updates Maya's page, the workspace becomes CONTESTED at revision 8, and
 `prepare_decision` disappears from native discovery. `add_evidence` remains registered,
@@ -94,12 +165,15 @@ single-window mock, bypassed domain mutation, or fabricated UI state is not elig
    downstream consequence.
 7. Any participant can trace the decision through actor, origin, tool, base revision,
    resulting revision, rationale, review status, and changed entities.
+8. A person can address the agent, see its live/idle/away state, answer its question,
+   and control standing instructions without using an agent sidebar.
 
 ### Agents
 
-1. A new agent discovers the valid tools from the page with no MCP server configuration,
-   API key, OAuth flow, or copied workspace identifier.
-2. Inspection returns structured state instead of requiring DOM scraping.
+1. A new agent first discovers only `join_session` and `catch_up`, with no MCP server
+   configuration, API key, OAuth flow, or copied workspace identifier.
+2. The agent catches up from an opaque activity cursor and reads compact structured
+   state instead of loading everything or scraping the DOM.
 3. Page selection scopes selected-option and follow-up tools to the object the human is
    viewing.
 4. A stale write returns `STALE_WORK_STATE`, the exact changes since its base revision,
@@ -108,6 +182,10 @@ single-window mock, bypassed domain mutation, or fabricated UI state is not elig
 6. The agent may prepare a decision but no WebMCP tool or agent route can ratify it.
 7. A fresh session can answer what was decided, why, what changed, what remains open,
    and who ratified from the page's structured state and provenance.
+8. A live agent can wait without busy polling, react to an addressed task, claim it
+   before work, post under its own identity, and ask a persisted question.
+9. Browser and optional auto callers cannot work the same task concurrently, and every
+   accepted effect records which path acted.
 
 ## 5. Workflow contract
 
@@ -125,7 +203,7 @@ authoritative state before recompiling.
 
 ## 6. Exact WebMCP catalog
 
-There are ten stable tool definitions total:
+There are ten stable decision-tool definitions:
 
 1. `inspect_decision`
 2. `inspect_selected_option`
@@ -166,19 +244,31 @@ client may reject a removed handle before dispatch.
 `ratify_decision` and `commit_decision` do not exist. Tool presence guides the agent;
 server-side authorization and state validation enforce the boundary.
 
+The single registry also owns eleven collaboration tools in this exact order:
+`join_session`, `wait_for_activity`, `catch_up`, `leave_session`, `get_state_brief`,
+`get_thread`, `get_inbox`, `claim_agent_task`, `resolve_task`, `post_comment`, and
+`request_human_input`. A fresh page advertises only `join_session` and `catch_up`.
+Catch-up unlocks invoked reads/writes plus current decision capabilities. Join additionally
+unlocks wait/leave and a visible 45-second renewable live lease. Exact schemas, honest
+read-only annotations, cursor behavior, claims, and result shapes live in the live-session
+contract.
+
 ## 7. Registration and result behavior
 
 - The top-level page registers imperative tools through `document.modelContext`.
 - A small feature-detection adapter may observe `navigator.modelContext` for preview
   compatibility, but it is not the normative contract.
-- Stable names and schemas come from one catalog. Capability change aborts registrations
-  with `AbortController`; there is no `updateTool`, iframe tool, or declarative form tool.
+- Stable names, schemas, and handlers come from one caller-neutral registry. Native
+  WebMCP and the page runner are adapters over it. Capability change aborts only affected
+  target registrations with `AbortController`; a selection change never aborts a live
+  wait.
 - The bridge treats `toolchange`, page-side `getTools`/`executeTool`, and callback context
   as optional client features. It never relies on event ordering.
 - Every callback revalidates current state, captured target, `contextEpoch`, and expected
   workspace revision. It honors the execution signal when supplied and tolerates clients
   that omit it, as recorded in [`VALIDATION.md`](VALIDATION.md).
-- Read tools declare `readOnlyHint: true`. Results containing human- or agent-authored
+- Genuine read tools declare `readOnlyHint: true`. Join, leave, claims, and all visible
+  writes do not pretend to be reads. Results containing human- or agent-authored
   content declare `untrustedContentHint: true`.
 - Schemas and server validation independently bound every string and array.
 - All callback results use the envelopes in the capability contract and are JSON
@@ -197,7 +287,9 @@ cannot imitate a click. The challenge entry demonstrates product authority separ
 not hardened enterprise identity.
 
 Each demo launch clones the seed into a new workspace and issues separate high-entropy,
-signed Maya and Jordan sessions. A one-time fragment bootstrap can open the Jordan view,
+signed Maya, Jordan, and fixed-agent sessions. A page UUID is bound to the agent handle
+server-side; caller and presence are adapter-derived, never model input. A one-time
+fragment bootstrap can open the Jordan view,
 exchange into `sessionStorage`, scrub the URL, and become non-replayable. No account,
 email, password, public join directory, or memorable bearer code is P0.
 
@@ -218,6 +310,12 @@ stale rejection it compares the agent's old basis in dashed amber with the curre
 collaborator-authored fact in solid blue. Generic assistant chat, gradients, glass,
 cyberpunk motifs, and decorative dashboards are out.
 
+The decision room also shows Ratiflow Agent in the participant strip, a waiting-work
+badge and inbox, target-scoped Ask-agent composer, attributed comment thread, inline
+question cards, and an off-by-default standing-instructions control. Its capability panel
+renders the registry's actually registered names, including engagement changes; it does
+not reconstruct them from labels.
+
 The ordinary UI must complete the full journey when WebMCP is unavailable. That is
 fallback usability, not feature equivalence: only a supported WebMCP client receives the
 native agent action surface.
@@ -227,7 +325,13 @@ native agent action surface.
 - Next.js App Router, React, TypeScript, Tailwind, pnpm, deployed on Vercel.
 - Supabase Postgres for authoritative state and append-only events; Realtime for
   collaborator notifications.
+- A cursor-addressed collaboration log is independent of workspace revision. Presence
+  and task ownership use expiring server leases; all visible effects and activity events
+  commit atomically.
 - A pure application module compiles capabilities. Packaging it for reuse is P1.
+- One page-owned tool registry executes both native browser calls and validated proposals
+  from the optional in-page runner. The backend model endpoint plans only and cannot
+  execute tools.
 - One compare-and-swap domain mutation appends an event and advances workspace revision
   atomically. `requestId` makes retries idempotent.
 - Persisted events include server-assigned actor/member, `actorType`, `origin`, optional
@@ -237,34 +341,45 @@ native agent action surface.
 
 ## 11. P0 acceptance criteria
 
-1. The live HTTPS URL launches an isolated seed without credentials or setup.
+1. The live HTTPS URL launches an isolated decision room without credentials or setup.
 2. A real Jordan session changes 18 → 14 and Maya's page receives it without reload; the
    labeled synthetic fallback uses the same service and event shape.
-3. Native discovery on the release judging surface exactly matches the compiler and the
-   visible Capability Field.
-4. READY → CONTESTED removes `prepare_decision`; selecting/scoping refreshes native
+3. Fresh native discovery contains only join/catch-up; joining makes the agent visible,
+   unlocks the live surface, and an addressed teammate task resolves the wait transport
+   in under two seconds p95 before model latency.
+4. Catch-up returns only bounded cursor-addressed changes plus current inbox; cursor and
+   workspace revision remain independent.
+5. Native discovery after engagement exactly matches the registry and visible Capability
+   Field.
+6. READY → CONTESTED removes `prepare_decision`; selecting/scoping refreshes native
    handles; no phantom tools remain after refetch.
-5. The revision-7 `add_evidence` request at revision 8 returns the golden structured diff
+7. The revision-7 `add_evidence` request at revision 8 returns the golden structured diff
    and no mutation.
-6. The agent recovers, prepares O2, and never requires a hidden prompt or manual repair.
-7. Only Maya's UI ratifies; direct agent-origin attempts fail server-side.
-8. Ratification moves `customer-launch-brief` BLOCKED → READY and `inspect_followup`
+8. Browser-vs-auto and auto-vs-auto claim races produce one winner and one visible result;
+   auto pickup is off by default and server-suppressed during a live browser lease.
+9. The agent can persist a human-input question and resume after an ordinary-UI answer.
+10. The agent recovers, prepares O2, and never requires a hidden prompt or manual repair.
+11. Only Maya's UI ratifies; direct agent-origin attempts fail server-side.
+12. Ratification moves `customer-launch-brief` BLOCKED → READY and `inspect_followup`
    appears when the item is selected.
-9. Provenance and the five golden continuity answers match the scenario contract.
-10. Reset reproduces revision 7 and the seed exactly; the full release flow passes five
+13. Provenance/activity and the five golden continuity answers match the contracts.
+14. Reset reproduces revision 7 and the seed exactly; the full release flow passes five
     consecutive times.
-11. Domain/protocol, native-browser, and agent-trajectory evidence meet
+15. Domain/protocol, native-browser, and agent-trajectory evidence meet
     [`EVALS.md`](EVALS.md).
-12. The repository is public with MIT license, clear run instructions, committed evidence,
+16. The repository is public with MIT license, clear run instructions, committed evidence,
     a working live URL, four Devpost answers, and a public narrated video under three
     minutes.
 
-## 12. Scope discipline
+## 12. Decision-demo scope discipline
 
-P0 excludes accounts, generic workspace creation, three-word join codes, blank-workspace
-brain dumps, rich text, templates, a workflow engine, multiple scenarios, generalized
-roles, billing, agent-to-agent orchestration, a published compiler package, and reliance
-on built-in Gemini. Do not add one while any acceptance criterion above is incomplete.
+The decision-room P0 excludes accounts, generic decision-workspace creation, three-word
+join codes, rich text, templates, a workflow engine, multiple decision scenarios,
+generalized roles, billing, agent-to-agent orchestration, a published compiler package,
+headless/background execution, agent ratification, and reliance on built-in Gemini. The
+separate plain shared-note surface in Section 0 is intentional and does not expand the
+decision domain. Do not add another capability while either surface's acceptance
+criteria are incomplete.
 
 P1, only after the hero is reliable: package the compiler, add a prompt-injection beat,
 and broaden domain examples. Mobile must remain usable, but the polished demonstration
@@ -272,8 +387,9 @@ targets desktop and a two-window layout.
 
 ## 13. Submission proof order
 
-The video must show working product state in its first 10–15 seconds, then: native tool
-discovery and visible Capability Field; Jordan's live update and capability removal; the
-stale diff and autonomous agent recovery; Maya's UI-only ratification; downstream change
-and provenance. The four written answers use the same evidence. Judges must not need to
-run the app to understand why WebMCP is essential.
+The video must show working product state in its first 10–15 seconds, then: fresh native
+discovery; agent join and visible presence; a teammate-created task waking the wait;
+attributed claim/comment; dynamic capability change; honest optional auto pickup if it
+passed its gate; catch-up; Maya's UI-only ratification; downstream change and provenance.
+The four written answers use the same evidence. Judges must not need to run the app to
+understand why WebMCP is essential.

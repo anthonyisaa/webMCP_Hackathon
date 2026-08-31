@@ -21,6 +21,9 @@
 /test-results
 /playwright-report
 
+# Supabase CLI cache
+/supabase/.temp/
+
 # logs and system files
 *.log
 .DS_Store

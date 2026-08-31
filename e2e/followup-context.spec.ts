@@ -11,7 +11,7 @@ test("keeps a non-golden ratification's follow-up context truthful", async ({ br
   const page = await context.newPage();
 
   try {
-    await page.goto("/");
+    await page.goto("/decision-demo");
     await page.getByRole("button", { name: "Launch deterministic workspace" }).click();
     await expect(page.locator(".revision-block")).toContainText("rev 7");
     const sessions = await page.evaluate(() => ({
@@ -20,15 +20,34 @@ test("keeps a non-golden ratification's follow-up context truthful", async ({ br
     })) as DemoSessions;
     expect(sessions.mayaSessionToken).toBeTruthy();
     expect(sessions.agentSessionToken).toBeTruthy();
+    const pageSessionId = crypto.randomUUID();
 
-    const webmcpMutation = async (token: string, body: unknown) => page.evaluate(async ({ token: sessionToken, request }) => {
+    const invoked = await page.evaluate(async ({ token, pageSession }) => {
+      const response = await fetch("/api/workspace/webmcp/coordination/catch-up", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-Ratiflow-Page-Session": pageSession,
+        },
+        body: "{}",
+      });
+      return response.json();
+    }, { token: sessions.agentSessionToken, pageSession: pageSessionId });
+    expect(invoked).toMatchObject({ ok: true, data: { sessionOpen: true } });
+
+    const webmcpMutation = async (token: string, body: unknown) => page.evaluate(async ({ token: sessionToken, pageSession, request }) => {
       const response = await fetch("/api/workspace/webmcp", {
         method: "POST",
-        headers: { Authorization: `Bearer ${sessionToken}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+          "X-Ratiflow-Page-Session": pageSession,
+        },
         body: JSON.stringify(request),
       });
       return response.json();
-    }, { token, request: body });
+    }, { token, pageSession: pageSessionId, request: body });
 
     const recommended = await webmcpMutation(sessions.agentSessionToken, {
       toolName: "recommend_option",

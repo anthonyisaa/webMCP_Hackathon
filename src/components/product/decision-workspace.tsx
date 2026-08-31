@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { compileCapabilities } from "@/capabilities";
@@ -46,6 +47,11 @@ const stateLabel: Record<WorkspaceView["decision"]["state"], string> = {
   COMMITTED: "Committed",
 };
 
+const activityTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
 }
@@ -91,20 +97,37 @@ export function DecisionWorkspace({
   const [basisCaptured, setBasisCaptured] = useState(false);
   const [recommendation, setRecommendation] = useState<string | null>(null);
   const [customerMessage, setCustomerMessage] = useState<string | null>(null);
+  const [agentTaskDraft, setAgentTaskDraft] = useState("");
+  const [collaborationBusy, setCollaborationBusy] = useState<string | null>(null);
   const previousRecommendationRef = useRef<string | null>(null);
   const workspaceRevisionRef = useRef<number | null>(null);
+  const activityCursorRef = useRef<string | null>(null);
+  const inspectGenerationRef = useRef(0);
 
   const acceptWorkspace = useCallback((next: WorkspaceView) => {
+    inspectGenerationRef.current += 1;
     workspaceRevisionRef.current = next.revision;
+    activityCursorRef.current = next.collaboration.cursor;
     setAuthoritativeCompiled(null);
     setWorkspace((current) => (!current || next.revision >= current.revision ? next : current));
   }, []);
 
   const acceptAuthoritativeWorkspace = useCallback((next: WorkspaceView, nextCompiled: CompiledCapabilities) => {
+    inspectGenerationRef.current += 1;
     workspaceRevisionRef.current = next.revision;
+    activityCursorRef.current = next.collaboration.cursor;
     setWorkspace((current) => (!current || next.revision >= current.revision ? next : current));
     setAuthoritativeCompiled(nextCompiled);
   }, []);
+
+  const inspectWorkspace = useCallback(async (sessionToken: string) => {
+    const generation = inspectGenerationRef.current + 1;
+    inspectGenerationRef.current = generation;
+    const next = await httpRatiflowService.inspect(sessionToken);
+    if (generation !== inspectGenerationRef.current) return null;
+    acceptWorkspace(next);
+    return next;
+  }, [acceptWorkspace]);
 
   useEffect(() => {
     let disposed = false;
@@ -144,10 +167,12 @@ export function DecisionWorkspace({
         sessionStorage.removeItem(SESSION_KEYS.agent);
         setMember("JORDAN");
         setBusyAction("load");
-        void httpRatiflowService.inspect(inheritedJordanToken).then(
+        void inspectWorkspace(inheritedJordanToken).then(
         (next) => {
+          if (!next) return;
           previousRecommendationRef.current = next.decision.selectedOptionId;
           workspaceRevisionRef.current = next.revision;
+          activityCursorRef.current = next.collaboration.cursor;
           setWorkspace(next);
           setBusyAction(null);
         },
@@ -164,10 +189,12 @@ export function DecisionWorkspace({
       if (activeMember === "JORDAN" && jordanSessionToken) {
         setMember("JORDAN");
         setBusyAction("load");
-        void httpRatiflowService.inspect(jordanSessionToken).then(
+        void inspectWorkspace(jordanSessionToken).then(
         (next) => {
+          if (!next) return;
           previousRecommendationRef.current = next.decision.selectedOptionId;
           workspaceRevisionRef.current = next.revision;
+          activityCursorRef.current = next.collaboration.cursor;
           setWorkspace(next);
           setBusyAction(null);
         },
@@ -184,10 +211,12 @@ export function DecisionWorkspace({
       if (!storedSessions) return;
       setSessions(storedSessions);
       setBusyAction("load");
-      void httpRatiflowService.inspect(storedSessions.mayaSessionToken).then(
+      void inspectWorkspace(storedSessions.mayaSessionToken).then(
       (next) => {
+        if (!next) return;
         previousRecommendationRef.current = next.decision.selectedOptionId;
         workspaceRevisionRef.current = next.revision;
+        activityCursorRef.current = next.collaboration.cursor;
         setWorkspace(next);
         setBusyAction(null);
       },
@@ -200,7 +229,7 @@ export function DecisionWorkspace({
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [inspectWorkspace]);
 
   const activeToken =
     member === "MAYA"
@@ -212,17 +241,19 @@ export function DecisionWorkspace({
   useEffect(() => {
     if (!activeToken) return;
     const refresh = () => {
-      void httpRatiflowService.inspect(activeToken).then(acceptWorkspace, () => undefined);
+      void inspectWorkspace(activeToken).catch(() => undefined);
     };
     const unsubscribe = httpRatiflowService.subscribe(activeToken, (notice) => {
-      if (workspaceRevisionRef.current === null || notice.workspaceRevision > workspaceRevisionRef.current) refresh();
+      const revisionAdvanced = notice.workspaceRevision !== null &&
+        (workspaceRevisionRef.current === null || notice.workspaceRevision > workspaceRevisionRef.current);
+      if (revisionAdvanced || notice.activityCursor !== activityCursorRef.current) refresh();
     });
     const poll = window.setInterval(refresh, 5_000);
     return () => {
       unsubscribe();
       window.clearInterval(poll);
     };
-  }, [acceptWorkspace, activeToken]);
+  }, [activeToken, inspectWorkspace]);
 
   useEffect(() => {
     if (!workspace) return;
@@ -281,6 +312,7 @@ export function DecisionWorkspace({
       setMemberSessionInstanceId(crypto.randomUUID());
       setWorkspace(body.workspace);
       workspaceRevisionRef.current = body.workspace.revision;
+      activityCursorRef.current = body.workspace.collaboration.cursor;
       setAuthoritativeCompiled(null);
       setSelection({ kind: "DECISION", id: body.workspace.decision.id });
       setContextEpoch(1);
@@ -325,12 +357,25 @@ export function DecisionWorkspace({
     rationale: string,
     payload: Record<string, unknown>,
   ) => {
-    if (!sessions?.agentSessionToken) return;
+    if (!sessions?.agentSessionToken || !memberSessionInstanceId) return;
     setBusyAction(action);
     setActionMessage(null);
     try {
+      const executionContext = {
+        caller: "BROWSER_AGENT" as const,
+        pageSessionId: memberSessionInstanceId,
+        agentSessionToken: sessions.agentSessionToken,
+      };
+      const invoked = await httpRatiflowService.catchUpAgentSession(
+        executionContext,
+        {},
+      );
+      if (!invoked.ok) {
+        setActionMessage(`${invoked.code}: ${invoked.message}`);
+        return;
+      }
       const result = await httpRatiflowService.mutateFromWebMCP({
-        sessionToken: sessions.agentSessionToken,
+        executionContext,
         toolName,
         envelope: { expectedWorkspaceRevision, contextEpoch: epoch, requestId: crypto.randomUUID(), rationale, payload },
         capturedSelection,
@@ -451,6 +496,85 @@ export function DecisionWorkspace({
     }
   };
 
+  const refreshCollaboration = async () => {
+    if (!sessions?.mayaSessionToken) return;
+    await inspectWorkspace(sessions.mayaSessionToken);
+  };
+
+  const createAgentTask = async () => {
+    const body = agentTaskDraft.trim();
+    if (!sessions?.mayaSessionToken || !body) return;
+    setCollaborationBusy("task");
+    setActionMessage(null);
+    try {
+      const result = await httpRatiflowService.createAgentTaskFromHumanUi(
+        sessions.mayaSessionToken,
+        { kind: "TASK", body, target: selection, requestId: crypto.randomUUID() },
+      );
+      if (!result.ok) {
+        setActionMessage(`${result.code}: ${result.message}`);
+      } else {
+        setAgentTaskDraft("");
+        await refreshCollaboration();
+        setActionMessage("Task added to Ratiflow Agent’s inbox. An external agent was not woken or started.");
+      }
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCollaborationBusy(null);
+    }
+  };
+
+  const answerAgentQuestion = async (questionId: string, answer: string) => {
+    if (!sessions?.mayaSessionToken || !answer.trim()) return;
+    setCollaborationBusy(questionId);
+    setActionMessage(null);
+    try {
+      const result = await httpRatiflowService.answerHumanInputFromHumanUi(
+        sessions.mayaSessionToken,
+        { questionId, answer: answer.trim(), requestId: crypto.randomUUID() },
+      );
+      if (!result.ok) setActionMessage(`${result.code}: ${result.message}`);
+      else {
+        await refreshCollaboration();
+        setActionMessage("Your answer is now shared state; the next agent wait or catch-up can read it.");
+      }
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCollaborationBusy(null);
+    }
+  };
+
+  const updateStandingInstructions = async (autoPickup: boolean) => {
+    if (!sessions?.mayaSessionToken || !workspace) return;
+    setCollaborationBusy("settings");
+    setActionMessage(null);
+    try {
+      const current = workspace.collaboration.standingInstructions;
+      const result = await httpRatiflowService.updateStandingInstructionsFromHumanUi(
+        sessions.mayaSessionToken,
+        {
+          autoPickup,
+          scopes: current.scopes,
+          maxActionsPerHour: current.maxActionsPerHour,
+          requestId: crypto.randomUUID(),
+        },
+      );
+      if (!result.ok) setActionMessage(`${result.code}: ${result.message}`);
+      else {
+        await refreshCollaboration();
+        setActionMessage(autoPickup
+          ? "Standing instructions are on. Auto pickup remains visibly unavailable until its model and spend gate passes."
+          : "Standing instructions are off; queued work requires a browser-agent turn.");
+      }
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCollaborationBusy(null);
+    }
+  };
+
   if (invalidJordanJoin) {
     return <LaunchWorkspace error={pageError} isJordan launching={false} onLaunch={launchOrReset} />;
   }
@@ -485,13 +609,18 @@ export function DecisionWorkspace({
       )}
       <WorkspaceViewSurface
         actionMessage={actionMessage}
+        agentTaskDraft={agentTaskDraft}
         basisCaptured={basisCaptured}
         bridgeStatus={bridgeStatus}
         busyAction={busyAction}
+        collaborationBusy={collaborationBusy}
         compiled={compiled}
         customerMessage={reviewCustomerMessage}
         lastAgentResult={lastAgentResult}
         onCustomerMessageChange={setCustomerMessage}
+        onAgentTaskDraftChange={setAgentTaskDraft}
+        onAnswerAgentQuestion={answerAgentQuestion}
+        onCreateAgentTask={createAgentTask}
         onOpenJordan={openJordanWindow}
         onSyntheticJordanCapacityChange={() => applyJordanCapacityChange("synthetic-rehearsal")}
         onPrepare={runAgentPrepare}
@@ -501,6 +630,7 @@ export function DecisionWorkspace({
         onReset={launchOrReset}
         onSelect={selectTarget}
         onStaleWrite={runStaleAgentWrite}
+        onUpdateStandingInstructions={updateStandingInstructions}
         recommendation={reviewRecommendation}
         registrationMode={registrationMode}
         selection={selection}
@@ -540,12 +670,17 @@ function LaunchWorkspace({ error, isJordan, launching, onLaunch }: { error: stri
 
 function WorkspaceViewSurface({
   actionMessage,
+  agentTaskDraft,
   basisCaptured,
   bridgeStatus,
   busyAction,
+  collaborationBusy,
   compiled,
   customerMessage,
   lastAgentResult,
+  onAgentTaskDraftChange,
+  onAnswerAgentQuestion,
+  onCreateAgentTask,
   onCustomerMessageChange,
   onOpenJordan,
   onSyntheticJordanCapacityChange,
@@ -556,18 +691,24 @@ function WorkspaceViewSurface({
   onReset,
   onSelect,
   onStaleWrite,
+  onUpdateStandingInstructions,
   recommendation,
   registrationMode,
   selection,
   workspace,
 }: {
   actionMessage: string | null;
+  agentTaskDraft: string;
   basisCaptured: boolean;
   bridgeStatus: WebMCPBridgeStatus | null;
   busyAction: string | null;
+  collaborationBusy: string | null;
   compiled: CompiledCapabilities;
   customerMessage: string;
   lastAgentResult: ToolResult<MutationReceipt> | null;
+  onAgentTaskDraftChange: (value: string) => void;
+  onAnswerAgentQuestion: (questionId: string, answer: string) => void;
+  onCreateAgentTask: () => void;
   onCustomerMessageChange: (value: string) => void;
   onOpenJordan: () => void;
   onSyntheticJordanCapacityChange: () => void;
@@ -578,6 +719,7 @@ function WorkspaceViewSurface({
   onReset: () => void;
   onSelect: (selection: PageSelection) => void;
   onStaleWrite: () => void;
+  onUpdateStandingInstructions: (autoPickup: boolean) => void;
   recommendation: string;
   registrationMode: WebMCPRegistrationMode;
   selection: PageSelection;
@@ -594,6 +736,16 @@ function WorkspaceViewSurface({
         <DecisionHeading workspace={workspace} />
         {registrationMode === "static-superset" && <div className="system-notice system-notice-supported has-error" role="status"><span className="status-dot status-dot-amber" /><div><b>Eval-only static-superset preview.</b> When WebMCP is supported, all 10 existing tools are registered for comparison; the Capability Field stays dynamic and the server rejects unavailable actions.</div><span className="mono system-notice-tag">ablation</span></div>}
         <WebMCPNotice registrationMode={registrationMode} status={bridgeStatus} />
+        <AgentRoomPanel
+          busy={collaborationBusy}
+          draft={agentTaskDraft}
+          onAnswer={onAnswerAgentQuestion}
+          onCreateTask={onCreateAgentTask}
+          onDraftChange={onAgentTaskDraftChange}
+          onToggleAuto={onUpdateStandingInstructions}
+          selection={selection}
+          workspace={workspace}
+        />
 
         <div className="workspace-grid">
           <section className="main-column" aria-label="Decision options">
@@ -658,7 +810,7 @@ function WorkspaceViewSurface({
           </section>
 
           <aside className="side-column">
-            <CapabilityField compiled={compiled} />
+            <CapabilityField compiled={compiled} registeredTools={bridgeStatus?.registeredTools ?? []} />
             <EvidenceLedger workspace={workspace} />
             <FollowupCard onSelect={onSelect} selection={selection} workspace={workspace} />
           </aside>
@@ -669,18 +821,205 @@ function WorkspaceViewSurface({
   );
 }
 
+function targetLabel(target: PageSelection, workspace: WorkspaceView) {
+  if (target.kind === "DECISION") return "the decision";
+  if (target.kind === "FOLLOWUP") return "the customer launch brief";
+  return workspace.options.find((option) => option.id === target.id)?.title ?? "the selected option";
+}
+
+function activityViaLabel(via: WorkspaceView["collaboration"]["recentActivity"][number]["via"]) {
+  if (via === "BROWSER_AGENT") return "ChatGPT";
+  if (via === "AUTO_PICKUP") return "auto pickup";
+  if (via === "ORDINARY_UI") return "human UI";
+  return "system";
+}
+
+function activityTypeLabel(type: WorkspaceView["collaboration"]["recentActivity"][number]["type"]) {
+  return type.toLowerCase().replaceAll("_", " ");
+}
+
+function agentLastSeen(lastSeenAt: string | null) {
+  if (!lastSeenAt) return "No agent activity yet";
+  return `Last active ${activityTimeFormatter.format(new Date(lastSeenAt))}`;
+}
+
+function QuestionAnswerCard({
+  busy,
+  onAnswer,
+  question,
+}: {
+  busy: boolean;
+  onAnswer: (questionId: string, answer: string) => void;
+  question: WorkspaceView["collaboration"]["questions"][number];
+}) {
+  const [answer, setAnswer] = useState("");
+  return (
+    <article className="agent-question-card">
+      <div><span className="agent-via">Human input requested</span><p>{question.question}</p></div>
+      <label className="sr-only" htmlFor={`answer-${question.id}`}>Answer Ratiflow Agent</label>
+      <div className="agent-answer-row">
+        <input
+          id={`answer-${question.id}`}
+          maxLength={600}
+          onChange={(event) => setAnswer(event.target.value)}
+          placeholder="Answer in shared state…"
+          value={answer}
+        />
+        <button className="secondary-button" disabled={busy || !answer.trim()} onClick={() => onAnswer(question.id, answer)} type="button">
+          {busy ? "Sharing…" : "Share answer"}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function AgentRoomPanel({
+  busy,
+  draft,
+  onAnswer,
+  onCreateTask,
+  onDraftChange,
+  onToggleAuto,
+  selection,
+  workspace,
+}: {
+  busy: string | null;
+  draft: string;
+  onAnswer: (questionId: string, answer: string) => void;
+  onCreateTask: () => void;
+  onDraftChange: (value: string) => void;
+  onToggleAuto: (enabled: boolean) => void;
+  selection: PageSelection;
+  workspace: WorkspaceView;
+}) {
+  const collaboration = workspace.collaboration;
+  const waiting = collaboration.inbox.filter((task) => task.status === "OPEN");
+  const currentThread = collaboration.comments.filter((comment) =>
+    comment.target.kind === selection.kind && comment.target.id === selection.id,
+  );
+  const openQuestions = collaboration.questions.filter((question) => question.status === "OPEN");
+  const recentActivity = collaboration.recentActivity.slice(-6).reverse();
+  const autoEnabled = collaboration.standingInstructions.autoPickup;
+
+  return (
+    <section className="agent-room" aria-labelledby="agent-room-title">
+      <div className="agent-room-head">
+        <div>
+          <div className="section-kicker">Shared agent room</div>
+          <h2 id="agent-room-title">Address the agent where the decision lives.</h2>
+        </div>
+        <div className="agent-presence-stack">
+          <span className={`agent-presence state-${collaboration.agent.state.toLowerCase()}`}>
+            <i aria-hidden="true" /> {collaboration.agent.state === "LIVE_AUTO" ? "live · auto" : collaboration.agent.state.toLowerCase()}
+          </span>
+          <small>{agentLastSeen(collaboration.agent.lastSeenAt)}</small>
+        </div>
+      </div>
+
+      <div className="agent-room-grid">
+        <article className="agent-room-cell agent-task-composer">
+          <div className="agent-cell-title"><strong>Ask Ratiflow Agent</strong><span>{waiting.length} waiting</span></div>
+          <p>Queue work about {targetLabel(selection, workspace)}. This does not wake or start an external model.</p>
+          <label className="sr-only" htmlFor="agent-task">Task for Ratiflow Agent</label>
+          <textarea
+            id="agent-task"
+            maxLength={1200}
+            onChange={(event) => onDraftChange(event.target.value)}
+            placeholder="Example: Check this option’s delivery risks and leave a concise comment."
+            value={draft}
+          />
+          <button className="primary-button" disabled={busy !== null || !draft.trim()} onClick={onCreateTask} type="button">
+            {busy === "task" ? "Adding…" : "Add to agent inbox"}
+          </button>
+        </article>
+
+        <article className="agent-room-cell agent-inbox">
+          <div className="agent-cell-title"><strong>Agent inbox</strong><span className="mono">cursor {collaboration.cursor.slice(0, 8)}</span></div>
+          {collaboration.inbox.length === 0 ? <p className="agent-empty">No addressed work yet.</p> : (
+            <ol>
+              {collaboration.inbox.slice(0, 5).map((task) => (
+                <li key={task.id}>
+                  <span className={`task-status task-${task.status.toLowerCase()}`}>{task.status.replace("_", " ").toLowerCase()}</span>
+                  <div><strong>{task.body}</strong><small>{targetLabel(task.target, workspace)} · from {task.createdBy.name}</small></div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </article>
+
+        <article className="agent-room-cell agent-standing">
+          <div className="agent-cell-title"><strong>Standing instructions</strong><span>{autoEnabled ? "configured" : "off"}</span></div>
+          <p>Optional pickup runs only in this visible page, after its model, spend, and native-loop gate passes.</p>
+          <label className="standing-toggle">
+            <input
+              checked={autoEnabled}
+              disabled={busy !== null}
+              onChange={(event) => onToggleAuto(event.target.checked)}
+              type="checkbox"
+            />
+            <span aria-hidden="true" />
+            Auto-pick up mentions and tasks
+          </label>
+          <small>Off by default · max {collaboration.standingInstructions.maxActionsPerHour} actions/hour · no background execution</small>
+          {autoEnabled && <div className="runner-unavailable" role="status">Runner unavailable until its release gate passes; work stays queued.</div>}
+        </article>
+      </div>
+
+      {(currentThread.length > 0 || openQuestions.length > 0) && (
+        <div className="agent-thread">
+          <div className="agent-thread-comments">
+            <div className="agent-cell-title"><strong>Agent thread · {targetLabel(selection, workspace)}</strong><span>{currentThread.length}</span></div>
+            {currentThread.slice(-4).map((comment) => (
+              <article className="agent-comment" key={comment.id}>
+                <span className="avatar agent-avatar">RA</span>
+                <div><div><strong>{comment.actor.name}</strong><span className="agent-via">via {comment.via === "AUTO_PICKUP" ? "auto pickup" : "ChatGPT"}</span></div><p>{comment.body}</p></div>
+              </article>
+            ))}
+          </div>
+          {openQuestions.length > 0 && (
+            <div className="agent-questions">
+              {openQuestions.map((question) => (
+                <QuestionAnswerCard busy={busy === question.id} key={question.id} onAnswer={onAnswer} question={question} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="agent-activity" aria-label="Recent collaboration activity">
+        <div className="agent-cell-title"><strong>Recent activity</strong><span>Server event log</span></div>
+        <ol>
+          {recentActivity.map((event) => (
+            <li key={event.id}>
+              <i aria-hidden="true" />
+              <div>
+                <div><strong>{event.actor.name}</strong><span className="agent-via">via {activityViaLabel(event.via)}</span><time dateTime={event.createdAt}>{activityTimeFormatter.format(new Date(event.createdAt))}</time></div>
+                <p>{event.summary}</p>
+                <small>{activityTypeLabel(event.type)} · {targetLabel(event.target, workspace)}</small>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
 function Topbar({ member, workspace }: { member: PageMember; workspace: WorkspaceView }) {
+  const agent = workspace.collaboration.agent;
   return (
     <header className="topbar">
       <a className="wordmark" href="#workspace" aria-label="Ratiflow workspace"><span className="wordmark-mark" /> Ratiflow</a>
+      <Link className="document-link" href="/document">New shared note</Link>
       <div className="workspace-identity"><span className="status-dot status-dot-green" /><span>{workspace.name}</span><span className="slash">/</span><span className="mono">{workspace.id}</span></div>
-      <div className="people" aria-label="Current workspace member"><span className="person-chip active-person"><b className={`avatar ${member === "MAYA" ? "maya" : "jordan"}`}>{member === "MAYA" ? "MC" : "JL"}</b><span className="person-label">{member === "MAYA" ? "Maya Chen · Product Lead" : "Jordan Lee · Engineering Lead"}</span><span className="person-label-short" aria-hidden="true">{member === "MAYA" ? "Maya · Lead" : "Jordan · Lead"}</span></span></div>
+      <div className="people" aria-label="Workspace participants"><span className="person-chip active-person"><b className={`avatar ${member === "MAYA" ? "maya" : "jordan"}`}>{member === "MAYA" ? "MC" : "JL"}</b><span className="person-label">{member === "MAYA" ? "Maya Chen · Product Lead" : "Jordan Lee · Engineering Lead"}</span><span className="person-label-short" aria-hidden="true">{member === "MAYA" ? "Maya · Lead" : "Jordan · Lead"}</span></span><span className={`person-chip agent-person agent-${agent.state.toLowerCase()}`}><b className="avatar agent-avatar">RA</b><span className="person-label">Ratiflow Agent · {agent.state === "LIVE_AUTO" ? "live · auto" : agent.state.toLowerCase()}</span><span className="person-label-short" aria-hidden="true">Agent · {agent.state.toLowerCase()}</span></span></div>
     </header>
   );
 }
 
 function DecisionHeading({ workspace }: { workspace: WorkspaceView }) {
-  return <div className="decision-head"><div><div className="eyebrow">Launch scope decision <span className="mono">{workspace.decision.id}</span></div><h1>{workspace.decision.question}</h1></div><div className="revision-block"><span className={`state-pill state-${workspace.decision.state.toLowerCase()}`}>{stateLabel[workspace.decision.state]}</span><span className="mono">rev {workspace.revision}</span></div></div>;
+  const waiting = workspace.collaboration.inbox.filter((task) => task.status === "OPEN").length;
+  return <div className="decision-head"><div><div className="eyebrow">Launch scope decision <span className="mono">{workspace.decision.id}</span></div><h1>{workspace.decision.question}</h1></div><div className="revision-block">{waiting > 0 && <span className="waiting-badge">Waiting on agent · {waiting}</span>}<span className={`state-pill state-${workspace.decision.state.toLowerCase()}`}>{stateLabel[workspace.decision.state]}</span><span className="mono">rev {workspace.revision}</span></div></div>;
 }
 
 function DecisionContext({ workspace }: { workspace: WorkspaceView }) {
@@ -702,12 +1041,12 @@ function WebMCPNotice({
   return <div className={`system-notice system-notice-supported ${status.error ? "has-error" : ""}`} role="status"><span className={`status-dot ${status.error ? "status-dot-amber" : "status-dot-green"}`} /><div><b>{status.error ? "WebMCP registration needs attention." : `WebMCP active via ${status.namespace}.`}</b> {status.error ?? registrationDetail}</div><span className="mono system-notice-tag">native</span></div>;
 }
 
-function CapabilityField({ compiled }: { compiled: CompiledCapabilities }) {
+function CapabilityField({ compiled, registeredTools }: { compiled: CompiledCapabilities; registeredTools: string[] }) {
   return (
     <article className="capability-field">
-      <div className="capability-heading"><div><div className="section-kicker">Capability field</div><h2>What the agent can do now</h2></div><span className="tool-count mono">{compiled.availableTools.length} tools</span></div>
+      <div className="capability-heading"><div><div className="section-kicker">Live capability field</div><h2>Actually registered now</h2></div><span className="tool-count mono">{registeredTools.length} tools</span></div>
       <div className="capability-meta"><span className="mono">rev {compiled.workspaceRevision}</span><span className="mono">epoch {compiled.contextEpoch}</span><span className="mono">{compiled.selection.kind.toLowerCase()} scope</span></div>
-      <div className="tool-list">{compiled.availableTools.map((tool) => <div className="tool" key={tool}><span /><code>{tool}</code></div>)}</div>
+      {registeredTools.length > 0 ? <div className="tool-list">{registeredTools.map((tool) => <div className="tool" key={tool}><span /><code>{tool}</code></div>)}</div> : <p className="capability-empty">No native tools are registered in this browser. The ordinary UI remains usable.</p>}
       {compiled.unavailableActions.map((action) => <div className={`unavailable ${action.action === "prepare_decision" && compiled.state === "CONTESTED" ? "is-conflict" : ""}`} key={action.action}><span>{action.action === "ratify_decision" ? "Authority boundary" : "Unavailable now"}</span><p><code>{action.action}</code> — {action.unmetPredicates.join(" · ")}</p></div>)}
     </article>
   );

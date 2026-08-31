@@ -7,7 +7,7 @@ test.describe("hero two-person path", () => {
     const context = await browser.newContext({ baseURL });
     const mayaPage = await context.newPage();
     try {
-      await mayaPage.goto("/");
+      await mayaPage.goto("/decision-demo");
       await mayaPage.getByRole("button", { name: "Launch deterministic workspace" }).click();
       await mayaPage.getByRole("radio", { name: /^Full CSV export/ }).click();
 
@@ -33,17 +33,14 @@ test.describe("hero two-person path", () => {
     mayaPage.on("pageerror", (error) => pageErrors.push(`Maya: ${error.message}`));
 
     try {
-      await mayaPage.goto("/");
+      await mayaPage.goto("/decision-demo");
       await mayaPage.getByRole("button", { name: "Launch deterministic workspace" }).click();
       await expect(mayaPage.locator(".revision-block")).toContainText("rev 7");
       await expect(mayaPage.getByText("18 engineer-days", { exact: true })).toBeVisible();
 
       await mayaPage.getByRole("radio", { name: /^Full CSV export/ }).click();
       await expect(mayaPage.locator(".capability-field")).toContainText("epoch 2");
-      await expect(mayaPage.locator(".tool-list code")).toContainText([
-        "inspect_decision",
-        "inspect_selected_option",
-      ]);
+      await expect(mayaPage.locator(".capability-field")).toContainText("No native tools are registered in this browser");
 
       await mayaPage.evaluate(() => {
         const open = window.open;
@@ -83,7 +80,6 @@ test.describe("hero two-person path", () => {
       await mayaPage.getByRole("button", { name: /Recommend O2/ }).click();
       await expect(mayaPage.locator(".revision-block")).toContainText("rev 9");
       await expect(mayaPage.locator(".capability-field")).toContainText("epoch 3");
-      await expect(mayaPage.locator(".tool-list code", { hasText: "prepare_decision" })).toHaveCount(1);
 
       await mayaPage.getByRole("button", { name: /Prepare review/ }).click();
       await expect(mayaPage.locator(".revision-block")).toContainText("rev 10");
@@ -94,7 +90,7 @@ test.describe("hero two-person path", () => {
       await expect(mayaPage.locator(".followup-card")).toContainText("READY");
 
       await mayaPage.getByRole("button", { name: /Select follow-up/ }).click();
-      await expect(mayaPage.locator(".capability-field")).toContainText("inspect_followup");
+      await expect(mayaPage.locator(".selection-note")).toContainText("Follow-up selected");
       await expect(pageErrors).toEqual([]);
     } finally {
       await context.close();
@@ -107,7 +103,7 @@ test.describe("hero two-person path", () => {
     const context = await browser.newContext({ baseURL });
     const jordanPage = await context.newPage();
     try {
-      await jordanPage.goto("/#member=jordan");
+      await jordanPage.goto("/decision-demo#member=jordan");
       await expect(jordanPage.getByRole("heading", { name: "Jordan’s workspace link is no longer valid." })).toBeVisible();
       await expect.poll(() => jordanPage.url()).not.toContain("#");
     } finally {
@@ -121,11 +117,11 @@ test.describe("hero two-person path", () => {
     const context = await browser.newContext({ baseURL });
     const mayaPage = await context.newPage();
     try {
-      await mayaPage.goto("/");
+      await mayaPage.goto("/decision-demo");
       await mayaPage.getByRole("button", { name: "Launch deterministic workspace" }).click();
-      await expect(mayaPage.locator(".person-chip")).toContainText("Maya Chen · Product Lead");
+      await expect(mayaPage.locator(".active-person")).toContainText("Maya Chen · Product Lead");
 
-      await mayaPage.goto("/#member=jordan");
+      await mayaPage.goto("/decision-demo#member=jordan");
       await mayaPage.reload();
 
       await expect(mayaPage.getByRole("heading", { name: "Jordan’s workspace link is no longer valid." })).toBeVisible();

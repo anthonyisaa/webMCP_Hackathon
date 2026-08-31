@@ -22,6 +22,23 @@ export const TOOL_NAMES = [
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
+
+export const AGENT_COORDINATION_TOOL_NAMES = [
+  "join_session",
+  "wait_for_activity",
+  "catch_up",
+  "leave_session",
+  "get_state_brief",
+  "get_thread",
+  "get_inbox",
+  "claim_agent_task",
+  "resolve_task",
+  "post_comment",
+  "request_human_input",
+] as const;
+
+export type AgentCoordinationToolName = (typeof AGENT_COORDINATION_TOOL_NAMES)[number];
+export type RegisteredToolName = AgentCoordinationToolName | ToolName;
 export type WhyNotAction = "prepare_decision" | "ratify_decision";
 export type CapabilityAction = WhyNotAction;
 
@@ -36,7 +53,7 @@ export const BASE_TOOL_MATRIX = {
 export type SelectionKind = "DECISION" | "OPTION" | "FOLLOWUP";
 export type MemberRole = "PRODUCT_LEAD" | "ENGINEERING_LEAD";
 export type ActorType = "HUMAN" | "AGENT" | "SYSTEM";
-export type EventOrigin = "ORDINARY_UI" | "WEBMCP" | "SYNTHETIC_DEMO" | "SYSTEM";
+export type EventOrigin = "ORDINARY_UI" | "WEBMCP" | "AUTO_PICKUP" | "SYNTHETIC_DEMO" | "SYSTEM";
 export type ReviewStatus = "NOT_APPLICABLE" | "PROPOSED" | "EDITED" | "RATIFIED" | "REJECTED";
 
 export type PageSelection =
@@ -266,6 +283,118 @@ export interface FollowupView {
   inheritedContext: string[];
 }
 
+export type ActivityCursor = string;
+export type AgentCaller = "BROWSER_AGENT" | "AUTO_RUNNER";
+export type ActivityVia = "ORDINARY_UI" | "BROWSER_AGENT" | "AUTO_PICKUP" | "SYSTEM";
+export type AgentEngagementMode = "FRESH" | "INVOKED" | "LIVE";
+export type AgentPresenceState = "LIVE" | "LIVE_AUTO" | "IDLE" | "AWAY";
+export type AgentTaskKind = "MENTION" | "TASK";
+export type AgentTaskStatus = "OPEN" | "CLAIMED" | "WAITING_HUMAN" | "DONE" | "CANCELLED";
+export type StandingInstructionScope = "MENTIONS" | "TASKS";
+export type HumanInputStatus = "OPEN" | "ANSWERED";
+
+export const ACTIVITY_EVENT_TYPES = [
+  "WORKSPACE_MUTATED",
+  "TASK_CREATED",
+  "TASK_CLAIMED",
+  "TASK_WAITING_HUMAN",
+  "TASK_RESOLVED",
+  "TASK_CANCELLED",
+  "AGENT_JOINED",
+  "AGENT_LEFT",
+  "AGENT_COMMENTED",
+  "HUMAN_INPUT_REQUESTED",
+  "HUMAN_INPUT_ANSWERED",
+  "STANDING_INSTRUCTIONS_CHANGED",
+] as const;
+
+export type ActivityEventType = (typeof ACTIVITY_EVENT_TYPES)[number];
+
+export interface ActivityEvent {
+  id: string;
+  cursor: ActivityCursor;
+  createdAt: string;
+  actor: ActorRef;
+  actorType: ActorType;
+  via: ActivityVia;
+  type: ActivityEventType;
+  target: PageSelection;
+  summary: string;
+  workspaceRevision: number | null;
+  taskId?: string;
+  questionId?: string;
+}
+
+export interface AgentParticipantView {
+  actor: ActorRef;
+  state: AgentPresenceState;
+  lastSeenAt: string | null;
+  activeVia: "BROWSER_AGENT" | "AUTO_PICKUP" | null;
+}
+
+export interface AgentTaskClaimView {
+  claimId?: string;
+  via: "BROWSER_AGENT" | "AUTO_PICKUP";
+  expiresAt: string;
+  ownedByCurrentSession: boolean;
+}
+
+export interface AgentTaskView {
+  id: string;
+  kind: AgentTaskKind;
+  body: string;
+  target: PageSelection;
+  status: AgentTaskStatus;
+  createdBy: ActorRef;
+  assignedAgent: ActorRef;
+  claim: AgentTaskClaimView | null;
+  resultSummary?: string;
+  resultLink?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentCommentView {
+  id: string;
+  target: PageSelection;
+  body: string;
+  replyTo?: string;
+  actor: ActorRef;
+  via: ActivityVia;
+  taskId?: string;
+  createdAt: string;
+}
+
+export interface HumanInputRequestView {
+  id: string;
+  target: PageSelection;
+  question: string;
+  status: HumanInputStatus;
+  askedBy: ActorRef;
+  askedVia: "BROWSER_AGENT" | "AUTO_PICKUP";
+  taskId?: string;
+  answer?: string;
+  answeredBy?: ActorRef;
+  askedAt: string;
+  answeredAt?: string;
+}
+
+export interface StandingInstructionsView {
+  autoPickup: boolean;
+  scopes: StandingInstructionScope[];
+  maxActionsPerHour: number;
+}
+
+export interface CollaborationView {
+  cursor: ActivityCursor;
+  agent: AgentParticipantView;
+  standingInstructions: StandingInstructionsView;
+  inbox: AgentTaskView[];
+  comments: AgentCommentView[];
+  questions: HumanInputRequestView[];
+  recentActivity: ActivityEvent[];
+}
+
 export interface ProvenanceEvent {
   id: string;
   actor: ActorRef;
@@ -306,6 +435,7 @@ export interface WorkspaceView {
   followup: FollowupView;
   provenance: ProvenanceEvent[];
   readiness: ReadinessFacts;
+  collaboration: CollaborationView;
 }
 
 export interface MutationReceipt {
@@ -359,12 +489,223 @@ export interface WebMCPToolSuccessDataMap {
 export type WebMCPToolResult<TTool extends ToolName> = ToolResult<WebMCPToolSuccessDataMap[TTool]>;
 
 export interface WebMCPMutationRequest<TTool extends MutationToolName = MutationToolName> {
-  sessionToken: string;
+  executionContext: AgentRegistryExecutionContext;
   toolName: TTool;
   envelope: MutationEnvelope<MutationPayloadMap[TTool]>;
   capturedSelection: PageSelection;
   capturedContextEpoch: number;
+}
+
+/** Private page-registry context; never accepted as an authoritative JSON request body. */
+export interface AgentRegistryExecutionContext {
+  caller: AgentCaller;
+  pageSessionId: string;
+  agentSessionToken: string;
+  claimId?: string;
   signal?: AbortSignal;
+}
+
+/** Exact untrusted HTTP body for a decision mutation; trust fields travel out of body. */
+export type WebMCPMutationHttpBody<TTool extends MutationToolName = MutationToolName> =
+  Omit<WebMCPMutationRequest<TTool>, "executionContext">;
+
+export interface JsonObjectSchema {
+  type: "object";
+  properties?: Readonly<Record<string, unknown>>;
+  required?: readonly string[];
+  additionalProperties: false;
+}
+
+export interface AgentToolDefinition {
+  name: RegisteredToolName;
+  description: string;
+  inputSchema: JsonObjectSchema;
+  annotations: {
+    readOnlyHint: boolean;
+    untrustedContentHint: boolean;
+  };
+}
+
+export interface AgentRegistryProjection {
+  caller: AgentCaller;
+  engagementMode: AgentEngagementMode;
+  decisionCapabilities: CompiledCapabilities;
+}
+
+export interface AgentToolRegistryPort {
+  availableDefinitions(projection: AgentRegistryProjection): readonly AgentToolDefinition[];
+  execute(
+    name: RegisteredToolName,
+    input: unknown,
+    context: AgentRegistryExecutionContext,
+    projection: AgentRegistryProjection,
+  ): Promise<unknown>;
+}
+
+export const COORDINATION_ERROR_CODES = [
+  "INVALID_INPUT",
+  "UNAUTHORIZED",
+  "NOT_FOUND",
+  "SESSION_CLOSED",
+  "LIVE_SESSION_ACTIVE",
+  "TASK_ALREADY_CLAIMED",
+  "CLAIM_LOST",
+  "ACTION_BUDGET_EXCEEDED",
+  "CURSOR_EXPIRED",
+  "REQUEST_REPLAY_MISMATCH",
+  "CONFLICT",
+  "INTERNAL_ERROR",
+] as const;
+
+export type CoordinationErrorCode = (typeof COORDINATION_ERROR_CODES)[number];
+
+export type CoordinationResult<TData> =
+  | { ok: true; data: TData; cursor: ActivityCursor }
+  | {
+      ok: false;
+      code: "CURSOR_EXPIRED";
+      message: string;
+      retryable: true;
+      resetCursor: ActivityCursor;
+      nextAction: string;
+    }
+  | {
+      ok: false;
+      code: Exclude<CoordinationErrorCode, "CURSOR_EXPIRED">;
+      message: string;
+      retryable: boolean;
+      cursor?: ActivityCursor;
+      nextAction?: string;
+    };
+
+export interface WaitForActivityInput {
+  cursor: ActivityCursor;
+  timeoutSeconds?: number;
+}
+
+export interface CatchUpInput {
+  sinceCursor?: ActivityCursor;
+}
+
+export interface GetThreadInput {
+  target?: PageSelection;
+}
+
+export interface ClaimAgentTaskInput {
+  taskId: string;
+  requestId: string;
+}
+
+export interface ResolveAgentTaskInput {
+  taskId: string;
+  requestId: string;
+  outcome: string;
+  resultLink?: string;
+}
+
+export interface PostAgentCommentInput {
+  target: PageSelection;
+  body: string;
+  replyTo?: string;
+  taskId?: string;
+  requestId: string;
+}
+
+export interface RequestHumanInputInput {
+  question: string;
+  target: PageSelection;
+  taskId?: string;
+  requestId: string;
+}
+
+export interface StateBriefView {
+  decisionId: string;
+  question: string;
+  state: DecisionState;
+  currentRecommendationOptionId: string;
+  options: Array<{ id: string; title: string }>;
+  blockingChallenges: Array<{ id: string; optionId: string; summary: string }>;
+  openQuestions: HumanInputRequestView[];
+  participants: AgentParticipantView[];
+  selection: PageSelection;
+  workspaceRevision: number;
+  cursor: ActivityCursor;
+}
+
+export interface CatchUpData {
+  events: ActivityEvent[];
+  inbox: AgentTaskView[];
+  questions: HumanInputRequestView[];
+  hasMore: boolean;
+  observedHighWater: ActivityCursor;
+  sessionOpen: boolean;
+}
+
+export interface JoinSessionData {
+  identity: ActorRef;
+  presence: AgentParticipantView;
+  stateBrief: StateBriefView;
+  inbox: AgentTaskView[];
+  sessionOpen: true;
+}
+
+export interface LeaveSessionData {
+  identity: ActorRef;
+  presence: AgentParticipantView;
+  sessionOpen: false;
+}
+
+export interface AgentCoordinationToolSuccessDataMap {
+  join_session: JoinSessionData;
+  wait_for_activity: CatchUpData;
+  catch_up: CatchUpData;
+  leave_session: LeaveSessionData;
+  get_state_brief: { brief: StateBriefView };
+  get_thread: {
+    target: PageSelection;
+    comments: AgentCommentView[];
+    questions: HumanInputRequestView[];
+  };
+  get_inbox: { inbox: AgentTaskView[] };
+  claim_agent_task: { task: AgentTaskView };
+  resolve_task: { task: AgentTaskView };
+  post_comment: { comment: AgentCommentView };
+  request_human_input: { question: HumanInputRequestView; task?: AgentTaskView };
+}
+
+export type AgentCoordinationToolResult<TTool extends AgentCoordinationToolName> =
+  CoordinationResult<AgentCoordinationToolSuccessDataMap[TTool]>;
+
+export interface CreateAgentTaskInput {
+  kind: AgentTaskKind;
+  body: string;
+  target: PageSelection;
+  requestId: string;
+}
+
+export interface AnswerHumanInputInput {
+  questionId: string;
+  answer: string;
+  requestId: string;
+}
+
+export interface CancelAgentTaskInput {
+  taskId: string;
+  requestId: string;
+}
+
+export interface UpdateStandingInstructionsInput {
+  autoPickup: boolean;
+  scopes: StandingInstructionScope[];
+  maxActionsPerHour: number;
+  requestId: string;
+}
+
+export interface AutoRunnerAuthorization {
+  authorized: boolean;
+  reason?: "DISABLED" | "OUT_OF_SCOPE" | "LIVE_SESSION_ACTIVE" | "ACTION_BUDGET_EXCEEDED";
+  remainingActions: number;
+  standingInstructions: StandingInstructionsView;
 }
 
 export interface HumanRatificationInput {
@@ -383,8 +724,9 @@ export interface SetLaunchCapacityInput {
   };
 }
 
-export interface RealtimeRevisionNotice {
-  workspaceRevision: number;
+export interface RealtimeWorkspaceNotice {
+  activityCursor: ActivityCursor;
+  workspaceRevision: number | null;
   eventId: string;
 }
 
@@ -393,6 +735,69 @@ export interface RatiflowServicePort {
   mutateFromWebMCP<TTool extends MutationToolName>(
     request: WebMCPMutationRequest<TTool>,
   ): Promise<ToolResult<MutationReceipt>>;
+  joinAgentSession(
+    context: AgentRegistryExecutionContext,
+    capturedSelection: PageSelection,
+  ): Promise<CoordinationResult<JoinSessionData>>;
+  catchUpAgentSession(
+    context: AgentRegistryExecutionContext,
+    input: CatchUpInput,
+  ): Promise<CoordinationResult<CatchUpData>>;
+  leaveAgentSession(
+    context: AgentRegistryExecutionContext,
+  ): Promise<CoordinationResult<LeaveSessionData>>;
+  getAgentStateBrief(
+    context: AgentRegistryExecutionContext,
+    capturedSelection: PageSelection,
+  ): Promise<CoordinationResult<{ brief: StateBriefView }>>;
+  getAgentThread(
+    context: AgentRegistryExecutionContext,
+    input: GetThreadInput,
+    capturedSelection: PageSelection,
+  ): Promise<CoordinationResult<AgentCoordinationToolSuccessDataMap["get_thread"]>>;
+  getAgentInbox(
+    context: AgentRegistryExecutionContext,
+  ): Promise<CoordinationResult<{ inbox: AgentTaskView[] }>>;
+  claimAgentTask(
+    context: AgentRegistryExecutionContext,
+    input: ClaimAgentTaskInput,
+  ): Promise<CoordinationResult<{ task: AgentTaskView }>>;
+  resolveAgentTask(
+    context: AgentRegistryExecutionContext,
+    input: ResolveAgentTaskInput,
+  ): Promise<CoordinationResult<{ task: AgentTaskView }>>;
+  postAgentComment(
+    context: AgentRegistryExecutionContext,
+    input: PostAgentCommentInput,
+  ): Promise<CoordinationResult<{ comment: AgentCommentView }>>;
+  requestHumanInput(
+    context: AgentRegistryExecutionContext,
+    input: RequestHumanInputInput,
+  ): Promise<CoordinationResult<AgentCoordinationToolSuccessDataMap["request_human_input"]>>;
+  createAgentTaskFromHumanUi(
+    sessionToken: string,
+    input: CreateAgentTaskInput,
+    signal?: AbortSignal,
+  ): Promise<CoordinationResult<{ task: AgentTaskView }>>;
+  answerHumanInputFromHumanUi(
+    sessionToken: string,
+    input: AnswerHumanInputInput,
+    signal?: AbortSignal,
+  ): Promise<CoordinationResult<{ question: HumanInputRequestView; task?: AgentTaskView }>>;
+  cancelAgentTaskFromHumanUi(
+    sessionToken: string,
+    input: CancelAgentTaskInput,
+    signal?: AbortSignal,
+  ): Promise<CoordinationResult<{ task: AgentTaskView }>>;
+  updateStandingInstructionsFromHumanUi(
+    sessionToken: string,
+    input: UpdateStandingInstructionsInput,
+    signal?: AbortSignal,
+  ): Promise<CoordinationResult<{ standingInstructions: StandingInstructionsView }>>;
+  authorizeAutoRunner(
+    context: AgentRegistryExecutionContext,
+    taskId: string,
+  ): Promise<CoordinationResult<AutoRunnerAuthorization>>;
   setLaunchCapacityFromCollaboratorUi(
     sessionToken: string,
     input: SetLaunchCapacityInput,
@@ -405,6 +810,6 @@ export interface RatiflowServicePort {
   ): Promise<ToolResult<MutationReceipt>>;
   subscribe(
     sessionToken: string,
-    onRevision: (notice: RealtimeRevisionNotice) => void,
+    onNotice: (notice: RealtimeWorkspaceNotice) => void,
   ): () => void;
 }

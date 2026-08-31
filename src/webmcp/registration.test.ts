@@ -80,6 +80,28 @@ function workspace(revision = 7, capacity = 18): WorkspaceView {
       launchCapacityEngineerDays: capacity,
       unresolvedBlockingChallengeCount: 0,
     },
+    collaboration: {
+      cursor: "10000000-0000-4000-8000-000000000001",
+      agent: {
+        actor: {
+          id: "agent_ratiflow_demo",
+          name: "Ratiflow Agent",
+          role: "Decision analyst",
+        },
+        state: "AWAY",
+        lastSeenAt: null,
+        activeVia: null,
+      },
+      standingInstructions: {
+        autoPickup: false,
+        scopes: ["MENTIONS", "TASKS"],
+        maxActionsPerHour: 6,
+      },
+      inbox: [],
+      comments: [],
+      questions: [],
+      recentActivity: [],
+    },
   };
 }
 
@@ -171,7 +193,7 @@ function runtime(initialCompiled: CompiledCapabilities, initialWorkspace = works
       throw new Error("not used");
     },
     subscribe: () => () => undefined,
-  } as RatiflowServicePort;
+  } as unknown as RatiflowServicePort;
   return {
     latest,
     service,
@@ -359,10 +381,17 @@ test("static evaluation bypasses only the client gate and preserves the server r
       sessionToken: sessions.agentSessionToken,
     },
   };
+  const executionContext = {
+    caller: "BROWSER_AGENT" as const,
+    pageSessionId: "33333333-3333-4333-8333-333333333333",
+    agentSessionToken: sessions.agentSessionToken,
+  };
+  await service.joinAgentSession(executionContext, contested.selection);
   const callback = createToolCallback(
     "prepare_decision",
     captureCallbackContext(latest),
     { latest, service, bypassClientAvailabilityGate: true },
+    executionContext,
   );
 
   const result = await callback({

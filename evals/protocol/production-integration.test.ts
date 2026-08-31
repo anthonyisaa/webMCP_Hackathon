@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { compileCapabilities } from "../../src/capabilities/compiler";
 import type {
+  AgentRegistryExecutionContext,
   CompiledCapabilities,
   DecisionState,
   MemberRole,
@@ -58,7 +59,20 @@ const ids = {
   conflict: "88888888-8888-4888-8888-888888888888",
 };
 
+const browserPageSessionId = "99999999-9999-4999-8999-999999999999";
+
 type Sessions = ReturnType<LocalRatiflowService["issueDemoSessions"]>;
+
+function browserContext(
+  agentSessionToken: string,
+  pageSessionId = browserPageSessionId,
+): AgentRegistryExecutionContext {
+  return {
+    caller: "BROWSER_AGENT",
+    pageSessionId,
+    agentSessionToken,
+  };
+}
 
 function envelope<T>(expectedWorkspaceRevision: number, contextEpoch: number, requestId: string, rationale: string, payload: T) {
   return { expectedWorkspaceRevision, contextEpoch, requestId, rationale, payload };
@@ -67,6 +81,8 @@ function envelope<T>(expectedWorkspaceRevision: number, contextEpoch: number, re
 async function heroRun() {
   const service = new LocalRatiflowService();
   const sessions = service.issueDemoSessions();
+  const executionContext = browserContext(sessions.agentSessionToken);
+  await service.catchUpAgentSession(executionContext, {});
   const initial = await service.inspect(sessions.mayaSessionToken);
   const selection: PageSelection = { kind: "OPTION", id: "opt_csv_ga_oct15" };
   const capacity = await service.setLaunchCapacityFromCollaboratorUi(sessions.jordanSessionToken, {
@@ -75,7 +91,7 @@ async function heroRun() {
     payload: { launchCapacityEngineerDays: 14, reason: "Four-day incident rotation" },
   });
   const stale = await service.mutateFromWebMCP({
-    sessionToken: sessions.agentSessionToken,
+    executionContext,
     toolName: "add_evidence",
     capturedSelection: selection,
     capturedContextEpoch: 2,
@@ -90,14 +106,14 @@ async function heroRun() {
   });
   const afterStale = await service.inspect(sessions.mayaSessionToken);
   const recommended = await service.mutateFromWebMCP({
-    sessionToken: sessions.agentSessionToken,
+    executionContext,
     toolName: "recommend_option",
     capturedSelection: selection,
     capturedContextEpoch: 2,
     envelope: envelope(8, 2, ids.recommend, "O2 fits the reduced launch capacity.", { optionId: "opt_csv_beta_oct15" }),
   });
   const prepared = await service.mutateFromWebMCP({
-    sessionToken: sessions.agentSessionToken,
+    executionContext,
     toolName: "prepare_decision",
     capturedSelection: { kind: "OPTION", id: "opt_csv_beta_oct15" },
     capturedContextEpoch: 3,
@@ -141,8 +157,9 @@ function productionBridge(service: RatiflowServicePort, sessions: Sessions, work
       workspace,
       compiled: compiled(workspace, selection, epoch),
       memberRole: "PRODUCT_LEAD",
-      memberSessionInstanceId: "protocol-eval-tab",
+      memberSessionInstanceId: browserPageSessionId,
       sessionToken: sessions.agentSessionToken,
+      pageSessionId: browserPageSessionId,
     },
   };
   const dependencies: WebMCPRuntimeDependencies = { latest, service };
@@ -203,6 +220,8 @@ describe("Layer A production implementation integration", () => {
   it("D03/D11: one production compiler value drives registration and exact why_not predicates", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const executionContext = browserContext(sessions.agentSessionToken);
+    await service.catchUpAgentSession(executionContext, {});
     const initial = await service.inspect(sessions.mayaSessionToken);
     const state = productionBridge(service, sessions, initial, { kind: "DECISION", id: initial.decision.id }, 1);
     const snapshot = state.latest.current.compiled;
@@ -229,7 +248,7 @@ describe("Layer A production implementation integration", () => {
     const whyNot = await createToolCallback("why_not", {
       contextEpoch: 1,
       selection: snapshot.selection,
-      memberSessionInstanceId: "protocol-eval-tab",
+      memberSessionInstanceId: browserPageSessionId,
       sessionToken: sessions.agentSessionToken,
       workspaceId: initial.id,
       decisionId: initial.decision.id,
@@ -311,6 +330,8 @@ describe("Layer A production implementation integration", () => {
   it("D06/D08/D09: callback context and server authority deny stale, forged, wrong-member, and agent ratification writes", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const executionContext = browserContext(sessions.agentSessionToken);
+    await service.catchUpAgentSession(executionContext, {});
     const initial = await service.inspect(sessions.mayaSessionToken);
     const first = productionBridge(service, sessions, initial, { kind: "OPTION", id: "opt_csv_ga_oct15" }, 2);
     await first.manager.reconcile(first.latest.current.compiled, makeRegistrationContextKey("protocol-eval-tab", 2));
@@ -325,7 +346,7 @@ describe("Layer A production implementation integration", () => {
     expect((await service.inspect(sessions.mayaSessionToken)).revision).toBe(7);
 
     const wrongEpoch = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext,
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -346,7 +367,7 @@ describe("Layer A production implementation integration", () => {
     const otherService = new LocalRatiflowService();
     const otherSessions = otherService.issueDemoSessions();
     const crossWorkspace = await service.mutateFromWebMCP({
-      sessionToken: otherSessions.agentSessionToken,
+      executionContext: browserContext(otherSessions.agentSessionToken),
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -356,7 +377,7 @@ describe("Layer A production implementation integration", () => {
     expect(crossWorkspace).toMatchObject({ ok: false, code: "UNAUTHORIZED" });
 
     const forged = await service.mutateFromWebMCP({
-      sessionToken: "forged-session",
+      executionContext: browserContext("forged-session"),
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -372,7 +393,7 @@ describe("Layer A production implementation integration", () => {
     });
     expect(capacity).toMatchObject({ ok: true, data: { resultingRevision: 8 } });
     const unavailable = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext,
       toolName: "prepare_decision",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -382,7 +403,7 @@ describe("Layer A production implementation integration", () => {
     expect(unavailable).toMatchObject({ ok: false, code: "NOT_AVAILABLE_IN_STATE", currentWorkspaceRevision: 8 });
 
     const prepared = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext,
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -391,7 +412,7 @@ describe("Layer A production implementation integration", () => {
     expectResultEnvelope(prepared);
     expect(prepared).toMatchObject({ ok: true, data: { resultingRevision: 9 } });
     const review = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext,
       toolName: "prepare_decision",
       capturedSelection: { kind: "OPTION", id: "opt_csv_beta_oct15" },
       capturedContextEpoch: 3,
@@ -411,6 +432,11 @@ describe("Layer A production implementation integration", () => {
   it("D07/D12/D13/D15: idempotency, schema/date bounds, result family, and notice-only realtime are production-backed", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const schemaPageSessionId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    await service.catchUpAgentSession(
+      browserContext(sessions.agentSessionToken, schemaPageSessionId),
+      {},
+    );
     const initial = await service.inspect(sessions.mayaSessionToken);
     const notices: unknown[] = [];
     const unsubscribe = service.subscribe(sessions.mayaSessionToken, (notice) => notices.push(notice));
@@ -435,8 +461,18 @@ describe("Layer A production implementation integration", () => {
     });
     expectResultEnvelope(mismatch);
     expect(mismatch).toMatchObject({ ok: false, code: "REQUEST_REPLAY_MISMATCH", currentWorkspaceRevision: 8 });
-    expect(notices).toEqual([{ workspaceRevision: 8, eventId: "evt_0008_capacity_reduced" }]);
-    expect(Object.keys(notices[0] as object).sort()).toEqual(["eventId", "workspaceRevision"]);
+    expect(notices).toEqual([
+      expect.objectContaining({
+        activityCursor: expect.any(String),
+        workspaceRevision: 8,
+        eventId: expect.any(String),
+      }),
+    ]);
+    expect(Object.keys(notices[0] as object).sort()).toEqual([
+      "activityCursor",
+      "eventId",
+      "workspaceRevision",
+    ]);
     const refetched = await service.inspect(sessions.mayaSessionToken);
     expect(refetched.revision).toBe((notices[0] as { workspaceRevision: number }).workspaceRevision);
     unsubscribe();
@@ -446,11 +482,11 @@ describe("Layer A production implementation integration", () => {
     const callback = createToolCallback("add_evidence", {
       contextEpoch: 1,
       selection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
-      memberSessionInstanceId: "schema-tab",
+      memberSessionInstanceId: schemaPageSessionId,
       sessionToken: sessions.agentSessionToken,
       workspaceId: initial.id,
       decisionId: initial.decision.id,
-    }, { latest: { current: { workspace: initial, compiled: compiled(initial, { kind: "OPTION", id: "opt_csv_ga_oct15" }, 1), memberRole: "PRODUCT_LEAD", memberSessionInstanceId: "schema-tab", sessionToken: sessions.agentSessionToken } }, service });
+    }, { latest: { current: { workspace: initial, compiled: compiled(initial, { kind: "OPTION", id: "opt_csv_ga_oct15" }, 1), memberRole: "PRODUCT_LEAD", memberSessionInstanceId: schemaPageSessionId, sessionToken: sessions.agentSessionToken, pageSessionId: schemaPageSessionId } }, service });
     const valid = envelope(7, 1, ids.invalid, "Bounded evidence", { optionId: "opt_csv_ga_oct15", kind: "CUSTOMER_DEADLINE", stance: "CONTEXT", title: "Deadline", detail: "Valid evidence", sourceLabel: "Eval", metrics: { date: "2026-11-01" } });
     expect(await callback(valid)).toMatchObject({ ok: false, code: "STALE_WORK_STATE" });
     const invalidInputs = [
@@ -476,8 +512,10 @@ describe("Layer A production implementation integration", () => {
 
     const conflictService = new LocalRatiflowService();
     const conflictSessions = conflictService.issueDemoSessions();
+    const conflictExecutionContext = browserContext(conflictSessions.agentSessionToken);
+    await conflictService.catchUpAgentSession(conflictExecutionContext, {});
     const conflict = await conflictService.mutateFromWebMCP({
-      sessionToken: conflictSessions.agentSessionToken,
+      executionContext: conflictExecutionContext,
       toolName: "prepare_decision",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,

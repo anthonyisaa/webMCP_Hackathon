@@ -29,7 +29,7 @@
   "actors": {
     "maya": { "id": "usr_maya_chen", "name": "Maya Chen", "role": "Product Lead", "actorType": "HUMAN" },
     "jordan": { "id": "usr_jordan_lee", "name": "Jordan Lee", "role": "Engineering Lead", "actorType": "HUMAN" },
-    "agent": { "id": "agent_ratiflow_demo", "name": "Ratiflow demo agent", "role": "Agent", "actorType": "AGENT" },
+    "agent": { "id": "agent_ratiflow_demo", "name": "Ratiflow Agent", "role": "Decision analyst", "actorType": "AGENT" },
     "seed": { "id": "system_seed", "name": "Seed fixture", "role": "System", "actorType": "SYSTEM" }
   },
   "options": [

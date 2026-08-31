@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { AgentRegistryExecutionContext } from "@/contracts";
 import { LocalRatiflowService } from "./ratiflow-service";
 
 const ids = {
@@ -15,10 +16,21 @@ const ids = {
   alternateRatify: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
 };
 
+function browserContext(agentSessionToken: string, pageSessionId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"): AgentRegistryExecutionContext {
+  return { caller: "BROWSER_AGENT", pageSessionId, agentSessionToken };
+}
+
+async function invokeAgent(service: LocalRatiflowService, agentSessionToken: string, pageSessionId?: string): Promise<AgentRegistryExecutionContext> {
+  const context = browserContext(agentSessionToken, pageSessionId);
+  await service.catchUpAgentSession(context, {});
+  return context;
+}
+
 describe("LocalRatiflowService", () => {
   it("replays the canonical stale recovery and human-only commitment", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const agentContext = await invokeAgent(service, sessions.agentSessionToken);
     const initial = await service.inspect(sessions.mayaSessionToken);
     expect(initial).toMatchObject({ revision: 7, decision: { state: "READY", selectedOptionId: "opt_csv_ga_oct15" } });
 
@@ -30,7 +42,7 @@ describe("LocalRatiflowService", () => {
     expect(capacity).toMatchObject({ ok: true, data: { eventId: "evt_0008_capacity_reduced", resultingRevision: 8 } });
 
     const stale = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "add_evidence",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -53,7 +65,7 @@ describe("LocalRatiflowService", () => {
     });
 
     const recommended = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,
@@ -62,7 +74,7 @@ describe("LocalRatiflowService", () => {
     expect(recommended).toMatchObject({ ok: true, data: { resultingRevision: 9, workspace: { decision: { state: "READY", selectedOptionId: "opt_csv_beta_oct15" } } } });
 
     const prepared = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "prepare_decision",
       capturedSelection: { kind: "OPTION", id: "opt_csv_beta_oct15" },
       capturedContextEpoch: 3,
@@ -82,8 +94,9 @@ describe("LocalRatiflowService", () => {
   it("derives follow-up context from the ratified alternative instead of a golden capacity event", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const agentContext = await invokeAgent(service, sessions.agentSessionToken);
     const recommended = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "recommend_option",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 1,
@@ -92,7 +105,7 @@ describe("LocalRatiflowService", () => {
     expect(recommended).toMatchObject({ ok: true, data: { resultingRevision: 8, workspace: { decision: { selectedOptionId: "opt_csv_defer_nov1", state: "READY" } } } });
 
     const prepared = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "prepare_decision",
       capturedSelection: { kind: "OPTION", id: "opt_csv_defer_nov1" },
       capturedContextEpoch: 2,
@@ -142,7 +155,8 @@ describe("LocalRatiflowService", () => {
     expect(firstCapacity).toMatchObject({ ok: true, data: { resultingRevision: 8 } });
     expect(await service.inspect(first.mayaSessionToken)).toMatchObject({ revision: 8, decision: { launchCapacityEngineerDays: 14 } });
     expect(await service.inspect(second.mayaSessionToken)).toMatchObject({ revision: 7, decision: { launchCapacityEngineerDays: 18 } });
-    expect(firstNotices).toEqual(["evt_0008_capacity_reduced"]);
+    expect(firstNotices).toHaveLength(1);
+    expect(firstNotices[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(secondNotices).toEqual([]);
 
     const replay = await service.setLaunchCapacityFromCollaboratorUi(first.jordanSessionToken, {
@@ -169,8 +183,9 @@ describe("LocalRatiflowService", () => {
   it("rejects impossible calendar dates before mutating a run", async () => {
     const service = new LocalRatiflowService();
     const sessions = service.issueDemoSessions();
+    const agentContext = await invokeAgent(service, sessions.agentSessionToken);
     const result = await service.mutateFromWebMCP({
-      sessionToken: sessions.agentSessionToken,
+      executionContext: agentContext,
       toolName: "add_evidence",
       capturedSelection: { kind: "OPTION", id: "opt_csv_ga_oct15" },
       capturedContextEpoch: 2,

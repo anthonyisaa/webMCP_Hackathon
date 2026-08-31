@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       }
       unsubscribe = service.subscribe(sessionToken, (notice) => {
         if (streamClosed) return;
-        streamController.enqueue(encoder.encode(`event: revision\ndata: ${JSON.stringify(notice)}\n\n`));
+        streamController.enqueue(encoder.encode(`event: activity\ndata: ${JSON.stringify(notice)}\n\n`));
       });
       streamController.enqueue(encoder.encode(": connected\n\n"));
       timeout = setTimeout(closeStream, REALTIME_STREAM_LIFETIME_MS);

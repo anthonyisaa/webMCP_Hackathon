@@ -16,6 +16,18 @@ const jordan: ActorRef = {
   role: "Engineering Lead",
 };
 
+const ratiflowAgent: ActorRef = {
+  id: "agent_ratiflow_demo",
+  name: "Ratiflow Agent",
+  role: "Decision analyst",
+};
+
+const systemActor: ActorRef = {
+  id: "system_ratiflow",
+  name: "Ratiflow",
+  role: "System",
+};
+
 /**
  * A contract-faithful display fixture. The page owns presentation state only;
  * S1 will replace this port with the authoritative session-backed service.
@@ -113,6 +125,37 @@ export const fixtureWorkspace: WorkspaceView = {
     selectedOptionEngineerDays: 18,
     launchCapacityEngineerDays: 18,
     unresolvedBlockingChallengeCount: 0,
+  },
+  collaboration: {
+    cursor: "00000000-0000-4000-8000-000000000007",
+    agent: {
+      actor: ratiflowAgent,
+      state: "AWAY",
+      lastSeenAt: null,
+      activeVia: null,
+    },
+    standingInstructions: {
+      autoPickup: false,
+      scopes: ["MENTIONS", "TASKS"],
+      maxActionsPerHour: 6,
+    },
+    inbox: [],
+    comments: [],
+    questions: [],
+    recentActivity: [
+      {
+        id: "activity_seed_r7",
+        cursor: "00000000-0000-4000-8000-000000000007",
+        createdAt: "2026-08-30T00:00:00.000Z",
+        actor: systemActor,
+        actorType: "SYSTEM",
+        via: "SYSTEM",
+        type: "WORKSPACE_MUTATED",
+        target: { kind: "DECISION", id: "dec_csv_oct15" },
+        summary: "Northstar launch decision opened at revision 7.",
+        workspaceRevision: 7,
+      },
+    ],
   },
 };
 

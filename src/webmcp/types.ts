@@ -39,6 +39,8 @@ export interface WebMCPRuntimeState {
   memberRole: MemberRole;
   memberSessionInstanceId: string;
   sessionToken: string;
+  /** Private page-session UUID. It is adapter context and never model input. */
+  pageSessionId?: string;
 }
 
 export interface MutableWebMCPRuntimeRef {
@@ -68,5 +70,6 @@ export interface WebMCPBridgeStatus {
   supported: boolean;
   registeredTools: string[];
   lastDiff: RegistrationDiff;
+  engagementMode?: import("../contracts/index").AgentEngagementMode;
   error?: string;
 }
