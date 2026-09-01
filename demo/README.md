@@ -98,13 +98,13 @@ Required supporting evidence outside the main cut:
 
 | Gate | Current status |
 | --- | --- |
-| `.codex/verify.sh` | **PASS — 3/3 private-reset CLI tests and 285/285 Vitest tests across 34 files**, plus TypeScript and ESLint. |
+| `.codex/verify.sh` | **PASS — 3/3 private-reset CLI tests and 287/287 Vitest tests across 34 files**, plus TypeScript and ESLint. |
 | Production build | **PASS locally.** |
 | v3 Playwright | **PASS — 13/13 locally and 13/13 against production**, including completed-example bootstrap, browser identity persistence, collaboration, race guards, real-pointer acceptance at desktop and 390px, WebMCP-off interaction, and conflict recovery. Adapter paths are not native proof. |
 | Persistence | **REMOTE APPLY OBSERVED.** The v3 workspace and optional-decision-note migrations are live in Supabase project `klhedesewgixoeslxiti`; the observed advisor introduced no new finding. |
 | Production database/app | **PASS.** Hosted browser tests exercised the public Supabase-backed app. |
-| Exact-SHA deployment/canonical URL | **READY.** Runtime `921dfc4236d6f95bbff0c4e4c4544efc6a947175`, deployment `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, [public app](https://ratiflow-webmcp.vercel.app). |
-| Supported-client native capture | **PARTIAL, OBSERVED.** Exactly five tools were discovered; inspect, memory, my-work, and bounded-wait were invoked natively on production. Proposal submission and the full N01–N12 capture remain pending. |
+| Exact-SHA deployment/canonical URL | **READY.** Runtime `d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7`, deployment `dpl_AD8nuEvUfZgSmvqpQawjsZWj4UC7`, [public app](https://ratiflow-webmcp.vercel.app). |
+| Supported-client native capture | **PARTIAL, OBSERVED.** Exactly five tools with the new multi-item descriptions were discovered and `list_my_work` was invoked natively on this production SHA. Multi-item proposal submission and the full N01–N12 capture remain pending. |
 | Protected-reset adapter rehearsal | **PASS — 5/5 locally.** Exact fixture, pointer assignment, Jordan tool-layer exclusion, active-wait teardown, and fresh-context memory are covered; native/timing/release proof remains pending. |
 | v3 agent trajectories / ablation | **PENDING.** A01–A07 require five exact-SHA native runs each; the comparison is `native-v3` versus `webmcp-disabled`. Historical v1.2 runs do not count. |
 | v3 agent-ledger validator | **53/53 focused tests PASS; canonical ledger `PENDING`.** Missing, filtered, identity-drifted, unsafe, or failed run matrices exit nonzero. |
@@ -127,7 +127,7 @@ after their result was observed:
   authorization, grants/revokes/RLS, and advisor review.
 - [x] Deploy and promote that exact SHA; record the deployment identity and accessible
   judging URL only after observation.
-- [x] Capture native discovery and four read/wait invocations on the exact deployed top-level page.
+- [x] Capture native discovery and `list_my_work` on the exact deployed top-level page.
 - [ ] Capture native proposal submission and the complete N01–N12 matrix.
 - [ ] Run five clean native 2:40 rehearsals on the exact release.
 - [ ] Run and validate five exact-SHA native trajectories for each v3 A01–A07 scenario,

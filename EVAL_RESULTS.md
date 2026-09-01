@@ -10,10 +10,10 @@ native v3 release pass.
 | Field | Current state |
 |---|---|
 | Flagship | Northstar shared-document collaboration hero |
-| Release commit SHA | `921dfc4236d6f95bbff0c4e4c4544efc6a947175` |
-| Deployed v3 HTTPS URL | [https://ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) — deployment `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, observed `READY` |
+| Release commit SHA | `d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7` |
+| Deployed v3 HTTPS URL | [https://ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) — deployment `dpl_AD8nuEvUfZgSmvqpQawjsZWj4UC7`, observed `READY` |
 | Remote v3 data plane | **DEPLOYED** — v3 workspace and optional-decision-note migrations applied to Supabase project `klhedesewgixoeslxiti` |
-| Supported-client native v3 capture | **PARTIAL, OBSERVED** — exact five-tool discovery plus native inspect, memory, my-work, and bounded-wait invocations on production; proposal submission and the full N matrix remain pending |
+| Supported-client native v3 capture | **PARTIAL, OBSERVED** — exact five-tool discovery with the multi-item descriptions plus a native `list_my_work` invocation on this production SHA; multi-item proposal submission and the full N matrix remain pending |
 | Public source repository | **PENDING** — the configured GitHub URL returned 404 when checked signed out |
 | Public narrated video | **PENDING** |
 | Devpost submission | **PENDING** |
@@ -22,7 +22,7 @@ native v3 release pass.
 
 | Layer | Command / scope | Result | Evidence class | What it establishes |
 |---|---|---|---|---|
-| Fast gate | `.codex/verify.sh` | **PASS: 3/3 private-reset CLI tests plus 285/285 Vitest tests across 34 files** | `AUTOMATED` | TypeScript, lint, private reset safety, protocol, domain, runtime, adapter, route, completed-example, agent-ledger, and release-manifest checks covered by the repository gate |
+| Fast gate | `.codex/verify.sh` | **PASS: 3/3 private-reset CLI tests plus 287/287 Vitest tests across 34 files** | `AUTOMATED` | TypeScript, lint, private reset safety, protocol, domain, runtime, adapter, route, completed-example, agent-ledger, and release-manifest checks covered by the repository gate |
 | Production build | `pnpm build` (Next.js webpack path) | **PASS** | `AUTOMATED` | The current candidate produces a production build |
 | Northstar document browser journey | Hardened v3 Playwright suite | **PASS: 13/13 locally and 13/13 against production** | `ADAPTER_CAPTURED` | Human editing, completed-example bootstrap, persisted browser identity, selection assignment, real-pointer acceptance at desktop and 390px, proposal/decision flow, race guards, responsive behavior, WebMCP-off behavior, and injected capability behavior covered by the suite |
 | Compatibility browser gate | Preserved `/decision-demo` plus live-session suite | **PASS: 10/10** | `ADAPTER_CAPTURED` | The superseded decision demo and its live-session contract remain operational; this is not v3 flagship or native proof |
@@ -30,7 +30,7 @@ native v3 release pass.
 | Native command precondition | `pnpm eval:native:smoke` in ordinary local headless Chromium | **FAIL CLOSED: `document.modelContext` absent** | `AUTOMATED` | The command now targets only the v3 catalog and refuses to convert an unsupported browser into a native pass |
 | Private canonical reset | `node --test scripts/reset-document-hero-v3.test.mjs` | **PASS: 3/3** | `AUTOMATED` | Service-role request, strict result validation, mode-0600 secret output, and non-leaking failures are covered without a live network call |
 | Persistence implementation | v3 Supabase migration, optional decision notes, and adapter audit | **PASS: remote apply observed** | `AUTOMATED` | The production project contains the v3 schema and nullable decision-note change; authorization/static audit passed and the observed security advisor added no new finding |
-| Native WebMCP execution | Codex in-app browser against the deployed matching v3 release | **PARTIAL PASS: five tools discovered; four read/wait tools invoked** | `NATIVE_OBSERVED` | `inspect_document`, `read_document_memory`, `list_my_work`, and `wait_for_my_work` returned structured results; the bounded wait returned `TIMEOUT`. Native proposal submission and complete N01–N12 capture remain pending |
+| Native WebMCP execution | Codex in-app browser against the deployed matching v3 release | **PARTIAL PASS: five tools discovered; `list_my_work` invoked** | `NATIVE_OBSERVED` | The runtime exposed the new multi-item descriptions and `list_my_work` returned a structured snapshot. Native multi-item proposal submission and complete N01–N12 capture remain pending; earlier inspect/memory/wait calls were on an older SHA |
 | v3 agent-ledger validator | `pnpm eval:agent:v3` | **PENDING, fail-closed; 53/53 focused validator tests pass** | `AUTOMATED` | The empty canonical ledger exits nonzero; old fixtures, filtered matrices, incomplete/unsafe transcripts, identity drift, and failed A01–A07 bars cannot return `PASS` |
 | v3 agent trajectories | A01–A07, five native runs each | **PENDING** | `PENDING` | No exact-SHA `document-hero-v3` trajectory ledger exists; historical v1.2 runs are excluded |
 | v3 WebMCP ablation | `native-v3` versus `webmcp-disabled` | **PENDING** | `PENDING` | No controlled v3 comparison exists; the historical static-superset comparison is excluded |
@@ -41,15 +41,15 @@ The browser automation may inject or adapt `document.modelContext` to exercise t
 contract deterministically. That is valuable protocol evidence, but it is **not** a
 native supported-client WebMCP capture. Native proof requires a supported agent client
 to discover and invoke the tools on the deployed URL matching runtime SHA
-`921dfc4236d6f95bbff0c4e4c4544efc6a947175`.
+`d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7`.
 
 ## Contract-row release status
 
 | Contract row | Current status | Release requirement |
 |---|---|---|
 | N01 Discovery | **PARTIAL, OBSERVED** | Exactly five stable v3 tools were discovered on the deployed top-level page; the canonical sanitized artifact is still pending |
-| N02 Inspect invocation | **PARTIAL, OBSERVED** | `inspect_document` was invoked natively on production; the canonical Northstar r1/av1 capture is still pending |
-| N03 Memory invocation | **PARTIAL, OBSERVED** | `read_document_memory` was invoked natively on production; the canonical bounded Northstar capture is still pending |
+| N02 Inspect invocation | **PENDING** | Invoke `inspect_document` natively on this exact production SHA and retain the canonical Northstar r1/av1 capture |
+| N03 Memory invocation | **PENDING** | Invoke `read_document_memory` natively on this exact production SHA and retain the canonical bounded Northstar capture |
 | N04 Active wait/lost-wake | **PENDING** | Start Maya's native wait before Jordan assigns and capture `WORK_AVAILABLE` at r1/av2 |
 | N05 Assignee filtering | **PARTIAL, OBSERVED** | `list_my_work` was invoked natively; canonical Maya-only and Jordan-exclusion evidence is still pending |
 | N06 Governed proposal | **PENDING** | Invoke the stable proposal tool natively, submit the candidate, and capture unchanged r1 content |
@@ -72,7 +72,7 @@ must-fix blocker.
 
 | Official criterion | Current score | Gate | Current strength | Must-fix before release |
 |---|---:|---|---|---|
-| WebMCP Leverage | **4.7 / 5** | **TOP-10-CREDIBLE PASS** | A supported agent discovered all five deployed tools and natively invoked the four read/wait paths, including a structured timeout | Capture native `submit_work_proposal` in the video and retain a sanitized exact-SHA artifact |
+| WebMCP Leverage | **4.7 / 5** | **TOP-10-CREDIBLE PASS** | The judged runtime exposed five native tools; on the current exact SHA, discovery and `list_my_work` are freshly observed while the older read/wait capture remains ineligible | Capture the complete native read/wait/proposal path on this SHA and retain a sanitized artifact |
 | Execution | **4.7 / 5** | **TOP-10-CREDIBLE PASS** | The deployed handoff, completed example, one-click decisions, production service composition, graceful fallback, and 13-case browser suite form a coherent product | No blocker; make browser-profile identity even more explicit before recording |
 | Potential Impact | **4.6 / 5** | **TOP-10-CREDIBLE PASS** | The judge drove the completed example and verified that final text omits the rejected eight-day constraint while Memory preserves assignment, proposal, diff, decision, and rationale | No blocker; show the fresh agent cite and avoid the rejected plan in the video |
 | Creativity & Ambition | **4.6 / 5** | **TOP-10-CREDIBLE PASS** | The complete topology—cross-human exact-range routing, one paired agent per browser identity, bounded page wait, proposal-only authority, human decision, and rejected-fact memory—is materially different from generic AI rewriting and single-user agent editors | No blocker; make the live handoff, native proposal, and fresh-agent anti-loop payoff the three video beats |

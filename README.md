@@ -131,16 +131,16 @@ hackathon score thresholds.
 ## Current evidence boundary
 
 As of 2026-09-01, the public v3 runtime is deployed from
-`921dfc4236d6f95bbff0c4e4c4544efc6a947175`:
+`d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7`:
 
 | Evidence | Status |
 | --- | --- |
-| `.codex/verify.sh` | **Passed:** TypeScript, ESLint, 3/3 private-reset CLI tests, and 285/285 Vitest tests across 34 files. |
+| `.codex/verify.sh` | **Passed:** TypeScript, ESLint, 3/3 private-reset CLI tests, and 287/287 Vitest tests across 34 files. |
 | Production webpack build | **Passed locally.** |
 | v3 Playwright | **13/13 passed locally and 13/13 against production:** blank-note editing, completed-example bootstrap, desktop and 390px collaboration, real-pointer acceptance, persistence, race guards, WebMCP-off behavior, and conflict recovery. Injected adapter coverage is not native proof. |
 | v3 persistence | **Deployed.** The v3 workspace and optional-decision-note migrations are applied to the production Supabase project; the observed security advisor introduced no new finding. |
-| Deployed v3 app and exact release identity | **READY:** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app), Vercel deployment `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, runtime SHA `921dfc4236d6f95bbff0c4e4c4544efc6a947175`. The hosted suite passed and the post-run error query was empty. |
-| Native supported-client capture | **Partial, observed on production:** a Codex in-app browser discovered exactly five page tools and invoked `inspect_document`, `read_document_memory`, `list_my_work`, and `wait_for_my_work`; the wait returned a structured `TIMEOUT`. Native proposal submission and the complete N01–N12 matrix remain pending. |
+| Deployed v3 app and exact release identity | **READY:** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app), Vercel deployment `dpl_AD8nuEvUfZgSmvqpQawjsZWj4UC7`, runtime SHA `d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7`. The hosted suite passed 13/13 and the post-run error query was empty. |
+| Native supported-client capture | **Partial, observed on this production SHA:** a Codex in-app browser discovered exactly five page tools with the new multi-item descriptions and invoked `list_my_work`, which returned a structured empty snapshot. Native multi-item proposal submission and the complete N01–N12 matrix remain pending; older-SHA inspect/memory/wait captures are not promoted to this release. |
 | Protected-reset adapter rehearsal | **5/5 passed locally:** exact frozen IDs/content/counters, real-pointer assignment, Jordan tool-layer exclusion, active-wait teardown, and a fresh Maya context. This is not native, narrated-timing, or exact-SHA release proof. |
 | v3 agent ledger | **Validator passed 53/53 focused tests; evidence remains `PENDING`.** The empty canonical A01–A07 ledger exits nonzero, and the v1.2/static-superset runs are ineligible. |
 | v3 release manifest | **Validator passed 25/25 focused tests; manifest remains `PENDING`.** `pnpm eval:release:v3` resolves content-addressed evidence and exits nonzero until every SHA-bound domain, browser, native, rehearsal, trajectory, visual, judge, and public-package gate is complete. |

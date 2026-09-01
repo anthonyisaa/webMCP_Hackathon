@@ -149,11 +149,11 @@ published hackathon score thresholds.
 
 ## Current evidence and links
 
-- **Exact deployed runtime:** `921dfc4236d6f95bbff0c4e4c4544efc6a947175` at
+- **Exact deployed runtime:** `d6a3a4215eb8baf3799ffd5eb3d242dde0c737f7` at
   [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app), Vercel deployment
-  `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, observed `READY` with no post-test error logs.
+  `dpl_AD8nuEvUfZgSmvqpQawjsZWj4UC7`, observed `READY` with no post-test error logs.
 - **Local verification:** `.codex/verify.sh` passed TypeScript, ESLint, 3/3 private-reset
-  CLI tests, and 285/285 Vitest tests across 34 files.
+  CLI tests, and 287/287 Vitest tests across 34 files.
 - **Local build:** production webpack build passed.
 - **Browser evidence:** v3 Playwright passed 13/13 locally and 13/13 against production
   across blank-note editing, completed-example bootstrap, browser identity persistence,
@@ -165,8 +165,9 @@ published hackathon score thresholds.
 - **Persistence:** the v3 workspace and optional-decision-note migrations are applied
   to the production Supabase project; the observed security advisor added no new finding.
 - **Supported-client native capture:** a Codex in-app browser discovered exactly five
-  production tools and invoked inspect, memory, my-work, and bounded wait. Native
-  proposal submission and the full canonical N01–N12 capture remain pending.
+  production tools with the new multi-item descriptions and invoked `list_my_work` on
+  this exact SHA. Native multi-item proposal submission and the full canonical N01–N12
+  capture remain pending.
 - **Independent judges:** WebMCP Leverage 4.7/5, Execution 4.7/5, Potential Impact
   4.6/5, and Creativity & Ambition 4.6/5; every criterion received a
   top-10-credible pass with no blocker.
