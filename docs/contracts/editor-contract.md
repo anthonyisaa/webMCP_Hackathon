@@ -52,10 +52,16 @@ The Work panel contains an honest, page-local agent inbox. With WebMCP it shows
 paired agent is preparing a proposal**, or **Work waiting — ask your agent to check**.
 Without WebMCP it shows **WebMCP unavailable** while ordinary editing stays usable.
 **Check now** immediately refreshes authoritative page state and explicitly says it
-cannot start or wake an agent. **Copy listen prompt** copies the frozen operational
+cannot start or wake an agent. **Copy agent prompt** copies the frozen operational
 prompt; an expandable selectable copy remains when clipboard access is blocked.
 Listening is derived only from this page's active tool execution and is never
 projected to another collaborator's page.
+
+A revision-zero blank note offers **Open completed example**. The public example route
+creates a fresh Northstar workspace by composing the ordinary v3 launch, save, join,
+work, proposal, acceptance, and final viewer-join operations. It then opens the
+chronological Memory view and prompts the fresh page-paired agent to identify the plan
+that should not be repeated. It never calls the protected canonical reset.
 
 A non-empty title/body selection exposes one compact **Ask agent** affordance. Ask
 agent, the app context menu, and `Cmd/Ctrl+K` all open the same contextual composer with

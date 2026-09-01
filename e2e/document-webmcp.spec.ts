@@ -332,6 +332,48 @@ async function openMemoryRail(page: Page): Promise<void> {
   await memoryTab.click();
 }
 
+test("one click opens a completed example whose fresh paired agent recovers the anti-loop decision", async ({
+  browser,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
+  const context = await browser.newContext({ baseURL });
+  await installWebMCPHarness(context);
+  const page = await context.newPage();
+  try {
+    await page.goto("/");
+    await expect(page.getByTestId("agent-inbox")).toContainText("Agent tools ready");
+    const blankUrl = page.url();
+    await page.getByRole("button", { name: "Open completed example" }).click();
+    await expect(page).not.toHaveURL(blankUrl, { timeout: 20_000 });
+    await expect(page.getByLabel("Note title")).toHaveValue(HERO_TITLE);
+    await expect(page.getByLabel("Note body")).toHaveValue(FINAL_BODY);
+    await expect(page.getByTestId("memory-list")).toContainText(HERO_RATIONALE);
+    await expect(page.getByRole("status")).toContainText(
+      "Ask your agent what decision this memo should not repeat",
+    );
+    await expect.poll(() => registeredToolNames(page)).toEqual(DOCUMENT_TOOLS);
+
+    const freshMemory = await invokeTool<MemoryResult>(page, "read_document_memory", {
+      limit: 20,
+    });
+    expect(freshMemory).toMatchObject({
+      ok: true,
+      latestActivityVersion: 4,
+      revision: 2,
+    });
+    expect(freshMemory.events?.map((event) => event.kind)).toEqual([
+      "DOCUMENT_EDITED",
+      "WORK_CREATED",
+      "PROPOSAL_SUBMITTED",
+      "PROPOSAL_ACCEPTED",
+    ]);
+    expect(freshMemory.events?.at(-1)?.rationale).toBe(HERO_RATIONALE);
+  } finally {
+    await context.close();
+  }
+});
+
 test("agent catalog recovers from a transient registration failure", async ({
   browser,
   baseURL,

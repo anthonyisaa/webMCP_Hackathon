@@ -72,9 +72,14 @@ authenticated storage.
 The Work panel is an honest page-local inbox. It distinguishes tools connecting, tools ready, this page's
 paired agent actively waiting, this page's paired agent preparing a proposal, work
 waiting for the agent, and WebMCP unavailable. **Check now** refreshes authoritative
-page state but cannot start a model. **Copy listen prompt** supplies one operational
+page state but cannot start a model. **Copy agent prompt** supplies one operational
 prompt, with a selectable fallback when clipboard access is blocked; no state on one
 collaborator's page claims another collaborator's agent is live.
+
+A revision-zero note offers **Open completed example**. It creates a fresh Northstar
+workflow through the same launch, save, join, assignment, proposal, decision, and memory
+service calls as the live loop, then opens Memory as a fresh viewer. This is judge-facing
+proof, not a hard-coded screenshot or privileged fixture reset.
 
 The v3 flagship has no visible four-stage control, stage-generated work, permanent
 annotation composer, creator-only agent queue, direct agent mutation, copied **Ask

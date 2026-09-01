@@ -60,6 +60,7 @@ type ActiveAgentTool = "submit_work_proposal" | "wait_for_my_work" | null;
 type EditorControl = HTMLInputElement | HTMLTextAreaElement;
 
 interface DocumentWorkspaceEditorProps {
+  exampleMode?: boolean;
   launchOnMount?: boolean;
   shareToken?: string;
 }
@@ -420,6 +421,7 @@ function MemoryEventCard({ event }: { event: DocumentMemoryEvent }) {
 }
 
 export function DocumentWorkspaceEditor({
+  exampleMode = false,
   launchOnMount = false,
   shareToken,
 }: DocumentWorkspaceEditorProps) {
@@ -431,14 +433,18 @@ export function DocumentWorkspaceEditor({
   const [draft, setDraft] = useState<DraftValue>({ title: "", body: "" });
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("SAVED");
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(
+    exampleMode
+      ? "Completed example opened. Ask your agent what decision this memo should not repeat."
+      : null,
+  );
   const [conflictSurface, setConflictSurface] = useState<DocumentSurfaceV3 | null>(null);
   const [activeSelection, setActiveSelection] = useState<SelectionSnapshot | null>(null);
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const [composerBusy, setComposerBusy] = useState(false);
   const [appMenu, setAppMenu] = useState<AppMenuState | null>(null);
-  const [railTab, setRailTab] = useState<RailTab>("WORK");
-  const [railOpen, setRailOpen] = useState(false);
+  const [railTab, setRailTab] = useState<RailTab>(exampleMode ? "MEMORY" : "WORK");
+  const [railOpen, setRailOpen] = useState(exampleMode);
   const [railFocusRequested, setRailFocusRequested] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [workBusyId, setWorkBusyId] = useState<string | null>(null);
@@ -447,6 +453,7 @@ export function DocumentWorkspaceEditor({
   const [inboxChecking, setInboxChecking] = useState(false);
   const [listenPromptCopied, setListenPromptCopied] = useState(false);
   const [listenPromptExpanded, setListenPromptExpanded] = useState(false);
+  const [exampleOpening, setExampleOpening] = useState(false);
   const [webMCPStatus, setWebMCPStatus] =
     useState<DocumentWorkspaceWebMCPBridgeStatus | null>(null);
 
@@ -509,7 +516,11 @@ export function DocumentWorkspaceEditor({
     setSaveState("SAVED");
     setLoadState("READY");
     setLoadMessage("");
-    setStatusMessage(null);
+    setStatusMessage(
+      exampleMode
+        ? "Completed example opened. Ask your agent what decision this memo should not repeat."
+        : null,
+    );
     setInboxChecking(false);
     setWebMCPStatus(null);
     setActiveAgentTool(null);
@@ -530,7 +541,7 @@ export function DocumentWorkspaceEditor({
     if (!persisted) {
       setStatusMessage("Persistent sign-in is blocked. This tab still works.");
     }
-  }, []);
+  }, [exampleMode]);
 
   const adoptCleanSurface = useCallback(
     (incoming: DocumentSurfaceV3) => {
@@ -1542,6 +1553,41 @@ export function DocumentWorkspaceEditor({
     }
   }, [router, saveDraft, setReadyBundle]);
 
+  const openCompletedExample = useCallback(async () => {
+    if (exampleOpening) return;
+    if (dirtyRef.current && !window.confirm("Save this note and open the example?")) return;
+    if (dirtyRef.current) {
+      const saved = await saveDraft();
+      if (!saved || dirtyRef.current) return;
+    }
+    setExampleOpening(true);
+    try {
+      const browserProfile = readDocumentWorkspaceBrowserProfile(window.localStorage);
+      const launched = await documentWorkspaceHttpService.launchExampleV3(
+        browserProfile ? { displayName: browserProfile.displayName } : {},
+      );
+      if (!launched.ok) {
+        setStatusMessage(failureMessage(launched));
+        return;
+      }
+      setReadyBundle(launched.data);
+      setRailTab("MEMORY");
+      setRailOpen(true);
+      setStatusMessage(
+        "Completed example opened. Ask your agent what decision this memo should not repeat.",
+      );
+      router.replace(
+        `/document/${encodeURIComponent(launched.data.shareToken)}?example=1`,
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "The completed example could not be opened.",
+      );
+    } finally {
+      setExampleOpening(false);
+    }
+  }, [exampleOpening, router, saveDraft, setReadyBundle]);
+
   const useLatest = useCallback(() => {
     if (!conflictRef.current) return;
     adoptCleanSurface(conflictRef.current);
@@ -1615,13 +1661,13 @@ export function DocumentWorkspaceEditor({
           ? {
               state: "waiting",
               title: "Work waiting — ask your agent to check",
-              detail: "The page cannot wake a dormant model, so prompt your paired agent once.",
+              detail: "Paste the agent prompt into your browser agent while this note is open, then leave that turn running.",
             }
           : agentToolsReady
             ? {
                 state: "ready",
                 title: "Agent tools ready",
-                detail: "Ask your paired agent to check now or listen for the next assignment.",
+                detail: "Copy the prompt, paste it into your browser agent while this note is open, then leave that turn running.",
               }
             : webMCPStatus === null || webMCPStatus.supported
               ? {
@@ -1666,6 +1712,14 @@ export function DocumentWorkspaceEditor({
           <span className={styles.topbarDivider} aria-hidden="true" />
           <button className={styles.topbarButton} type="button" onClick={() => void createNewNote()}>
             New note
+          </button>
+          <button
+            className={styles.topbarButton}
+            type="button"
+            disabled={loadState !== "READY" || exampleOpening}
+            onClick={() => void openCompletedExample()}
+          >
+            {exampleOpening ? "Opening…" : "Example"}
           </button>
         </div>
 
@@ -1883,7 +1937,7 @@ export function DocumentWorkspaceEditor({
                     <p>{agentInboxState.detail}</p>
                     <div className={styles.agentInboxActions}>
                       <button type="button" onClick={() => void copyListenPrompt()}>
-                        {listenPromptCopied ? "Copied" : "Copy listen prompt"}
+                        {listenPromptCopied ? "Copied" : "Copy agent prompt"}
                       </button>
                       <button
                         type="button"
@@ -1898,7 +1952,7 @@ export function DocumentWorkspaceEditor({
                       open={listenPromptExpanded}
                       onToggle={(event) => setListenPromptExpanded(event.currentTarget.open)}
                     >
-                      <summary>View listening prompt</summary>
+                      <summary>View agent prompt</summary>
                       <textarea
                         aria-label="Agent listening prompt"
                         readOnly
@@ -1906,13 +1960,25 @@ export function DocumentWorkspaceEditor({
                         value={DOCUMENT_WORKSPACE_AGENT_REQUEST}
                       />
                     </details>
-                    <small>Check now refreshes this page. It cannot wake an agent.</small>
+                    <small>Check now only refreshes this page—it cannot start or wake an agent.</small>
                   </section>
                   {orderedWork.length === 0 ? (
                     <div className={styles.railEmpty}>
                       <span aria-hidden="true">✦</span>
                       <h3>No active work</h3>
                       <p>Select a passage to assign it. Resolved work stays in Memory.</p>
+                      {surface?.document.revision === 0 &&
+                      !surface.document.title &&
+                      !surface.document.body &&
+                      surface.memory.length === 0 ? (
+                        <button
+                          type="button"
+                          disabled={exampleOpening}
+                          onClick={() => void openCompletedExample()}
+                        >
+                          {exampleOpening ? "Opening example…" : "Open completed example"}
+                        </button>
+                      ) : null}
                     </div>
                   ) : (
                     <ul className={styles.workList}>

@@ -89,6 +89,13 @@ export class DocumentWorkspaceHttpService implements DocumentV3ServicePort {
     return publicPost("/api/document-v3/launch", input, signal);
   }
 
+  launchExampleV3(
+    input: LaunchDocumentV3Input = {},
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSessionBundleV3>> {
+    return publicPost("/api/document-v3/example", input, signal);
+  }
+
   joinV3(
     input: JoinDocumentV3Input,
     signal?: AbortSignal,

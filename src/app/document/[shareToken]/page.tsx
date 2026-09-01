@@ -2,9 +2,19 @@ import { DocumentWorkspaceEditor } from "@/components/document/document-workspac
 
 interface SharedDocumentPageProps {
   params: Promise<{ shareToken: string }>;
+  searchParams: Promise<{ example?: string | string[] }>;
 }
 
-export default async function SharedDocumentPage({ params }: SharedDocumentPageProps) {
+export default async function SharedDocumentPage({
+  params,
+  searchParams,
+}: SharedDocumentPageProps) {
   const { shareToken } = await params;
-  return <DocumentWorkspaceEditor shareToken={shareToken} />;
+  const { example } = await searchParams;
+  return (
+    <DocumentWorkspaceEditor
+      exampleMode={example === "1"}
+      shareToken={shareToken}
+    />
+  );
 }

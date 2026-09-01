@@ -82,8 +82,13 @@ Capability Field, or chat transcript on the flagship route.
 The Work panel makes the WebMCP boundary judge-visible with honest page-local states:
 tools connecting, all five tools ready, this page's paired agent listening or preparing
 a proposal, work waiting, or WebMCP unavailable. **Check now** refreshes the page but
-cannot wake a model; **Copy listen prompt** gives the external agent one operational
+cannot wake a model; **Copy agent prompt** gives the external agent one operational
 instruction with a selectable fallback.
+
+For a zero-setup judging path, a blank note offers **Open completed example**. It builds
+a fresh Jordan → Maya Northstar decision through the same public service operations,
+opens the accepted memo directly on Memory, and gives the current browser a fresh paired
+agent that can recover why October 15 full GA must not be repeated.
 
 A non-empty selection exposes **Ask agent**. An unmodified pointer-origin right-click
 on that selection opens **Rewrite**, **Research**, and **Assign…**. Holding a modifier,

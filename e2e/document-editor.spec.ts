@@ -213,9 +213,9 @@ test("v3 note is calm without WebMCP and owns only an exact pointer-origin menu"
   ).toEqual({ documentModelContext: false, navigatorModelContext: false });
   await expect(page.getByTestId("agent-inbox")).toContainText("WebMCP unavailable");
   await expect(page.getByTestId("agent-inbox")).toContainText(
-    "Check now refreshes this page. It cannot wake an agent.",
+    "Check now only refreshes this page—it cannot start or wake an agent.",
   );
-  await page.getByText("View listening prompt", { exact: true }).click();
+  await page.getByText("View agent prompt", { exact: true }).click();
   await expect(page.getByLabel("Agent listening prompt")).toHaveValue(
     /Work from this page using WebMCP\./,
   );
