@@ -1,0 +1,482 @@
+{
+  "fixtureVersion": "repo-document-v4.postmortem.v1",
+  "protocolVersion": 4,
+  "scenarioId": "INC-482",
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000401",
+    "kind": "POSTMORTEM",
+    "title": "INC-482 · Checkout outage postmortem",
+    "finalRevision": 4,
+    "finalActivityVersion": 10
+  },
+  "members": {
+    "priya": {
+      "memberId": "00000000-0000-4000-8000-000000000411",
+      "displayName": "Priya Shah"
+    },
+    "nadia": {
+      "memberId": "00000000-0000-4000-8000-000000000412",
+      "displayName": "Nadia Chen"
+    },
+    "leo": {
+      "memberId": "00000000-0000-4000-8000-000000000413",
+      "displayName": "Leo Park"
+    },
+    "sam": {
+      "memberId": "00000000-0000-4000-8000-000000000414",
+      "displayName": "Sam Rivera"
+    }
+  },
+  "actors": {
+    "priya": {
+      "actorType": "HUMAN",
+      "displayName": "Priya Shah",
+      "member": {
+        "memberId": "00000000-0000-4000-8000-000000000411",
+        "displayName": "Priya Shah"
+      },
+      "agentLabel": null
+    },
+    "dataAgent": {
+      "actorType": "AGENT",
+      "displayName": "Data agent",
+      "member": {
+        "memberId": "00000000-0000-4000-8000-000000000412",
+        "displayName": "Nadia Chen"
+      },
+      "agentLabel": "Data agent"
+    },
+    "loggingAgent": {
+      "actorType": "AGENT",
+      "displayName": "Logging agent",
+      "member": {
+        "memberId": "00000000-0000-4000-8000-000000000413",
+        "displayName": "Leo Park"
+      },
+      "agentLabel": "Logging agent"
+    },
+    "builderAgent": {
+      "actorType": "AGENT",
+      "displayName": "Builder agent",
+      "member": {
+        "memberId": "00000000-0000-4000-8000-000000000414",
+        "displayName": "Sam Rivera"
+      },
+      "agentLabel": "Builder agent"
+    }
+  },
+  "sourceFacts": [
+    {
+      "evidenceRef": "impact.csv",
+      "facts": [
+        "28,417 checkout attempts",
+        "6,742 failures",
+        "311 merchants",
+        "zero duplicate charges"
+      ]
+    },
+    {
+      "evidenceRef": "checkout.log",
+      "facts": [
+        "Provider 429 responses began at 09:43 UTC",
+        "Retry traffic reached 5.8× baseline",
+        "The checkout queue grew from 420 to 18,240",
+        "Retry middleware was rolled back at 10:17 UTC",
+        "Checkout success rate recovered at 10:21 UTC"
+      ]
+    },
+    {
+      "evidenceRef": "commit:7d3c9e1",
+      "facts": [
+        "The retry middleware ignored Retry-After",
+        "The retry middleware made up to five immediate retries"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "taskId": "00000000-0000-4000-8000-000000000421",
+      "taskKey": "DATA-17",
+      "threadId": "00000000-0000-4000-8000-000000000431",
+      "title": "Add verified checkout impact and data-integrity figures.",
+      "category": "DATA",
+      "instruction": "Use impact.csv to replace only the Impact placeholder with verified checkout attempts, failures, affected merchants, and duplicate-charge status.",
+      "agentLabel": "Data agent",
+      "mode": "DIRECT",
+      "creatorMemberId": "00000000-0000-4000-8000-000000000411",
+      "assigneeMemberId": "00000000-0000-4000-8000-000000000412",
+      "createdAt": "2026-08-18T10:31:00.000Z",
+      "creationAnchor": {
+        "scope": "SELECTION",
+        "field": "BODY",
+        "rangeStart": 174,
+        "rangeEnd": 200,
+        "selectedText": "Investigation in progress.",
+        "createdRevision": 1,
+        "anchorRevision": 1,
+        "anchorState": "ACTIVE"
+      },
+      "submission": {
+        "basedOnRevision": 1,
+        "liveAnchor": {
+          "rangeStart": 174,
+          "rangeEnd": 200,
+          "anchorRevision": 1,
+          "anchorState": "ACTIVE"
+        },
+        "replacementText": "Between 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.",
+        "resultSummary": "Added verified checkout impact and confirmed no duplicate charges.",
+        "evidenceRefs": [
+          "impact.csv"
+        ],
+        "outcome": "COMMITTED",
+        "submittedAt": "2026-08-18T10:34:00.000Z",
+        "resultRevision": 2,
+        "activityVersion": 5
+      },
+      "finalStatus": "COMPLETED"
+    },
+    {
+      "taskId": "00000000-0000-4000-8000-000000000422",
+      "taskKey": "LOG-22",
+      "threadId": "00000000-0000-4000-8000-000000000432",
+      "title": "Replace the timeline placeholder with the observed outage sequence.",
+      "category": "LOGS",
+      "instruction": "Use checkout.log to replace only the Timeline placeholder with the observed UTC sequence from provider throttling through recovery.",
+      "agentLabel": "Logging agent",
+      "mode": "DIRECT",
+      "creatorMemberId": "00000000-0000-4000-8000-000000000411",
+      "assigneeMemberId": "00000000-0000-4000-8000-000000000413",
+      "createdAt": "2026-08-18T10:32:00.000Z",
+      "creationAnchor": {
+        "scope": "SELECTION",
+        "field": "BODY",
+        "rangeStart": 215,
+        "rangeEnd": 241,
+        "selectedText": "Investigation in progress.",
+        "createdRevision": 1,
+        "anchorRevision": 1,
+        "anchorState": "ACTIVE"
+      },
+      "submission": {
+        "basedOnRevision": 1,
+        "liveAnchor": {
+          "rangeStart": 319,
+          "rangeEnd": 345,
+          "anchorRevision": 2,
+          "anchorState": "ACTIVE"
+        },
+        "replacementText": "- 09:43 — Provider 429 responses began.\n- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.\n- 10:17 — The team rolled back retry middleware commit 7d3c9e1.\n- 10:21 — Checkout success rate recovered.",
+        "resultSummary": "Added the observed outage timeline and recovery sequence.",
+        "evidenceRefs": [
+          "checkout.log"
+        ],
+        "outcome": "COMMITTED",
+        "submittedAt": "2026-08-18T10:35:00.000Z",
+        "resultRevision": 3,
+        "activityVersion": 6
+      },
+      "finalStatus": "COMPLETED"
+    },
+    {
+      "taskId": "00000000-0000-4000-8000-000000000423",
+      "taskKey": "CODE-9",
+      "threadId": "00000000-0000-4000-8000-000000000433",
+      "title": "Explain provider throttling as trigger and retry regression as root cause.",
+      "category": "CODEBASE",
+      "instruction": "Use commit 7d3c9e1 and checkout.log to distinguish the external trigger from the internal condition that sustained the outage. Replace only the Root cause placeholder.",
+      "agentLabel": "Builder agent",
+      "mode": "REVIEW",
+      "creatorMemberId": "00000000-0000-4000-8000-000000000411",
+      "assigneeMemberId": "00000000-0000-4000-8000-000000000414",
+      "createdAt": "2026-08-18T10:33:00.000Z",
+      "creationAnchor": {
+        "scope": "SELECTION",
+        "field": "BODY",
+        "rangeStart": 258,
+        "rangeEnd": 284,
+        "selectedText": "Investigation in progress.",
+        "createdRevision": 1,
+        "anchorRevision": 1,
+        "anchorState": "ACTIVE"
+      },
+      "anchorRebases": [
+        {
+          "afterRevision": 2,
+          "rangeStart": 362,
+          "rangeEnd": 388,
+          "selectedText": "Investigation in progress.",
+          "anchorRevision": 2,
+          "anchorState": "ACTIVE"
+        },
+        {
+          "afterRevision": 3,
+          "rangeStart": 573,
+          "rangeEnd": 599,
+          "selectedText": "Investigation in progress.",
+          "anchorRevision": 3,
+          "anchorState": "ACTIVE"
+        }
+      ],
+      "proposal": {
+        "basedOnRevision": 1,
+        "replacementText": "Provider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure.",
+        "resultSummary": "Separated the provider trigger from the retry regression that sustained the outage.",
+        "evidenceRefs": [
+          "commit:7d3c9e1",
+          "checkout.log"
+        ],
+        "outcome": "PROPOSED",
+        "proposedAt": "2026-08-18T10:36:00.000Z",
+        "headRevision": 3,
+        "activityVersion": 7
+      },
+      "decision": {
+        "kind": "ACCEPTED",
+        "note": "Accepted after separating the external trigger from the internal retry amplifier.",
+        "decidedByMemberId": "00000000-0000-4000-8000-000000000411",
+        "decidedAt": "2026-08-18T10:39:00.000Z",
+        "sourceRevision": 1,
+        "parentRevision": 3,
+        "decisionRevision": 3,
+        "resultRevision": 4,
+        "activityVersion": 10
+      },
+      "finalStatus": "COMPLETED"
+    }
+  ],
+  "comments": [
+    {
+      "commentId": "00000000-0000-4000-8000-000000000441",
+      "threadId": "00000000-0000-4000-8000-000000000433",
+      "replyToCommentId": null,
+      "authorActor": "priya",
+      "origin": "ORDINARY_UI",
+      "body": "Provider throttling happened first. Are we overclaiming our code as the root cause?",
+      "evidenceRefs": [],
+      "createdAt": "2026-08-18T10:37:00.000Z",
+      "activityVersion": 8
+    },
+    {
+      "commentId": "00000000-0000-4000-8000-000000000442",
+      "threadId": "00000000-0000-4000-8000-000000000433",
+      "replyToCommentId": "00000000-0000-4000-8000-000000000441",
+      "authorActor": "builderAgent",
+      "origin": "WEBMCP",
+      "body": "The logs show 429s as the trigger, but commit 7d3c9e1 ignored Retry-After and issued up to five zero-delay retries. That raised retry traffic to 5.8× and the queue from 420 to 18,240, so the code regression explains why throttling became a 38-minute outage.",
+      "evidenceRefs": [
+        "checkout.log",
+        "commit:7d3c9e1"
+      ],
+      "createdAt": "2026-08-18T10:38:00.000Z",
+      "activityVersion": 9
+    }
+  ],
+  "counterLedger": [
+    {
+      "event": "launch",
+      "revision": 1,
+      "activityVersion": 1
+    },
+    {
+      "event": "create DATA-17",
+      "revision": 1,
+      "activityVersion": 2
+    },
+    {
+      "event": "create LOG-22",
+      "revision": 1,
+      "activityVersion": 3
+    },
+    {
+      "event": "create CODE-9",
+      "revision": 1,
+      "activityVersion": 4
+    },
+    {
+      "event": "DATA-17 direct result",
+      "revision": 2,
+      "activityVersion": 5
+    },
+    {
+      "event": "LOG-22 direct result rebased from r1",
+      "revision": 3,
+      "activityVersion": 6
+    },
+    {
+      "event": "CODE-9 review proposal based on r1",
+      "revision": 3,
+      "activityVersion": 7
+    },
+    {
+      "event": "Priya comments on CODE-9",
+      "revision": 3,
+      "activityVersion": 8
+    },
+    {
+      "event": "Builder agent replies on CODE-9",
+      "revision": 3,
+      "activityVersion": 9
+    },
+    {
+      "event": "Priya accepts CODE-9",
+      "revision": 4,
+      "activityVersion": 10
+    }
+  ],
+  "revisions": [
+    {
+      "revisionId": "00000000-0000-4000-8000-000000000451",
+      "revision": 1,
+      "parentRevision": null,
+      "title": "INC-482 · Checkout outage postmortem",
+      "body": "## Summary\n\nCheckout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.\n\n## Impact\n\nInvestigation in progress.\n\n## Timeline\n\nInvestigation in progress.\n\n## Root cause\n\nInvestigation in progress.\n\n## Detection and response\n\nThe on-call engineer responded to the checkout error-rate alert and coordinated rollback.\n\n## Contributing factors\n\nThe retry path had not been load-tested against provider throttling.\n\n## Corrective actions\n\n- [ ] Honor provider backoff headers — Payments Platform — September 5\n- [ ] Add throttling load tests — Checkout — September 7\n- [ ] Alert on retry amplification — Reliability — September 6\n\n## Learnings\n\nSeparate external triggers from internal amplifiers when assigning root cause.",
+      "contentDigest": "sha256:1541f67567b338045168123f6428f6ac5d67d25332362d94caf09608a253e140",
+      "diffs": [
+        {
+          "field": "TITLE",
+          "rangeStart": 0,
+          "rangeEnd": 0,
+          "before": "",
+          "after": "INC-482 · Checkout outage postmortem"
+        },
+        {
+          "field": "BODY",
+          "rangeStart": 0,
+          "rangeEnd": 0,
+          "before": "",
+          "after": "## Summary\n\nCheckout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.\n\n## Impact\n\nInvestigation in progress.\n\n## Timeline\n\nInvestigation in progress.\n\n## Root cause\n\nInvestigation in progress.\n\n## Detection and response\n\nThe on-call engineer responded to the checkout error-rate alert and coordinated rollback.\n\n## Contributing factors\n\nThe retry path had not been load-tested against provider throttling.\n\n## Corrective actions\n\n- [ ] Honor provider backoff headers — Payments Platform — September 5\n- [ ] Add throttling load tests — Checkout — September 7\n- [ ] Alert on retry amplification — Reliability — September 6\n\n## Learnings\n\nSeparate external triggers from internal amplifiers when assigning root cause."
+        }
+      ],
+      "provenance": {
+        "authority": "HUMAN",
+        "origin": "ORDINARY_UI",
+        "authorOrigin": "ORDINARY_UI",
+        "taskId": null,
+        "sourceRevision": 0,
+        "authorActor": "priya",
+        "committerActor": "priya",
+        "grantedByMemberId": null,
+        "approvedByMemberId": null,
+        "restoredRevision": null
+      },
+      "changeSummary": "Launch INC-482 postmortem.",
+      "evidenceRefs": [],
+      "createdAt": "2026-08-18T10:30:00.000Z"
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000000452",
+      "revision": 2,
+      "parentRevision": 1,
+      "title": "INC-482 · Checkout outage postmortem",
+      "body": "## Summary\n\nCheckout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.\n\n## Impact\n\nBetween 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.\n\n## Timeline\n\nInvestigation in progress.\n\n## Root cause\n\nInvestigation in progress.\n\n## Detection and response\n\nThe on-call engineer responded to the checkout error-rate alert and coordinated rollback.\n\n## Contributing factors\n\nThe retry path had not been load-tested against provider throttling.\n\n## Corrective actions\n\n- [ ] Honor provider backoff headers — Payments Platform — September 5\n- [ ] Add throttling load tests — Checkout — September 7\n- [ ] Alert on retry amplification — Reliability — September 6\n\n## Learnings\n\nSeparate external triggers from internal amplifiers when assigning root cause.",
+      "contentDigest": "sha256:9fe562c0c6351c6088ebc0d42c642eda96361aeae1d20d2123982fbdac552bb3",
+      "diffs": [
+        {
+          "field": "BODY",
+          "rangeStart": 174,
+          "rangeEnd": 200,
+          "before": "Investigation in progress.",
+          "after": "Between 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred."
+        }
+      ],
+      "provenance": {
+        "authority": "DIRECT",
+        "origin": "WEBMCP",
+        "authorOrigin": "WEBMCP",
+        "taskId": "00000000-0000-4000-8000-000000000421",
+        "sourceRevision": 1,
+        "authorActor": "dataAgent",
+        "committerActor": "dataAgent",
+        "grantedByMemberId": "00000000-0000-4000-8000-000000000411",
+        "approvedByMemberId": null,
+        "restoredRevision": null
+      },
+      "changeSummary": "Added verified checkout impact and confirmed no duplicate charges.",
+      "evidenceRefs": [
+        "impact.csv"
+      ],
+      "createdAt": "2026-08-18T10:34:00.000Z"
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000000453",
+      "revision": 3,
+      "parentRevision": 2,
+      "title": "INC-482 · Checkout outage postmortem",
+      "body": "## Summary\n\nCheckout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.\n\n## Impact\n\nBetween 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.\n\n## Timeline\n\n- 09:43 — Provider 429 responses began.\n- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.\n- 10:17 — The team rolled back retry middleware commit 7d3c9e1.\n- 10:21 — Checkout success rate recovered.\n\n## Root cause\n\nInvestigation in progress.\n\n## Detection and response\n\nThe on-call engineer responded to the checkout error-rate alert and coordinated rollback.\n\n## Contributing factors\n\nThe retry path had not been load-tested against provider throttling.\n\n## Corrective actions\n\n- [ ] Honor provider backoff headers — Payments Platform — September 5\n- [ ] Add throttling load tests — Checkout — September 7\n- [ ] Alert on retry amplification — Reliability — September 6\n\n## Learnings\n\nSeparate external triggers from internal amplifiers when assigning root cause.",
+      "contentDigest": "sha256:1b1a153a2d6f2ad20708db552f18fe739b90754f6ea567666e655f2251f0e69e",
+      "diffs": [
+        {
+          "field": "BODY",
+          "rangeStart": 319,
+          "rangeEnd": 345,
+          "before": "Investigation in progress.",
+          "after": "- 09:43 — Provider 429 responses began.\n- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.\n- 10:17 — The team rolled back retry middleware commit 7d3c9e1.\n- 10:21 — Checkout success rate recovered."
+        }
+      ],
+      "provenance": {
+        "authority": "DIRECT",
+        "origin": "WEBMCP",
+        "authorOrigin": "WEBMCP",
+        "taskId": "00000000-0000-4000-8000-000000000422",
+        "sourceRevision": 1,
+        "authorActor": "loggingAgent",
+        "committerActor": "loggingAgent",
+        "grantedByMemberId": "00000000-0000-4000-8000-000000000411",
+        "approvedByMemberId": null,
+        "restoredRevision": null
+      },
+      "changeSummary": "Added the observed outage timeline and recovery sequence.",
+      "evidenceRefs": [
+        "checkout.log"
+      ],
+      "createdAt": "2026-08-18T10:35:00.000Z"
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000000454",
+      "revision": 4,
+      "parentRevision": 3,
+      "title": "INC-482 · Checkout outage postmortem",
+      "body": "## Summary\n\nCheckout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.\n\n## Impact\n\nBetween 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.\n\n## Timeline\n\n- 09:43 — Provider 429 responses began.\n- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.\n- 10:17 — The team rolled back retry middleware commit 7d3c9e1.\n- 10:21 — Checkout success rate recovered.\n\n## Root cause\n\nProvider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure.\n\n## Detection and response\n\nThe on-call engineer responded to the checkout error-rate alert and coordinated rollback.\n\n## Contributing factors\n\nThe retry path had not been load-tested against provider throttling.\n\n## Corrective actions\n\n- [ ] Honor provider backoff headers — Payments Platform — September 5\n- [ ] Add throttling load tests — Checkout — September 7\n- [ ] Alert on retry amplification — Reliability — September 6\n\n## Learnings\n\nSeparate external triggers from internal amplifiers when assigning root cause.",
+      "contentDigest": "sha256:6238f961ccbadec704a8d0300705679da0f0261ba84551e26e7044c64d343c5c",
+      "diffs": [
+        {
+          "field": "BODY",
+          "rangeStart": 573,
+          "rangeEnd": 599,
+          "before": "Investigation in progress.",
+          "after": "Provider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure."
+        }
+      ],
+      "provenance": {
+        "authority": "REVIEW",
+        "origin": "ORDINARY_UI",
+        "authorOrigin": "WEBMCP",
+        "taskId": "00000000-0000-4000-8000-000000000423",
+        "sourceRevision": 1,
+        "authorActor": "builderAgent",
+        "committerActor": "priya",
+        "grantedByMemberId": "00000000-0000-4000-8000-000000000411",
+        "approvedByMemberId": "00000000-0000-4000-8000-000000000411",
+        "restoredRevision": null
+      },
+      "changeSummary": "Separated the provider trigger from the retry regression that sustained the outage.",
+      "evidenceRefs": [
+        "commit:7d3c9e1",
+        "checkout.log"
+      ],
+      "createdAt": "2026-08-18T10:39:00.000Z"
+    }
+  ],
+  "freshAgentAnswerKey": {
+    "question": "What caused INC-482, and how was that conclusion challenged and resolved?",
+    "answer": "Provider 429 throttling was the external trigger. Retry middleware from commit 7d3c9e1 ignored Retry-After and made up to five zero-delay retries, amplifying retry traffic to 5.8× and the checkout queue from 420 to 18,240. CODE-9 therefore identifies the retry regression as the internal amplifier and root cause of the sustained 38-minute outage, while not mislabeling provider latency alone as the root cause. Priya challenged that distinction in the CODE-9 discussion; the Builder agent answered with the log and commit evidence, and Priya accepted the reviewed change in r4.",
+    "requiredReferences": [
+      "CODE-9",
+      "r4",
+      "checkout.log",
+      "commit:7d3c9e1"
+    ],
+    "forbiddenClaim": "Provider throttling or provider latency alone was the root cause."
+  }
+}

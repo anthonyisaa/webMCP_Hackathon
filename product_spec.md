@@ -1,431 +1,461 @@
 # Ratiflow product specification
 
-Version 3.0 · Frozen for the shared-document flagship · Owner: Ant · 2026-09-01
+Version 4.0 · Contract freeze candidate · Owner: Ant · 2026-09-01
 
 ## 0. Authority and supersession
 
-This file is the submission-facing product source of truth. It supersedes every earlier
-shared-note, annotation-queue, stage-machine, native-proof, agent-trajectory, ablation,
-release-gate, and proof-order claim for the flagship route.
+This file is the submission-facing source of truth for the v4 flagship. It supersedes
+the v3 shared-memo product story at `/`, but it does not delete or weaken the deployed
+v3 compatibility surface at `/document/[shareToken]`.
 
-The v3 document contract is jointly frozen by:
+The v4 contract is jointly owned by:
 
-- this specification;
-- [`docs/contracts/editor-contract.md`](docs/contracts/editor-contract.md) for exact
-  service, schema, authority, transition, error, and browser behavior;
-- [`src/document/contracts.ts`](src/document/contracts.ts) for the checked wire types;
-- [`docs/contracts/document-hero-scenario.md`](docs/contracts/document-hero-scenario.md)
-  for the deterministic Northstar fixture; and
-- [`EVALS.md`](EVALS.md) for evidence and release gates.
+- this product specification;
+- `docs/contracts/repository-contract.md` for exact entities, transitions, authority,
+  transactions, APIs, WebMCP behavior, bounds, and errors;
+- `src/repository/contracts.ts` for checked wire types and constants;
+- `docs/contracts/postmortem-hero-scenario.md` for the deterministic `INC-482` fixture;
+- `evals/goldens/repo-document-v4/` for independently authored exact fixture data; and
+- `EVALS.md` for evidence and release gates.
 
-The existing [`docs/contracts/capability-contract.md`](docs/contracts/capability-contract.md),
-[`docs/contracts/hero-scenario.md`](docs/contracts/hero-scenario.md), and
-`live-agent-session-contract.md` remain authority only for `/decision-demo`. That route
-and its prior native captures are compatibility evidence; they are not the submission
-story and do not satisfy a v3 document release gate.
-
-Implementation may simplify presentation, but it may not invent or weaken a v3 actor,
-authority boundary, lifecycle state, tool, fixture fact, schema, error, or proof class.
+The v3 `docs/contracts/editor-contract.md`, `src/document/contracts.ts`, routes,
+migrations, and evidence remain dated compatibility authority only. They cannot prove a
+v4 revision, comment, task-authority, direct-write, template, or native-tool claim.
 
 ## 1. Product promise
 
-**Ratiflow is one shared decision memo where people assign exact text to a teammate's
-agent, agents return reviewable proposals through the live page, and the next agent can
-recover why the document evolved.**
+**Ratiflow is a versioned issue document where people and the agents they bring work
+from one shared task list, discuss exact parts of the document, and preserve a complete
+record of who changed what, why, and under whose authority.**
 
-The page is the coordination boundary. A supported agent discovers current document,
-memory, assignment, waiting, and proposal tools directly from the open top-level page
-through `document.modelContext`; it does not need an MCP server configuration, copied
-workspace ID, API key, DOM scraping, or pasted prompt. Humans retain the consequential
-actions: they create and route work, then accept or reject proposals in one click, with
-an optional decision note when the reasoning should enter shared memory.
+The final document is the product. Tasks, comments, agent findings, proposals, and
+revision history are the path to that product, not a chat transcript that replaces it.
+A person can open the shared URL, read and edit the document, discuss it, inspect every
+revision, and restore an older version without connecting an agent.
 
-This is a hackathon POC, not a general word processor, CRDT, autonomous agent host, chat
-product, account system, rich-text editor, or workflow engine. The submission proves one
-small interaction unusually well: an already-active paired agent reacts to another
-human's anchored assignment, proposes without silently editing, and leaves durable
-decision memory for a later agent.
+When a compatible agent is present, the top-level page exposes the issue, history,
+owned tasks, task discussion, and a governed result submission surface through
+`document.modelContext`. Each collaborator may bring a different agent. Ratiflow does
+not host the model, require a vendor-specific integration, give the model a workspace
+identifier, or claim access to external metrics, logs, or source code. Those external
+capabilities belong to the agent the collaborator brought.
 
-## 2. Competition alignment
+Every task has one immutable execution mode selected by a human:
 
-| Official criterion | Judge-visible v3 proof |
-|---|---|
-| WebMCP Leverage | The page-native five-tool surface exposes authoritative content and memory, waits on a live cross-human assignment, submits an ownership-checked proposal, and cleans up on navigation. Removing WebMCP removes the structured agent collaboration loop. |
-| Execution | Two isolated human sessions complete select → assign → wait → inspect → propose → human accept → synchronized content and memory, with ordinary editing still usable when WebMCP is absent. |
-| Potential Impact | Teams lose the rationale behind document edits in detached chats. Ratiflow keeps exact work, proposer/accepter provenance, server diff, and human rationale beside the evolving artifact. |
-| Creativity and Ambition | WebMCP turns the live document into a rendezvous and capability plane for one agent per collaborator, while revision-bound proposals and append-only memory prevent silent edits and repetitive idea loops. |
+- **Comment only** — the agent may post findings and complete the task without changing
+  the document.
+- **Review required** — the agent may discuss and propose one scoped replacement; a
+  human must accept or reject the proposal.
+- **Can edit directly** — the agent may apply one scoped replacement immediately. The
+  resulting revision is attributable and reversible, but Ratiflow asks for no product
+  approval after the grant.
 
-WebMCP Leverage is the first tie-breaker and must be the clearest beat in the product and
-video. A static API wrapper, injected adapter, copied prompt, or agent-themed animation
-does not prove the promise.
+The task mode is a server-side capability, not model input. An agent cannot promote its
+mode, change its assignee, widen its target, forge its actor, or act on another task.
 
-## 3. Flagship surface
+## 2. Why this is not a Git-themed editor
 
-`/` resumes the last valid browser note or creates a blank v3 note and opens its temporary high-entropy
-`/document/[shareToken]` workspace. The
-ordinary surface is a plain title/body document with a compact top bar, lightweight
-presence, and a quiet **Work | Memory** margin. The writing surface dominates desktop
-and 390px layouts. Shared documents remain account-free and expire with their 24-hour
-session; possession of the link grants temporary access and is not described as private
-authenticated storage.
+The repository metaphor is an implementation and trust model, not the primary UI.
+Ratiflow uses Git-grade properties that ordinary document collaboration lacks:
 
-The Work panel is an honest page-local inbox. It distinguishes tools connecting, tools ready, this page's
-paired agent actively waiting, this page's paired agent preparing a proposal, work
-waiting for the agent, and WebMCP unavailable. **Check now** refreshes authoritative
-page state but cannot start a model. **Copy agent prompt** supplies one operational
-prompt, with a selectable fallback when clipboard access is blocked; no state on one
-collaborator's page claims another collaborator's agent is live.
+1. Every content revision stores a complete immutable snapshot and digest.
+2. Every revision identifies its parent, author, committer, task, task grant, source
+   revision, resulting revision, change summary, evidence references, and timestamp.
+3. A review-required revision preserves both the agent author and human approver.
+4. A direct agent revision preserves the human grantor and exact task scope.
+5. Restore creates a new revision; history is never rewritten or deleted.
+6. Comments and task discussion retain the revision and exact text that grounded them.
+7. Concurrent disjoint tasks can land after deterministic anchor rebasing; overlaps fail
+   closed instead of silently overwriting another contributor.
 
-A revision-zero note offers **Open completed example**. It creates a fresh Northstar
-workflow through the same launch, save, join, assignment, proposal, decision, and memory
-service calls as the live loop, then opens Memory as a fresh viewer. This is judge-facing
-proof, not a hard-coded screenshot or privileged fixture reset.
+The human-facing labels are **Threads**, **Tasks**, **History**, **Review required**,
+**Can edit directly**, **Compare**, and **Restore**. P0 has no branches, pull requests,
+commit graph, staging area, merge queue, repository browser, or Git command vocabulary.
 
-The v3 flagship has no visible four-stage control, stage-generated work, permanent
-annotation composer, creator-only agent queue, direct agent mutation, copied **Ask
-ChatGPT** prompt, Capability Field, launch dashboard, or permanent chat transcript.
-Stored v2 stage and annotation data may remain for rollback, but it never gates v3
-behavior or appears in the v3 WebMCP contract.
+## 3. P0 document scope
 
-Participants see attributed collaborators and advisory editing presence. Whole-document
-autosave uses compare-and-swap revision checks; a remote update never overwrites a dirty
-local draft. This is collaboration awareness rather than character-level merging.
+The root page offers exactly two new-document choices.
 
-The deterministic Northstar seed is separate from ordinary blank launch. The protected
-HTTP harness at `/api/document-v3/eval/reset` exists only in preview/eval and is disabled
-on the canonical deployment. Before canonical native capture, a private release CLI may
-invoke the service-role-only `ratiflow_reset_document_hero_v3` RPC directly. That RPC is
-revoked from `public`, `anon`, and `authenticated` and returns exactly:
+### Incident postmortem
 
-```ts
-interface ResetDocumentHeroOutcome {
-  shareToken: string;
-  mayaBootstrapPath: string;
-  jordanBootstrapPath: string;
-  expiresAt: string;
-  revision: 1;
-  activityVersion: 1;
-}
+The initial body is exactly:
+
+```markdown
+## Summary
+
+Describe what happened, when it started, and when service recovered.
+
+## Impact
+
+Quantify affected customers, failed operations, and data integrity.
+
+## Timeline
+
+List key events in UTC.
+
+## Root cause
+
+Distinguish the triggering event from the system condition that amplified it.
+
+## Detection and response
+
+Explain how the incident was detected and how responders acted.
+
+## Contributing factors
+
+List the conditions that increased likelihood or impact.
+
+## Corrective actions
+
+- [ ] Assign an owner and target date.
+
+## Learnings
+
+Record what should change in how the team designs, operates, or responds.
 ```
 
-Each bootstrap path is a top-level document path whose URL fragment contains a
-base64url-encoded v3 session bundle. The fragment is a bearer credential. The page
-validates it against the path, share, protocol, and expiry; stores the full bundle in
-tab-scoped `sessionStorage`, stores only its credential projection and last-note pointer
-in `localStorage`, fetches the authoritative surface on every resume, and clears the
-fragment before any WebMCP registration. Browser credentials never contain document,
-work, or memory content. Bootstrap
-paths and fragments are never logged, committed, screenshotted, or retained in capture
-artifacts. A human operator may open the Maya and Jordan top-level bootstrap paths during
-native setup; after that, the agent interacts only through WebMCP.
+The default title is `Untitled incident postmortem`.
 
-Reset creates the seed event and **no work orders**; Jordan creates the canonical work
-during the observed hero.
+### Product document
 
-### Contextual human interaction
+The initial body is exactly:
 
-A non-empty title/body selection exposes one compact **Ask agent** affordance. Only an
-unmodified pointer-origin right-click on that selection suppresses the browser menu and
-opens **Rewrite**, **Research**, and **Assign…**. The implementation tracks the preceding
-secondary-button pointer event instead of guessing keyboard origin from coordinates.
+```markdown
+## Problem
 
-Any modified pointer right-click remains native: Shift, Alt, Ctrl, or Meta individually
-or in combination. The Context Menu key, Shift+F10, empty selection, and non-editor
-targets also remain native. `spellCheck` stays enabled and the UI says **Hold Shift for
-spelling menu**. `Cmd/Ctrl+K` is the keyboard-equivalent app action.
+Describe the customer or business problem.
 
-Rewrite and Research prefill the same compact composer as Assign. No work order exists
-until the human confirms the instruction and a currently available assignee. Selection
-anchors are zero-based, end-exclusive Unicode code-point ranges captured from
-authoritative title or body content.
+## Users and need
 
-## 4. Deterministic Northstar hero
+Name the users and the outcome they need.
 
-Every release rehearsal uses this fixture; S5 does not invent an optional scenario.
-The seeded v3 document is revision `1`, activity version `1`, titled:
+## Goals
 
-```text
-Northstar CSV launch memo
+Define the outcomes this product should create.
+
+## Non-goals
+
+State what is deliberately outside this document.
+
+## Requirements
+
+List the behavior the product must support.
+
+## Decisions
+
+Record decisions and the context behind them.
+
+## Risks
+
+Describe material delivery, adoption, safety, or operational risks.
+
+## Success metrics
+
+Define how the team will know the product worked.
+
+## Open questions
+
+List unresolved questions and their owners.
 ```
 
-Its body is exactly:
+The default title is `Untitled product document`.
 
-```text
-Recommendation
+Both templates use the same revision, task, comment, authority, history, and WebMCP
+primitives. No blank general-purpose document, folder, attachment, rich-text block,
+spreadsheet, or third template appears in P0.
 
-Launch CSV export as generally available on October 15.
+## 4. Flagship surface and human workflow
 
-Context
+`/` shows the two-card template picker and an **Open incident example** action. Creating
+a template launches a high-entropy shared workspace and opens
+`/issue/[shareToken]`. Anyone holding the URL may join while the POC workspace remains
+live. The page never describes possession-of-link access as private authenticated
+storage.
 
-Northstar Health's $180,000 renewal needs usable CSV export by November 1. The team has 14 engineer-days after the incident rotation: reliability needs 10, leaving 4 for export.
+Open incident example accepts no name or configuration and opens its human as Priya Shah.
+It creates a fresh completed r4/av10 clone of the `INC-482` golden, so a person can inspect
+the finished postmortem, three resolved tasks, discussion, and provenance without
+connecting an agent. Fresh identifiers, credentials, timestamps, expiry, and display
+colors are normalized in comparison; content/digests, names/labels, task and reply graph,
+anchors, evidence, counters, diffs, and provenance relationships remain exact. The
+protected evaluation reset is separate:
+it creates the runnable r1/av4 state with all three tasks Open and returns four secret
+member bootstrap paths for the controlled native flow. Production example code never
+calls the reset.
 
-Open question
+The workspace has three quiet regions:
 
-Can a single-tenant beta meet Northstar's need while general availability moves to November 1?
-```
+- a compact top bar with Ratiflow, document type, `rN · Saved`, collaborators, Share,
+  and New document;
+- a dominant title/body writing surface; and
+- a right **Threads | History** rail, rendered as an accessible drawer below 740 px.
 
-The hero is deterministic:
+Threads shows open tasks first, then open anchored discussions, with completed work
+available under **Done**. A task expands into its instruction, assignee, agent label,
+mode, exact target, evidence references, comments, result, and decision. Resolved work
+is never discarded merely to keep the inbox short.
 
-1. Maya Chen's already-active paired agent calls `inspect_document({})`, observes
-   revision `1` and activity version `1`, then calls
-   `wait_for_my_work({afterActivityVersion: 1, afterRevision: 1, timeoutSeconds: 20})`.
-2. Jordan Lee selects BODY code-point range `[16, 71)`, exactly
-   `Launch CSV export as generally available on October 15.`, opens pointer-origin
-   **Rewrite**, chooses Maya, and confirms:
-   `Rewrite this recommendation to fit the 14-day capacity and protect the Northstar renewal. Keep both launch dates explicit.`
-3. Work creation leaves revision `1`, advances activity version to `2`, and wakes Maya's
-   agent with `WORK_AVAILABLE`.
-4. The agent calls `read_document_memory` and `list_my_work`, then submits this proposal
-   without changing the document:
-   `Launch an invite-only, single-tenant Northstar beta on October 15, then make CSV export generally available on November 1.`
-   Its change summary is:
-   `Replace October 15 GA with a single-tenant beta, then move general availability to November 1.`
-5. Proposal submission leaves revision `1`, advances activity version to `3`, and makes
-   the proposal visible to both humans while the original sentence remains intact.
-6. Jordan accepts with the authoritative rationale:
-   `Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.`
-7. Acceptance atomically applies the stored proposal, completes the work, advances the
-   document to revision `2`, and advances activity version to `4` with one event.
-8. A fresh Maya-paired agent calls `read_document_memory` and explains the rejected
-   eight-export-day fact, which cannot be inferred from the final document text.
+History contains content revisions only. Task creation, comments, presence, proposals,
+and rejection may advance activity but do not masquerade as document revisions. Opening
+a revision shows its full provenance, full historical snapshot, and server-computed
+before/after change. **Restore this revision** requires a current-revision check and
+creates a new human-authored revision.
 
-The demo may visibly exercise rejection in a secondary branch, but it may not replace
-or alter this release fixture.
+A non-empty title/body selection exposes **Comment** and **Create task**. `Cmd/Ctrl+K`
+opens Create task for the current selection. The pointer-origin context-menu safeguards,
+native spelling menu, Unicode code-point conversion, focus restoration, and modified
+right-click behavior remain as strict as v3.
 
-## 5. Identity, work, and human authority
+Comment creates an anchored discussion with the selected text and current revision.
+Create task requires a title, instruction, durable workspace assignee, agent label, and
+one mode. Review required is the default. Comment-only tasks may target the whole
+document; Review and Direct require a non-empty exact title/body selection in P0.
 
-One anonymous human member has one server-derived paired-agent identity. Human and agent
-tokens are separate. Model input never supplies document, member, actor, origin,
-assignee, range, acceptance, decision, or stage authority.
+Presence is advisory. A known workspace member does not need a heartbeat in the last 15
+seconds to receive durable work. Joining the shared URL is still required before a
+person can become an assignee.
 
-A work order stores exact title/body anchors; immutable `creatorMemberId` and
-`assignedToMemberId`; display-name snapshots; instruction and intent; creation and live
-anchor revisions; proposal fields; and lifecycle timestamps.
-Human creation explicitly supplies the assignee. The server validates current workspace
-membership and presence no older than 15 seconds; otherwise it returns
-`ASSIGNEE_UNAVAILABLE`. Later inactivity does not revoke already-created work before the
-session expires. Presence remains advisory UI state.
+Ordinary document changes use explicit **Save revision** rather than creating one
+history entry per keystroke. The browser preserves an unsaved local draft within the
+tab, clearly distinguishes it from the authoritative head, and offers explicit conflict
+recovery when the head advances. The product does not claim character-level CRDT or
+automatic merge behavior.
 
-Checked v3 code exports and uses the exact names `DocumentWorkOrder`,
-`PendingDocumentWorkOrder`, `CreateDocumentWorkOrderInput`, and
-`CancelDocumentWorkOrderInput`. Prose shorthand such as “work order” refers to these
-types and does not create alternate interfaces.
+## 5. Identity, attribution, and bring-your-own-agent
 
-All members may view work. Only its creator may cancel, accept, or reject it. Only the
-paired agent whose member identity is derived from authenticated execution context may
-list or submit it. WebMCP never creates, reassigns, accepts, rejects, or cancels work.
+One workspace member has distinct human and delegated-agent bearer credentials. The
+agent credential is a page-scoped capability for whatever compatible agent that member
+brings; it is not a verified model identity or a hosted Ratiflow agent.
+
+The server derives document, member, actor type, origin, page session, task ownership,
+mode, scope, and grantor from authenticated execution context and stored records.
+WebMCP input never accepts those fields.
+
+Agent attribution contains:
+
+- the human workspace principal whose page delegated the call;
+- the task's human-authored agent label, such as `Data agent` or `Builder agent`;
+- actor type `AGENT` and origin `WEBMCP`; and
+- optional client/model text only when clearly marked unverified.
+
+Human attribution contains the stable workspace member snapshot and origin
+`ORDINARY_UI`. No public revision, task, comment, tool result, capture, or log contains
+bearer tokens, credential hashes, browser storage, bootstrap fragments, or page session
+handles.
+
+The v4 POC keeps account-free link access and bounded retention. A document and its
+revision history outlive a browser tab and agent turn; they never disappear merely
+because presence or a page-local wait ended. Product copy states the actual retention
+window rather than promising permanent hosted storage.
+
+## 6. Tasks, comments, and authority
+
+Every task stores:
+
+- immutable creator and assignee member snapshots;
+- task title, category, instruction, and human-authored agent label;
+- immutable mode `COMMENT | REVIEW | DIRECT`;
+- an exact title/body anchor or document scope where allowed;
+- creation, source, live-anchor, and result revisions;
+- a dedicated discussion thread;
+- bounded evidence references;
+- proposal/result/decision data; and
+- lifecycle timestamps.
 
 Lifecycle is exact:
 
-- `PENDING -> PROPOSED | CANCELLED | STALE`
+- `OPEN -> PROPOSED | COMPLETED | CANCELLED | STALE`
 - `PROPOSED -> COMPLETED | REJECTED | STALE`
 
-`submit_work_proposal` stores a bounded candidate replacement and an untrusted model
-summary; it never mutates content. A replacement identical to the current authoritative
-target is an invalid no-op and is rejected without a proposal, event, or counter change.
-Human accept/reject requires exactly
-`{ workOrderId, expectedRevision, requestId, rationale }`, where rationale is null or a
-nonblank 1–500-code-point optional human note. Acceptance atomically
-revalidates the stored anchor, applies the stored proposal, completes the work, and
-attributes proposer plus accepter. Rejection leaves content unchanged. Present human
-rationale is authoritative and exact; null never produces fabricated human prose. The first locked decision wins; later conflicting decisions fail
-without mutation.
+Only the paired agent of the immutable assignee may list, wait for, comment as agent,
+or submit a result. All workspace humans may view tasks and discussions. The creator may
+cancel or decide a Review proposal. Any workspace human may participate in discussion;
+server attribution prevents impersonation.
 
-Every accepted/rejected `WorkDecision` records `decisionRevision` as the authoritative
-pre-decision revision and `resultRevision` as the post-decision revision. Hero acceptance
-therefore records `1 -> 2`; rejection records equal values because it changes no
-document content.
+All comment records are first-class and append-only. A thread may be anchored directly
+to document text or owned by a task. A reply references a comment in the same thread.
+The original selected text and creation revision never change; the live anchor may
+rebase. Resolving a thread changes its state but never deletes its comments.
 
-Active-work caps count `PENDING` plus `PROPOSED`: 100 per document and 50 per assignee.
-The member key is immutable `assignedToMemberId`, never creator or mere workspace
-membership.
-Instructions are 1–500 nonblank Unicode code points; human rationales are null or
-1–500 nonblank Unicode code points; change
-summaries are 1–240; title is at most 160 and body at most 50,000. A generic proposal is
-at most 50,000 code points, but its resulting field must still meet the title/body bound.
+The 30-day POC has explicit lifetime bounds: 500 tasks and 500 standalone threads per
+issue, with at most 100 comments in each thread. The human surface returns this complete
+bounded work state; it does not silently truncate terminal tasks or older discussion.
 
-## 6. Revision, activity, anchors, and memory
+`submit_task_result` behaves only according to stored mode:
 
-Every successful content/work transaction locks the document first, increments
-server-owned `activityVersion` exactly once, and appends exactly one event. A transaction
-that changes content also increments document `revision` exactly once. Acceptance
-changes content and work state in the same transaction and event. Reads, presence,
-timeouts, aborts, no-ops, failed writes, and idempotent replays advance neither counter.
+- `COMMENT`: replacement text must be absent. The result summary becomes the terminal
+  agent finding and the task completes without changing the document.
+- `REVIEW`: one replacement and summary create a proposal. Document content and
+  revision remain unchanged until the creator accepts. Rejection is terminal and keeps
+  the proposal plus discussion.
+- `DIRECT`: one replacement and summary are applied to the current stored anchor in the
+  same transaction that completes the task, appends activity, and creates the full
+  immutable revision.
 
-Higher `activityVersion` is authoritative for work and memory even when document
-revision is equal; presence merges independently by heartbeat. Each accepted mutation
-uses a request ID for exact replay: identical canonical input returns the original
-result, and changed input returns `REQUEST_REPLAY_MISMATCH`.
+A successful result may be based on an older revision only when intervening changes are
+provably disjoint and the stored anchor rebases exactly. The resulting revision records
+both the agent's source revision and the actual parent revision. Overlap, changed target
+text, ambiguity, a stale/cancelled task, or a finalized decision fails without partial
+mutation.
 
-Non-overlapping Unicode anchors deterministically rebase. An edit before an anchor
-shifts it, an edit after it leaves it fixed, and an overlap or ambiguity marks work
-`STALE`. Acceptance revalidates the current stored anchor and proposal inside the same
-document-first lock. When one document edit or acceptance makes other anchors stale,
-those transitions are part of the same compound transaction and primary event, which
-lists every staled work-order ID. They do not add another event or counter increment.
+## 7. Revisions and provenance
 
-Event kinds are exact:
+Revision numbers are server-owned safe integers beginning at `1`. Template creation
+inserts r1. Every content-changing human save, Direct result, accepted Review proposal,
+and Restore creates exactly one next revision in a document-locked transaction.
 
-- `DOCUMENT_EDITED`
-- `WORK_CREATED`
-- `PROPOSAL_SUBMITTED`
-- `PROPOSAL_ACCEPTED`
-- `PROPOSAL_REJECTED`
-- `WORK_CANCELLED`
-- `WORK_STALE`
+Each immutable revision stores:
 
-Events contain server-derived actor and origin, base/result revision, linked work IDs,
-changed fields, and timestamp. Only target, instruction, proposal, and server-computed
-diff excerpts are truncated to 320 Unicode code points. Change summary retains its
-240-code-point bound, while a present human rationale is preserved exactly up to its 500-code-point
-bound. Events never contain external browser context, credentials, bearer or member
-handles, or unrelated private data. There is no arbitrary memory writer.
+- revision UUID, number, parent number, complete title/body snapshot, and SHA-256
+  content digest;
+- full server-computed changed segments;
+- source revision and rebasing metadata;
+- content author and commit actor as separate snapshots;
+- server-derived commit origin, authored-content origin, and authority kind
+  `HUMAN | DIRECT | REVIEW | RESTORE`;
+- linked task, grantor, approver, or restored revision where applicable;
+- exact bounded change summary and evidence references; and
+- creation timestamp.
 
-Memory pagination defaults to 20 events and allows 1–50. It selects the newest `limit`
-events with `activityVersion < beforeActivityVersion` when that cursor is supplied, or
-from the latest event when omitted, then returns the window in ascending order. The
-success envelope is exactly
-`{ ok: true, events, hasMoreOlder, nextBeforeActivityVersion, latestActivityVersion, revision }`;
-`nextBeforeActivityVersion` is the first returned version when older events remain and
-otherwise `null`.
+For a human save, author and committer are the same human. For a Direct task, both are
+the assigned agent and the revision also names the human grantor. For an accepted Review
+task, the agent remains the author and the accepting human is the committer/approver.
 
-## 7. Exact WebMCP surface
+Snapshots and digests are immutable. The mutable document head is a projection of the
+latest revision. A revision list can paginate metadata, but inspecting any listed
+revision returns its complete stored snapshot. Excerpts may optimize cards; they never
+replace authoritative revision content. HTTP and WebMCP history are both strictly
+newest-first.
 
-The v3 document page registers exactly five tool definitions from page start. Product
-correctness does not depend on a host accepting mid-turn catalog changes; proposal
-ownership, work status, and revision remain server-enforced.
+Every successful task, comment, decision, content, or thread transaction increments one
+server-owned `activityVersion` and appends one activity record. Only a content change
+increments `revision`. Reads, waits, timeouts, presence, failures, unchanged saves,
+idempotent replays, and cancellation before dispatch increment neither. A dispatched
+remote write may commit after client cancellation; the client re-inspects and reuses the
+same request identity only when retrying that logical operation.
 
-| Tool | Exact input | Contract |
-|---|---|---|
-| `inspect_document` | `{}` | Returns authoritative current content, revision, activity version, and collaborators. |
-| `read_document_memory` | `{ beforeActivityVersion?, limit? }` | Returns the bounded ascending memory window in Section 6. |
-| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent; address every returned order with exactly one discrete proposal unless the user requests a limit; empty means use the wait tool. |
-| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; on `WORK_AVAILABLE`, process every returned order unless the user requests a limit; timeout is integer seconds, minimum 1, default 20, hard maximum 20; repeat after `TIMEOUT` only while the same turn stays active. |
-| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Always registered; call once per pending order being processed; server accepts only currently pending work owned by this paired agent, stores a review proposal, and never edits the document. |
+## 8. Deterministic `INC-482` hero
 
-Every schema rejects additional properties. `afterRevision`, `afterActivityVersion`, and
-`expectedRevision` accept safe integers from 0 through `Number.MAX_SAFE_INTEGER`;
-`beforeActivityVersion` starts at 1. Callback code generates write request IDs; the model
-never supplies one. Results are JSON-serializable and mark human/agent-authored content
-untrusted. Read tools are annotated read-only; proposal is not.
+The primary demo is **`INC-482 · Checkout outage postmortem`**. Its independently
+checked golden freezes exact r1 content, collaborators, source facts, task targets,
+comments, replacements, revision digests, and final r4 content.
 
-Wait performs authoritative fetch, subscribes, then refetches to close the lost-wake
-window. It returns with this precedence:
+Source facts are:
 
-1. `{ ok: true, outcome: "WORK_AVAILABLE", workOrders, revision, activityVersion }`
-   when owned pending work exists;
-2. the same envelope with `outcome: "DOCUMENT_CHANGED"` and exact `workOrders: []`
-   only when revision advanced; or
-3. the same envelope with `outcome: "TIMEOUT"` and exact `workOrders: []`.
+- `impact.csv`: 28,417 checkout attempts, 6,742 failures, 311 merchants affected, and
+  zero duplicate charges;
+- `checkout.log`: provider 429s began 09:43 UTC, retry traffic reached 5.8×, the queue
+  grew from 420 to 18,240, rollback began 10:17, and recovery completed 10:21; and
+- code fixture commit `7d3c9e1`: retry middleware ignored `Retry-After` and made up to
+  five zero-delay retries.
 
-Unrelated activity advances the wait's internal activity cursor but does not wake the
-model. The timeout uses one absolute deadline established on entry; signals, unrelated
-activity, and authoritative refetches never extend it. A supplied `afterRevision` or
-`afterActivityVersion` greater than the current authoritative counter returns
-`INVALID_INPUT` before installing a listener or timer. Every valid signal refetches
-authoritative state. Execution abort, registration abort, route teardown, and session
-teardown throw `AbortError` and remove all timers and listeners; a selection change does
-not cancel. A concurrent duplicate returns `WAIT_ALREADY_ACTIVE`. A remotely dispatched
-write may commit after client cancellation, so the agent must re-inspect rather than
-assume rollback.
+Three tasks begin together:
 
-Frozen error codes are `INVALID_INPUT`, `UNAUTHORIZED`, `NOT_FOUND`,
-`STALE_WORK_STATE`, `STALE_WORK_CONTEXT`, `REQUEST_REPLAY_MISMATCH`,
-`STALE_PAGE_CONTEXT`, `ASSIGNEE_UNAVAILABLE`, `WAIT_ALREADY_ACTIVE`, `RATE_LIMITED`, and
-`PROTOCOL_MISMATCH`.
+| Task | Target | Mode | Agent outcome |
+|---|---|---|---|
+| `DATA-17` | Impact placeholder | `DIRECT` | Exact impact and data-integrity facts |
+| `LOG-22` | Timeline placeholder | `DIRECT` | Exact 09:43–10:21 timeline |
+| `CODE-9` | Root cause placeholder | `REVIEW` | Trigger/amplifier explanation |
 
-## 8. Architecture and rollout
+The observed sequence is:
 
-- Next.js App Router, React, TypeScript, pnpm, Vercel, and Supabase Postgres remain the
-  implementation stack.
-- The established `origin/main` live activity hub, registration lifecycle, cursor,
-  abort, and refetch pattern is reused rather than duplicated.
-- Realtime or a page-local signal is notification only; every wake refetches
-  authoritative state.
-- Server validation derives identity and authority independently of tool schemas.
-- All transactions lock the document before work rows to keep lock order deterministic.
-- V3 HTTP routes are frozen to:
-  `/api/document-v3/launch`, `/api/document-v3/join`,
-  `/api/document-v3/surface`, `/api/document-v3/save`,
-  `/api/document-v3/presence`, `/api/document-v3/work/create`,
-  `/api/document-v3/work/cancel`, `/api/document-v3/work/accept`,
-  `/api/document-v3/work/reject`, `/api/document-v3/memory`,
-  `/api/document-v3/agent/work`, and `/api/document-v3/agent/proposal`.
-  `/api/document-v3/eval/reset` is the authenticated preview/eval-only release harness.
-- V3 persistence adds exactly `ratiflow_document_work_orders` and
-  `ratiflow_document_events`. Its RPC names are exactly
-  `ratiflow_launch_document_v3`, `ratiflow_join_document_v3`,
-  `ratiflow_inspect_document_v3`, `ratiflow_save_document_v3`,
-  `ratiflow_touch_document_presence_v3`, `ratiflow_create_document_work_v3`,
-  `ratiflow_cancel_document_work_v3`, `ratiflow_accept_document_proposal_v3`,
-  `ratiflow_reject_document_proposal_v3`, `ratiflow_read_document_memory_v3`,
-  `ratiflow_list_agent_work_v3`, and `ratiflow_submit_document_proposal_v3`.
-  The service-role-only fixture RPC is `ratiflow_reset_document_hero_v3`.
-- Persistence is additive. Existing documents default to protocol v2 and retain scoped
-  rollback behavior; new document-workspace rows use v3. Legacy direct-apply RPCs reject
-  v3, and new proposal/decision RPCs reject v2. Applied migrations are never edited.
-- `document.modelContext` is normative. Any observed `navigator.modelContext` support is
-  compatibility only and never the public contract.
+1. Priya can read a coherent r1 postmortem before connecting any agent.
+2. The Data agent submits from r1. Stored Direct authority creates r2 without product
+   approval and completes `DATA-17`.
+3. The Logging agent also submits from r1. Its disjoint anchor rebases over r2, creates
+   r3, and completes `LOG-22` without product approval.
+4. The Builder agent submits `CODE-9`. Stored Review authority creates a proposal only;
+   the Root cause placeholder remains at r3.
+5. Priya asks in the task thread: `Provider throttling happened first. Are we
+   overclaiming our code as the root cause?`
+6. The Builder agent replies with the code/log evidence and distinguishes provider
+   throttling as trigger from the retry regression as the internal amplifier.
+7. Priya accepts once. That creates r4, preserves the Builder agent as author and Priya
+   as approver/committer, and completes `CODE-9`.
+8. History shows reconstructable r1-r4 snapshots and exact provenance. The final
+   postmortem is clean, factual, and actionable rather than a task transcript.
+9. A fresh agent for the Builder collaborator reads resolved work and history, then
+   explains why provider latency alone was rejected as the sustained root cause.
+10. A secondary smoke creates the exact Product document template and proves it uses the
+    same Threads, Tasks, History, authority, and restore primitives.
 
-The ordinary human UI remains usable when WebMCP is absent. It can edit, share, assign,
-review, accept/reject, and read memory; it cannot supply an external agent with the
-native zero-configuration structured collaboration loop.
+The demo must not imply that Ratiflow itself queried the CSV, log service, or repository.
+Those named fixture facts simulate outputs brought by the external specialist agents.
 
-## 9. P0 acceptance criteria
+## 9. Exact WebMCP surface
 
-1. The document, not a launch dashboard, is the flagship and remains calm and usable on
-   desktop and at 390px with or without WebMCP.
-2. Two isolated people join as distinct members, see presence and authoritative saves,
-   preserve dirty drafts across remote edits, and never leak bearer/member handles.
-3. Every selection and context-menu branch in Section 3 behaves exactly, including a
-   real native spelling-menu capture.
-4. Jordan can assign the exact hero range to Maya; unavailable, forged, cross-workspace,
-   expired, and model-supplied identities fail server-side.
-5. Maya's already-active paired agent wakes from the human event, reads current content
-   and memory, sees only its assigned work, and submits the exact proposal.
-6. Submission changes activity but not content/revision. Both humans see the proposal
-   while the original sentence remains; a replacement identical to its target is
-   rejected as a no-op.
-7. Only Jordan, as creator, can accept/reject. One-click decisions store null rationale;
-   the golden optional-note path preserves its exact rationale. Acceptance atomically
-   changes content and work state with revision, activity version, server diff, and
-   provenance. Decision races cannot double-apply.
-8. Equal-revision activity, pagination, nearby anchor rebasing, overlaps, replay,
-   timeout, abort, duplicate wait, navigation, and session teardown pass their frozen
-   gates.
-9. A fresh agent discovers and invokes memory, then recovers the eight-day rejected-GA
-   fact absent from current text.
-10. `/decision-demo` retains only its compatibility catalog; navigation removes every
-    document tool and listener.
-11. The exact Northstar flow passes five consecutive rehearsals, the first native action
-    occurs within 45 seconds, and the narrated release run stays within 2:40.
-12. The code, public repository, license, deployment, evidence manifest, native capture,
-    and submission all identify one approved clean commit SHA.
+All six v4 tools register from the top-level issue page at page start:
 
-## 10. Scope discipline and compatibility
+| Tool | Purpose |
+|---|---|
+| `inspect_document` | Read the current or one requested historical snapshot, counters, collaborators, and bounded task summary. |
+| `read_document_history` | Read a bounded newest revision window with complete provenance and full diffs. |
+| `list_my_tasks` | Read open tasks assigned to this member's agent; optionally include resolved tasks and their discussion. |
+| `wait_for_my_tasks` | Wait up to 20 seconds for owned open work or a document change while the page/tool turn remains active. |
+| `comment_on_task` | Add a bounded agent comment or reply to one owned task thread. |
+| `submit_task_result` | Submit a finding or scoped replacement; return `COMMENTED`, `PROPOSED`, or `COMMITTED` from stored task mode. |
 
-P0 excludes accounts, folders, attachments, rich text, line comments, tracked changes,
-remote cursors, offline sync, export, CRDT merging, idle external-agent hosting,
-agent-to-agent orchestration, arbitrary memory entries, generalized roles, and multiple
-document scenarios. Do not add one while an acceptance or native-proof row is pending.
+`src/repository/contracts.ts` exports the complete ordered catalog, including each exact
+description, closed JSON Schema, and annotation set. Runtime registration consumes that
+catalog; it does not maintain a second hand-written version.
 
-`/decision-demo` may continue to demonstrate the proven live session, dynamic decision
-catalog, and previous native wait capture. It must not appear as the flagship, share a
-catalog with the document, or be cited as proof that the v3 document tools ran. If the
-v3 identity, authority, memory, native wait, exact-SHA, accessibility, or score gates
-fail, retain that proven release rather than promoting a partial document pivot.
+The model never supplies request ID, document, member, actor, origin, task mode,
+assignee, grantor, anchor, approval, or commit authority. The bridge supplies page and
+request identity outside tool JSON. One logical mutation keeps one request identity
+through transport retries; a new invocation is a new operation. Every tool validates
+inputs at schema and server layers, treats returned human/agent text as untrusted,
+returns JSON-serializable data, handles cancellation with re-inspection after ambiguous
+dispatch, and tears down on navigation/session expiry.
 
-## 11. Submission proof order
+No tool creates, reassigns, cancels, accepts, rejects, restores, or changes a task mode.
+Those remain ordinary human actions. A host may independently confirm a mutating tool
+call under its own safety policy; Ratiflow never labels that host decision as a required
+document review.
 
-The video opens on the working document and shows the active native wait in the first 45
-seconds, then Jordan's exact cross-assignment, native inspect/memory/work calls, proposal
-without mutation, Jordan's acceptance, synchronized document change, and a fresh agent
-recovering the hidden eight-day rationale. Judges must see the human/agent boundary and
-the reason WebMCP is indispensable without opening DevTools.
+Launch, example, join, and protected reset issue plaintext credentials once and are not
+idempotently replayed. Only their SHA-256 digests are stored. A lost response may leave an
+unreachable workspace/member that expires normally; retry starts a new credential
+operation. Authenticated mutations after issuance use replay-safe request identities.
 
-Release order is: focused tests and `.codex/verify.sh`; production build; v2/v3 preview
-database and app rollout; driven browser flow and fresh read-only visual review; approved
-clean commit and public-repository identity; exact-SHA deployment and canonical
-promotion; native capture; four independent official-criterion judges; then the
-user-owned public video and Devpost submission actions. [`EVALS.md`](EVALS.md) is the
-complete evidence contract.
+## 10. Competition alignment and proof discipline
+
+| Official criterion | Judge-visible v4 proof |
+|---|---|
+| WebMCP Leverage | Different collaborators bring agents to the same live issue. The page natively exposes owned tasks, exact document/history context, task discussion, and server-governed result submission. Removing WebMCP removes the zero-configuration multi-agent loop. |
+| Execution | Two Direct tasks land safely from the same source revision, one Review task preserves human judgment, comments synchronize, history reconstructs every revision, restore works, and both templates remain usable without WebMCP. |
+| Potential Impact | Teams finish with one accurate postmortem or product document while retaining the facts, disagreements, agent work, grants, decisions, and revisions that produced it. |
+| Creativity and Ambition | Git-grade authorship and task-scoped agent autonomy become native document collaboration rather than a detached agent chat, generic API wrapper, or AI rewrite button. |
+
+Adapter tests, internal service calls, direct RPC calls, animated screenshots, or model
+prose never count as native WebMCP proof. Native claims require a supported client to
+discover and invoke tools on the deployed top-level page tied to the exact release SHA.
+
+Final criterion judging happens only after implementation, browser, native, visual,
+rehearsal, and public-package evidence. Preliminary judges must name their strongest gap
+and may return `mustFix: null`; only a genuine evidence-backed must-fix blocks and
+requires correction. Final judges must cite eligible evidence and return no open
+must-fix. Internal release thresholds are WebMCP `5.0/5`, each other criterion at least
+`4.5/5`, and total at least `19/20`.
+
+## 11. P0 exclusions and release boundary
+
+P0 excludes accounts, organizations, folders, multiple files per issue, attachments,
+rich text, arbitrary templates, character-level CRDT, offline sync, background agent
+execution, agent-to-agent messaging, branches, merges, pull requests, arbitrary code or
+observability connectors, verified model identity, public search, permanent storage
+claims, and generalized workflow roles.
+
+The ordinary human UI must remain useful without WebMCP. The v3 compatibility route must
+keep passing its own tests. Applied migrations are immutable; v4 persistence is
+additive. No secret, credential, private external data, or unsanitized agent transcript
+may enter source, logs, screenshots, video assets, or evidence.
+
+Release requires `.codex/verify.sh`, the v4 focused domain/protocol/browser gates,
+production build, five repair-free hero rehearsals, desktop/390px driven behavior, fresh
+read-only visual review, supported-client native capture, controlled WebMCP-off ablation,
+four final criterion judges, and one clean exact-SHA identity across repository,
+deployment, evidence, video, and submission.
+
+Deployment, repository visibility, video publication, and Devpost submission are
+external release actions. Until authorized and observed, their evidence remains
+`PENDING`; local or adapter success never upgrades those rows.

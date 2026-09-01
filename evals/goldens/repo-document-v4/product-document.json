@@ -1,0 +1,92 @@
+{
+  "fixtureVersion": "repo-document-v4.product-document.v1",
+  "protocolVersion": 4,
+  "scenarioId": "PRODUCT_DOCUMENT_TEMPLATE_SMOKE",
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000501",
+    "protocolVersion": 4,
+    "kind": "PRODUCT_DOCUMENT",
+    "title": "Untitled product document",
+    "body": "## Problem\n\nDescribe the customer or business problem.\n\n## Users and need\n\nName the users and the outcome they need.\n\n## Goals\n\nDefine the outcomes this product should create.\n\n## Non-goals\n\nState what is deliberately outside this document.\n\n## Requirements\n\nList the behavior the product must support.\n\n## Decisions\n\nRecord decisions and the context behind them.\n\n## Risks\n\nDescribe material delivery, adoption, safety, or operational risks.\n\n## Success metrics\n\nDefine how the team will know the product worked.\n\n## Open questions\n\nList unresolved questions and their owners.",
+    "revision": 1,
+    "activityVersion": 1,
+    "updatedAt": "2026-08-18T11:00:00.000Z",
+    "lastRevision": {
+      "revisionId": "00000000-0000-4000-8000-000000000551",
+      "author": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000511",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "authority": "HUMAN",
+      "summary": "Launch product document."
+    }
+  },
+  "members": [
+    {
+      "memberId": "00000000-0000-4000-8000-000000000511",
+      "displayName": "Priya Shah"
+    }
+  ],
+  "tasks": [],
+  "threads": [],
+  "revision": {
+    "revisionId": "00000000-0000-4000-8000-000000000551",
+    "revision": 1,
+    "parentRevision": null,
+    "title": "Untitled product document",
+    "body": "## Problem\n\nDescribe the customer or business problem.\n\n## Users and need\n\nName the users and the outcome they need.\n\n## Goals\n\nDefine the outcomes this product should create.\n\n## Non-goals\n\nState what is deliberately outside this document.\n\n## Requirements\n\nList the behavior the product must support.\n\n## Decisions\n\nRecord decisions and the context behind them.\n\n## Risks\n\nDescribe material delivery, adoption, safety, or operational risks.\n\n## Success metrics\n\nDefine how the team will know the product worked.\n\n## Open questions\n\nList unresolved questions and their owners.",
+    "contentDigest": "sha256:23ee848c487a1abab312bd33f69b0fea0b072014e5daacc46effcab27f34cf90",
+    "diffs": [
+      {
+        "field": "TITLE",
+        "rangeStart": 0,
+        "rangeEnd": 0,
+        "before": "",
+        "after": "Untitled product document"
+      },
+      {
+        "field": "BODY",
+        "rangeStart": 0,
+        "rangeEnd": 0,
+        "before": "",
+        "after": "## Problem\n\nDescribe the customer or business problem.\n\n## Users and need\n\nName the users and the outcome they need.\n\n## Goals\n\nDefine the outcomes this product should create.\n\n## Non-goals\n\nState what is deliberately outside this document.\n\n## Requirements\n\nList the behavior the product must support.\n\n## Decisions\n\nRecord decisions and the context behind them.\n\n## Risks\n\nDescribe material delivery, adoption, safety, or operational risks.\n\n## Success metrics\n\nDefine how the team will know the product worked.\n\n## Open questions\n\nList unresolved questions and their owners."
+      }
+    ],
+    "provenance": {
+      "authority": "HUMAN",
+      "origin": "ORDINARY_UI",
+      "authorOrigin": "ORDINARY_UI",
+      "taskId": null,
+      "sourceRevision": 0,
+      "author": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000511",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "committer": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000511",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "grantedBy": null,
+      "approvedBy": null,
+      "restoredRevision": null
+    },
+    "changeSummary": "Launch product document.",
+    "evidenceRefs": [],
+    "createdAt": "2026-08-18T11:00:00.000Z"
+  }
+}

@@ -1,4 +1,232 @@
-# Plan — Make the human-to-agent handoff obvious
+# Plan — Versioned issue documents for people and their own agents
+_Updated: 2026-09-01T22:52:00+08:00_
+
+## Goal and ambition mode
+
+Pivot the flagship from one proposal-only shared memo into a focused, Git-grade issue
+document for exactly two templates: **Incident postmortem** and **Product document**. A
+shared URL remains useful without an agent. People and the agents they bring collaborate
+through anchored tasks and threaded findings; every content change becomes an immutable,
+reconstructable revision with actor, task, evidence, authority, and approval provenance.
+The task creator chooses server-enforced `REVIEW` or `DIRECT` change authority, and an
+agent can never grant or escalate its own access.
+
+This is a brownfield flagship replacement under the WebMCP Challenge deadline, not a
+general Git host, account system, folder tree, rich-text editor, CRDT, background agent
+host, code/log/data connector, branch graph, or arbitrary workflow builder. Preserve the
+deployed v3 route as compatibility while `/` and `/issue/[shareToken]` become v4. Preserve
+the existing untracked walkthrough files; they teach the superseded v3 workflow and are
+not v4 release evidence.
+
+## Chokepoint — freeze first
+
+Freeze one v4 contract before parallel implementation in:
+
+- `product_spec.md` — exact promise, P0 boundary, two templates, authority semantics,
+  deterministic hero, WebMCP leverage, and release story;
+- `docs/contracts/repository-contract.md` — checked entity, lifecycle, transaction,
+  authorization, API, WebMCP, revision, comment, and concurrency behavior;
+- `docs/contracts/postmortem-hero-scenario.md` — exact `INC-482` facts, three tasks,
+  comments, r1-r4 history, and final postmortem;
+- `src/repository/contracts.ts` — the sole checked protocol-v4 names and shapes; and
+- `EVALS.md` — v4 automated/browser/native/trajectory/ablation/visual/judge oracles.
+
+The checked TypeScript contract separates public `*HttpInput` / model-visible
+`*ToolInput` JSON from internal `*ServiceInput` request identity and freezes an
+injectable `RepositoryBrowserClientPort`. This lets the UI and transport compile against
+one boundary without owning runtime wiring. It also exports the exact ordered six-tool
+catalog—descriptions, closed schemas, and annotations—and a protected hero-reset outcome.
+
+The contract freezes these non-negotiable decisions:
+
+1. A content revision stores a complete title/body snapshot and digest. History is
+   reconstructable; bounded event excerpts are not revision storage. Restore creates a
+   new revision and never rewrites history.
+2. `IssueTask.mode` is immutable `COMMENT | REVIEW | DIRECT`. The creator chooses it;
+   the server derives agent, assignee, scope, actor, origin, and mode from the session
+   and task. Model input contains none of those authority fields.
+3. `COMMENT` completes with a finding; `REVIEW` stores a proposal without changing the
+   document; `DIRECT` atomically applies only the granted anchor and creates a revision.
+   One `submit_task_result` tool returns the server-derived outcome.
+4. Task comments are first-class threaded records with stable human/agent attribution,
+   optional reply links, and revision-bound target context. Resolved tasks remain visible.
+5. Disjoint task anchors rebase through intervening single-splice edits; overlapping or
+   ambiguous writes fail closed. The product claims concurrent work, not CRDT editing.
+6. The page registers a stable, top-level WebMCP catalog through
+   `document.modelContext`, tears it down with `AbortSignal`, and remains fully usable by
+   humans when WebMCP is absent. A host safety confirmation is distinct from Ratiflow's
+   task approval policy and is never misrepresented.
+
+## Streams
+
+### C0 — v4 contract and independent goldens — completed
+- Owner / worktree: coordinating task in the current checkout.
+- Scope and key files: the five chokepoint files above plus
+  `evals/goldens/repo-document-v4/`.
+- Must not touch: applied migrations, v3 implementation, current demo media.
+- Inputs / frozen contracts: user pivot, repository guides, current v3 audit, official
+  four judging criteria, exact `INC-482` fixture.
+- Verification: contract search finds no mandatory-proposal, presence-only assignment,
+  excerpt-as-history, agent-supplied mode, or general-document claim; independent plan
+  reviewer reports no unresolved ownership/contract blocker; typecheck and golden
+  digest/range validation pass. Then the coordinator creates one explicit-file C0
+  checkpoint commit, records its SHA in the handoff, and never stages user-owned media,
+  `.gitignore`, or unrelated changes.
+
+### S1 — reference domain, revisions, tasks, and comments — pending
+- Owner / isolation: one implementation worker; exclusive new v4 domain paths only.
+- Scope and key files: `src/domain/repository-service.ts`, its tests, and v4 surface
+  reconciliation/range helpers under `src/repository/`, including the production public
+  example builder that returns the normalized-exact completed r4/av10 clone from empty
+  input (fresh IDs/credentials/times/colors only; invariant graph/content/provenance).
+- Must not touch: UI, API routes, WebMCP, Supabase, v3 files.
+- Inputs / frozen contracts: C0 checked types, hero golden, replay/concurrency rules.
+- Verification: focused tests prove exact templates; full immutable snapshots/digests;
+  human, direct-agent, reviewed-agent, and restore revisions; comments/replies; task
+  authority attacks; two disjoint r1 results land; overlap fails; exact final r4 hero.
+
+### S2 — additive Supabase persistence and strict adapter — pending
+- Owner / isolation: one implementation worker; exclusive migration/adapter paths only.
+- Scope and key files: one CLI-generated additive migration,
+  `src/domain/supabase/repository-supabase-service.ts`, and focused migration/adapter
+  tests, including the service-role-only r1/av4 hero reset RPC and checked four-bootstrap-
+  path outcome. Reuse existing tables only where the v4 contract remains coherent.
+- Must not touch: applied migrations, UI, WebMCP, product/eval contracts.
+- Inputs / frozen contracts: C0 schema/RPC namespace, checked service port, and golden
+  observable semantics. S2 may implement independently; reference-service parity is an
+  I1 post-S1 integration gate, not a claim made by this stream alone.
+- Verification: static SQL and strict adapter tests; RLS enabled on exposed
+  tables, direct table access revoked, every security-definer RPC has fixed search path,
+  explicit grants, hashed bearer lookup, server-derived authority, deterministic locks,
+  replay ledger, and indexed history/task/comment access. Run database advisors before
+  any remote apply; remote mutation remains a release action, not inferred here.
+
+### S3 — v4 API and page-native agent surface — pending
+- Owner / isolation: one implementation worker; exclusive v4 transport/WebMCP paths.
+- Scope and key files: `src/app/api/repository-v4/**`,
+  `src/components/repository/repository-http-service.ts`,
+  and `src/webmcp/repository-*` including bridge/registration/executor tests. This stream
+  owns the preview/eval-only reset route and separate `/agent/tasks` and
+  `/agent/tasks/wait` handlers, but not reset semantics or fixture construction.
+- Must not touch: runtime selection, root/page wiring, barrels, config/scripts, v4 editor
+  CSS/TSX, migration, v3 namespace, or contracts after C0.
+- Inputs / frozen contracts: C0 service port, exact six-tool catalog, JSON schemas,
+  cancellation, and error names.
+- Verification: exact route/catalog oracle; malformed/forged inputs fail; all results are
+  JSON serializable; callbacks capture immutable page identity and use live state;
+  navigation/session teardown removes tools/listeners/timers; review tasks cannot direct
+  commit and direct tasks cannot escape their stored range.
+
+### S4 — postmortem/product-document workspace UI — pending
+- Owner / isolation: one UI worker after C0; exclusive component/test paths, developing
+  against the frozen
+  `RepositoryBrowserClientPort` and a deterministic fake.
+- Scope and key files: `src/components/repository/**` except the HTTP service and bridge,
+  focused CSS, component tests, and fake-backed browser tests. Reuse proven v3 selection,
+  context-menu, focus, conflict, presence, and drawer patterns without editing the v3
+  component.
+- Must not touch: `src/app/**`, runtime, config/scripts, domain, Supabase, WebMCP
+  implementation, v3 compatibility route, or current demo media.
+- Inputs / frozen contracts: C0 templates, interaction labels, client port, and fake.
+- Verification: first-run two-card template picker; clear final document dominates;
+  Threads/History rail; anchored comment/reply; durable assignee; explicit default
+  Review vs Direct fieldset; direct/review provenance; full diff and historical snapshot;
+  restore; resolved-task discovery; WebMCP-off usability; keyboard path and 390px no
+  overflow with 44px controls.
+
+### I1 — serialized runtime, page, config, and parity integration — pending
+- Owner / isolation: coordinator only, serialized after S1-S4 outputs are reviewable.
+- Scope and key files: `src/domain/repository-runtime.ts`, `src/app/page.tsx`,
+  `src/app/issue/[shareToken]/page.tsx`, route/runtime seams, any new barrels,
+  `vitest.config.ts`, `.codex/verify.sh`, and v4 scripts in `package.json`.
+- Must not touch: user-owned demo media or `.gitignore`; never stage by directory.
+- Inputs: S1 reference service, S2 adapter, S3 HTTP/WebMCP surface, S4 client-port UI.
+- Verification: local/reference/Supabase-adapter parity; both runtime branches compile;
+  v4 API/repository/protocol tests are included by Vitest; the fast gate runs a v4 reset
+  and hero oracle as well as retained v3 compatibility; package scripts expose v4 agent
+  and release gates. Integration fixes return to the owning stream where possible.
+
+### S5 — deterministic example, evaluation, and release story — pending
+- Owner / isolation: coordinating task after I1 integration.
+- Scope and key files: v4 reset harness, `e2e/`, `evals/`, `README.md`, sanitized
+  native/browser captures, `demo/shot-script-v4.md`, narration/captions, rendered
+  sub-three-minute MP4, thumbnail/contact sheet, public video description, Devpost draft,
+  and v4 result/manifest artifacts. Preserve existing v3 evidence as dated compatibility
+  only and never overwrite user-owned walkthrough inputs.
+- Must not touch: production example/reset/domain/route code except evidence-backed
+  corrections returned to its owning stream.
+- Inputs / frozen contracts: exact `INC-482` golden and Product document smoke.
+- Verification: five repair-free local/adapter rehearsals; `.codex/verify.sh`; production
+  build; full desktop/390px driven flow; supported-client native discovery, owned task
+  reads, Direct commit, Review proposal/comment/acceptance, resolved-discussion recovery,
+  immutable history, and authority failures; WebMCP-off ablation; sanitized exact-SHA
+  evidence. Deployment, repository visibility, YouTube upload, and Devpost submission
+  require their own release authority/observation.
+
+### S6 — adversarial visual and competition judging — pending
+- Owner / isolation: fresh read-only design judge plus four fresh criterion judges.
+- Scope: running release candidate, exact evidence, submission copy, and <3 minute cut.
+- Must not touch: source during scoring. Evidence-backed corrections return to the owning
+  stream and force a fresh run.
+- Inputs / frozen contracts: official criteria and internal stricter anchors.
+- Verification: desktop and 390px visual verdict contain no BLOCK; preliminary judges
+  name their strongest gap and may return `mustFix: null`; every genuine non-null
+  must-fix is corrected and re-evaluated. Final judges cite eligible evidence, have
+  `mustFix: null`, score WebMCP `5.0`, other criteria `>=4.5`, and total `>=19/20`.
+
+## Checkpoints
+
+- Full snapshots/digests cannot be stored or retrieved -> kill the Git/repository claim;
+  do not relabel activity excerpts as history.
+- Task mode is not checked inside the same transaction as mutation -> kill `DIRECT`.
+- A direct task can modify outside its stored anchor, self-upgrade, or forge authorship ->
+  block integration and release.
+- Disjoint stale-base tasks cannot safely rebase -> require re-inspection/retry and narrow
+  the concurrency claim; never imply CRDT/automatic merge.
+- Native host requests its own confirmation -> keep Ratiflow's product mode accurate and
+  describe the host boundary; do not claim zero universal confirmations.
+- The rail competes visually with the finished postmortem -> remove secondary chrome
+  until the document is unmistakably primary.
+- WebMCP-disabled users cannot read, edit, comment, manage tasks, inspect history, or
+  restore -> block release.
+- Native invocation, exact-SHA identity, or public package is missing -> mark the
+  corresponding claim PENDING; never upgrade adapter or prose evidence.
+
+## Integration order
+
+`C0 checkpoint -> (S1 || S2 implementation || S3 port/WebMCP || S4 fake-backed UI) ->
+I1 serialized runtime/page/config integration + S1/S2 parity -> S5 gates/rehearsals ->
+dev-visual-review -> S6 preliminary judges -> evidence-backed fixes -> fresh final
+judges -> authorized release actions`.
+
+Contract/type decisions stay in the coordinating task. Collaboration workers in this
+environment share one checkout, so they do not run Git or pretend to have independent
+worktrees: parallel writing is allowed only in the disjoint paths above. The coordinator
+alone reviews diffs, owns every hotspot, and creates commits using an explicit file
+allowlist—never `git add -A`, a directory-wide add, or a cherry-pick that could hide
+overlap. A worker that needs a reserved path stops and hands the change back. Preserve
+the user-owned walkthrough files and never amend the deployed v3 evidence commit.
+
+## Risks and open decisions
+
+- Official deadline is September 4, 2026 04:00 SGT. Freeze C0 by September 2 04:00,
+  target local code freeze September 3 16:00, and reserve the final twelve hours for
+  native evidence, corrections, public package, and submission.
+- GitHub is a useful metaphor, not the end-user interface. Use plain labels: Threads,
+  Tasks, History, Review required, Can edit directly, Compare, Restore.
+- Anonymous possession-of-link is the POC access model. Sessions may expire, but v4
+  history must not silently disappear with a browser session. Never describe the link as
+  private authenticated storage.
+- One page token delegates the current collaborator's permissions to whatever compatible
+  agent they bring. Do not claim verified model identity; record the server-known human
+  principal, actor type, task, and optional unverified client label separately.
+- Ratiflow supplies governed document/task context, not fake access to production data,
+  logs, or code. The Data, Logs, and Builder agents bring those capabilities externally.
+- The current v3 exact-SHA deployment and 1:55 walkthrough are compatibility artifacts,
+  not v4 proof. The working tree contains user-owned video assets that remain uncommitted.
+
+---
+# Archived plan — Make the human-to-agent handoff obvious
 _Updated: 2026-09-01T19:45:32+08:00_
 
 ## Goal and ambition mode
