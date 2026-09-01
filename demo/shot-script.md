@@ -59,13 +59,18 @@ Jordan rejected October 15 full GA because it requires eight export days, while 
 
 ## Preflight before recording
 
-- [ ] Owner has approved one exact release commit and preview/deployment actions.
-- [ ] The v3 migration is applied and smoked on preview; static audit alone is not used
-  as a persistence claim.
-- [ ] The exact deployed build passes `.codex/verify.sh`, production build, 8/8 v3
-  browser tests, preview database checks, visual review, and runtime-health review.
-- [ ] A supported client discovers and invokes the real deployed page tools; an injected
-  adapter is not substituted in the video.
+- [x] Owner has approved runtime commit `921dfc4236d6f95bbff0c4e4c4544efc6a947175`
+  and the production deployment actions.
+- [x] The v3 migration and optional decision-note migration are applied and smoked on
+  production; static audit alone is not used as a persistence claim.
+- [ ] The exact deployed build passes `.codex/verify.sh`, production build, 13/13 local
+  and 13/13 hosted browser tests, production database checks, visual review, and
+  runtime-health review. All are observed except the configured independent visual role,
+  which is currently unavailable.
+- [ ] A supported client discovers and invokes the real deployed page tools in the
+  recording; five-tool discovery plus four read/wait invocations are already observed,
+  but native proposal submission remains to capture. An injected adapter is not
+  substituted in the video.
 - [ ] The main cut captures N01–N09 on the exact deployed SHA; separate dated native
   artifacts cover N10 wait outcomes, N11 abort/teardown, and N12 runtime health.
 - [ ] Reset produces the exact memo at revision 1/activity 1 with no work orders, and

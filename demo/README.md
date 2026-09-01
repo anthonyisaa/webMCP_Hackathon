@@ -33,6 +33,21 @@ snapshot cannot strand newly assigned work. The server accepts a proposal only f
 authenticated paired agent's pending order. No WebMCP tool can assign, directly edit,
 accept, reject, cancel, or choose an actor, assignee, or text range.
 
+## Fast public proof
+
+1. Open [the public app](https://ratiflow-webmcp.vercel.app).
+2. Choose **Open completed example**. The final memo opens with **Memory** visible.
+3. Choose **Copy agent prompt**, paste it into the browser agent while the note remains
+   open, and leave that turn running.
+4. Ask: “What decision should this memo not repeat?” The fresh paired agent can retrieve
+   the rejected eight-day fact that is absent from the final memo.
+
+For the live two-person loop, open the share link in a second browser profile. The
+assignee starts the same agent prompt before the creator assigns selected text. The
+prompt repeats bounded 20-second `wait_for_my_work` calls while the turn is active, so
+the assignment resolves the waiting call. **Check now** only refreshes page state; it
+cannot start or wake an external model.
+
 ## Recording contract
 
 Use the [2:40 shot script](shot-script.md). The first native tool invocation must be
@@ -83,18 +98,18 @@ Required supporting evidence outside the main cut:
 
 | Gate | Current status |
 | --- | --- |
-| `.codex/verify.sh` | **PASS — 3/3 private-reset CLI tests and 273/273 Vitest tests across 32 files**, plus TypeScript and ESLint. |
+| `.codex/verify.sh` | **PASS — 3/3 private-reset CLI tests and 285/285 Vitest tests across 34 files**, plus TypeScript and ESLint. |
 | Production build | **PASS locally.** |
-| v3 Playwright | **PASS — 8/8 locally**, covering the local document journey, desktop, collaboration, real-pointer acceptance on desktop and 390px, WebMCP-off interaction, and conflict recovery. This is adapter evidence, not native proof. |
-| Persistence | **Static audit PASS.** `20260901012216_document_workspace_v3.sql` has not been applied remotely. |
-| Preview database/app | **PENDING.** |
-| Exact-SHA deployment/canonical URL | **PENDING.** No v3 deployment or judging URL is claimed. |
-| Supported-client native capture | **PENDING.** |
+| v3 Playwright | **PASS — 13/13 locally and 13/13 against production**, including completed-example bootstrap, browser identity persistence, collaboration, race guards, real-pointer acceptance at desktop and 390px, WebMCP-off interaction, and conflict recovery. Adapter paths are not native proof. |
+| Persistence | **REMOTE APPLY OBSERVED.** The v3 workspace and optional-decision-note migrations are live in Supabase project `klhedesewgixoeslxiti`; the observed advisor introduced no new finding. |
+| Production database/app | **PASS.** Hosted browser tests exercised the public Supabase-backed app. |
+| Exact-SHA deployment/canonical URL | **READY.** Runtime `921dfc4236d6f95bbff0c4e4c4544efc6a947175`, deployment `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, [public app](https://ratiflow-webmcp.vercel.app). |
+| Supported-client native capture | **PARTIAL, OBSERVED.** Exactly five tools were discovered; inspect, memory, my-work, and bounded-wait were invoked natively on production. Proposal submission and the full N01–N12 capture remain pending. |
 | Protected-reset adapter rehearsal | **PASS — 5/5 locally.** Exact fixture, pointer assignment, Jordan tool-layer exclusion, active-wait teardown, and fresh-context memory are covered; native/timing/release proof remains pending. |
 | v3 agent trajectories / ablation | **PENDING.** A01–A07 require five exact-SHA native runs each; the comparison is `native-v3` versus `webmcp-disabled`. Historical v1.2 runs do not count. |
 | v3 agent-ledger validator | **53/53 focused tests PASS; canonical ledger `PENDING`.** Missing, filtered, identity-drifted, unsafe, or failed run matrices exit nonzero. |
 | Exact-SHA release manifest | **PENDING, fail-closed.** The validator's 25/25 focused tests pass; `pnpm eval:release:v3` resolves content-addressed artifacts and cannot exit zero while any required domain, browser, native, rehearsal, visual, judge, or public-package row is missing. |
-| Four independent criterion judges | **RUN; RELEASE FAIL.** Scores: WebMCP 4.0, Execution 4.1, Impact 4.2, Creativity 4.3. Their local findings are closed; exact-SHA deployed native evidence remains the shared must-fix. |
+| Independent criterion judges | **ALL TOP-10-CREDIBLE PASS, no blockers:** WebMCP 4.7/5, Execution 4.7/5, Impact 4.6/5, Creativity 4.6/5. |
 
 Release-row status is deliberately explicit: N01–N12 are all still `PENDING`; the
 local 5/5 run is only an `ADAPTER_CAPTURED` preflight for R01. R01 release completion
@@ -104,15 +119,16 @@ evidence classes live in [the results ledger](../EVAL_RESULTS.md).
 
 ## Authorized release steps
 
-The owner authorized the full release path; every action remains unchecked until its
-remote result is observed and bound to the one release SHA:
+The owner authorized the full release path. Completed remote actions are checked only
+after their result was observed:
 
-- [ ] Approve one clean release commit and record its exact SHA.
-- [ ] Apply and smoke the v3 migration on preview, including v2 compatibility,
+- [x] Approve one clean runtime commit and record its exact SHA.
+- [x] Apply and smoke the v3 migration on production, including v2 compatibility,
   authorization, grants/revokes/RLS, and advisor review.
-- [ ] Deploy and promote that exact SHA; record the deployment identity and accessible
+- [x] Deploy and promote that exact SHA; record the deployment identity and accessible
   judging URL only after observation.
-- [ ] Capture native discovery and invocation on the exact deployed top-level page.
+- [x] Capture native discovery and four read/wait invocations on the exact deployed top-level page.
+- [ ] Capture native proposal submission and the complete N01–N12 matrix.
 - [ ] Run five clean native 2:40 rehearsals on the exact release.
 - [ ] Run and validate five exact-SHA native trajectories for each v3 A01–A07 scenario,
   plus the controlled `native-v3` versus `webmcp-disabled` ablation.

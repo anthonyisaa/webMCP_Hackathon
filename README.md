@@ -90,6 +90,14 @@ a fresh Jordan → Maya Northstar decision through the same public service opera
 opens the accepted memo directly on Memory, and gives the current browser a fresh paired
 agent that can recover why October 15 full GA must not be repeated.
 
+For a live assignment, each person opens the shared note in a separate browser profile.
+The assignee chooses **Copy agent prompt**, pastes it into their browser agent while the
+note is open, and leaves that turn running. The prompt makes the agent inspect, read
+Memory, list its own work, and repeat bounded 20-second `wait_for_my_work` calls. Another
+person can then assign selected text; that page event resolves the active wait and the
+same turn submits a proposal. **Check now** only refetches human-visible state. It is a
+recovery button, not an agent wake button.
+
 A non-empty selection exposes **Ask agent**. An unmodified pointer-origin right-click
 on that selection opens **Rewrite**, **Research**, and **Assign…**. Holding a modifier,
 using the Context Menu key or `Shift+F10`, right-clicking an empty selection, or
@@ -122,21 +130,22 @@ hackathon score thresholds.
 
 ## Current evidence boundary
 
-As of 2026-09-01, the v3 evidence is local only:
+As of 2026-09-01, the public v3 runtime is deployed from
+`921dfc4236d6f95bbff0c4e4c4544efc6a947175`:
 
 | Evidence | Status |
 | --- | --- |
-| `.codex/verify.sh` | **Passed:** TypeScript, ESLint, 3/3 private-reset CLI tests, and 273/273 Vitest tests across 32 files. |
+| `.codex/verify.sh` | **Passed:** TypeScript, ESLint, 3/3 private-reset CLI tests, and 285/285 Vitest tests across 34 files. |
 | Production webpack build | **Passed locally.** |
-| v3 Playwright | **8/8 passed locally:** the local document journey, desktop interaction, two-person collaboration, real-pointer acceptance on desktop and 390px, and conflict recovery. Adapter-driven WebMCP is not native proof. |
-| v3 persistence | **Static audit passed.** The additive migration has not been applied to a remote project. |
-| Deployed v3 app and exact release identity | **Pending.** No v3 judging URL, deployment, or release SHA is claimed here. |
-| Native supported-client capture | **Pending.** Registration and invocation must be observed on the exact deployed build. |
+| v3 Playwright | **13/13 passed locally and 13/13 against production:** blank-note editing, completed-example bootstrap, desktop and 390px collaboration, real-pointer acceptance, persistence, race guards, WebMCP-off behavior, and conflict recovery. Injected adapter coverage is not native proof. |
+| v3 persistence | **Deployed.** The v3 workspace and optional-decision-note migrations are applied to the production Supabase project; the observed security advisor introduced no new finding. |
+| Deployed v3 app and exact release identity | **READY:** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app), Vercel deployment `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, runtime SHA `921dfc4236d6f95bbff0c4e4c4544efc6a947175`. The hosted suite passed and the post-run error query was empty. |
+| Native supported-client capture | **Partial, observed on production:** a Codex in-app browser discovered exactly five page tools and invoked `inspect_document`, `read_document_memory`, `list_my_work`, and `wait_for_my_work`; the wait returned a structured `TIMEOUT`. Native proposal submission and the complete N01–N12 matrix remain pending. |
 | Protected-reset adapter rehearsal | **5/5 passed locally:** exact frozen IDs/content/counters, real-pointer assignment, Jordan tool-layer exclusion, active-wait teardown, and a fresh Maya context. This is not native, narrated-timing, or exact-SHA release proof. |
 | v3 agent ledger | **Validator passed 53/53 focused tests; evidence remains `PENDING`.** The empty canonical A01–A07 ledger exits nonzero, and the v1.2/static-superset runs are ineligible. |
 | v3 release manifest | **Validator passed 25/25 focused tests; manifest remains `PENDING`.** `pnpm eval:release:v3` resolves content-addressed evidence and exits nonzero until every SHA-bound domain, browser, native, rehearsal, trajectory, visual, judge, and public-package gate is complete. |
-| Four criterion judges | **Run locally; release gate failed:** WebMCP 4.0, Execution 4.1, Impact 4.2, Creativity 4.3. Each local finding is closed; all retain an exact-SHA deployed native must-fix. |
-| Public repository, public YouTube demo, and Devpost submission | **Authorized release actions; pending observation.** |
+| Independent criterion judges | **All top-10-credible PASS with no blockers:** WebMCP Leverage 4.7/5, Execution 4.7/5, Potential Impact 4.6/5, Creativity & Ambition 4.6/5. |
+| Public repository, public YouTube demo, and Devpost submission | **Pending.** The GitHub URL currently returns 404 when signed out; no public-source claim is made. |
 
 The preserved `/decision-demo` route remains a compatibility proof for the earlier
 decision-room catalog. Its historical evidence is not evidence that the v3 document
@@ -162,7 +171,7 @@ Top-level Next.js document
 
 - Next.js App Router, React, TypeScript, CSS Modules, pnpm, and Vercel provide the app
   surface.
-- Supabase Postgres/RPC is the intended authoritative deployment backend. Transactions
+- Supabase Postgres/RPC is the authoritative production backend. Transactions
   lock the document first, use compare-and-swap revisions and idempotent request IDs,
   and append one activity event per successful transaction.
 - Activity signals are notifications, not truth. Every wake refetches authoritative
@@ -207,9 +216,10 @@ RATIFLOW_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Apply the checked-in migrations in filename order through
-`20260901012216_document_workspace_v3.sql`. The v3 migration is additive and preserves
-the scoped v2 compatibility path. A service-role key is required only for the protected
-evaluation reset workflow and must never be exposed to the browser or committed.
+`20260901121107_optional_document_decision_notes.sql`. The v3 migrations are additive
+and preserve the scoped v2 compatibility path. A service-role key is required only for
+the protected evaluation reset workflow and must never be exposed to the browser or
+committed.
 
 Verification commands:
 

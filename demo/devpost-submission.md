@@ -8,8 +8,8 @@ decisions, and rejected facts with one calm shared memo, so the next agent build
 decision instead of restarting the debate. A paired agent waits through the live page,
 reads memory, and returns a proposal that only the work creator can apply.
 
-This copy describes the v3 release candidate. Public links, native claims, and release
-identity stay pending until they are observed on one approved exact build.
+This copy describes the deployed v3 runtime. Claims below distinguish exact-build
+observations from the native/video evidence that still remains to be recorded.
 
 ## Why is this a strong fit for WebMCP?
 
@@ -35,10 +35,16 @@ stores a bounded replacement and summary but cannot edit the memo.
 There is no tool to assign, reassign, directly edit, accept, reject, cancel, or choose an
 actor, assignee, document, or text range.
 
-The Work panel reports truthful page-local states: tools connecting, all five tools ready, this page's paired agent
-listening or preparing a proposal, work waiting, or WebMCP unavailable. **Check now**
+The Work panel reports truthful page-local states: tools connecting, all five tools
+ready, this page's paired agent listening or preparing a proposal, work waiting, or
+WebMCP unavailable. **Check now**
 refreshes page state but cannot wake a model; Ratiflow never presents this as hosted
 background execution.
+
+The handoff is explicit: **Copy agent prompt**, paste it into the browser agent while
+the note stays open, and leave that turn running. The agent repeatedly uses bounded
+`wait_for_my_work` calls, so human assignments resolve the active turn without a manual
+page reload. If no turn is active, the UI says so; no button can start an external model.
 
 WebMCP is essential rather than decorative here: it gives an external agent a
 zero-configuration, page-local rendezvous with current work and shared memory. Without
@@ -70,6 +76,12 @@ the writer chooses **Use latest** or
 The interface never claims that the page started, notified, or hosts an idle external
 agent. The hero begins with an already-active paired agent using the page's WebMCP
 tools. That keeps the experience honest about the protocol boundary.
+
+For a zero-setup preview, open the [public app](https://ratiflow-webmcp.vercel.app) and
+choose **Open completed example**. Ratiflow composes the full Northstar decision through
+the same ordinary service APIs, opens Memory, and pairs the current browser with a
+fresh viewer agent. Copy the prompt and ask: “What decision should this memo not
+repeat?”
 
 ## What can people and agents do together that was difficult before?
 
@@ -110,7 +122,7 @@ waits, and removes timers/listeners on execution, registration, route, or sessio
 Navigating to `/decision-demo` unregisters the document catalog before the preserved
 compatibility page registers its separate tools.
 
-Supabase Postgres/RPC is the intended deployment authority. Human and paired-agent
+Supabase Postgres/RPC is the production deployment authority. Human and paired-agent
 tokens are distinct. Transactions derive identity and origin server-side, lock the
 document before work rows, enforce creator/assignee boundaries, validate Unicode text
 anchors, use compare-and-swap revisions and idempotent request IDs, and append one
@@ -137,19 +149,27 @@ published hackathon score thresholds.
 
 ## Current evidence and links
 
+- **Exact deployed runtime:** `921dfc4236d6f95bbff0c4e4c4544efc6a947175` at
+  [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app), Vercel deployment
+  `dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`, observed `READY` with no post-test error logs.
 - **Local verification:** `.codex/verify.sh` passed TypeScript, ESLint, 3/3 private-reset
-  CLI tests, and 273/273 Vitest tests across 32 files.
+  CLI tests, and 285/285 Vitest tests across 34 files.
 - **Local build:** production webpack build passed.
-- **Local browser evidence:** v3 Playwright passed 8/8 across the local document journey, desktop,
-  two-human collaboration, real-pointer acceptance on desktop and 390px, WebMCP-off behavior, and conflict recovery. Its
-  injected page adapter is not native-client proof.
+- **Browser evidence:** v3 Playwright passed 13/13 locally and 13/13 against production
+  across blank-note editing, completed-example bootstrap, browser identity persistence,
+  desktop/mobile collaboration, race guards, real-pointer acceptance, WebMCP-off behavior,
+  and conflict recovery. Injected page-adapter coverage is not native-client proof.
 - **Protected-reset rehearsal:** the exact Northstar fixture passed 5/5 locally with
   real pointer assignment and a fresh Maya context. It remains adapter, not native or
   narrated-timing evidence.
-- **Persistence:** static audit passed; the v3 migration has not been remotely applied.
-- **Live v3 judging URL:** pending authorized deployment and observation.
-- **Exact public release SHA:** pending clean commit and push.
-- **Supported-client native capture:** pending on the exact deployed build.
+- **Persistence:** the v3 workspace and optional-decision-note migrations are applied
+  to the production Supabase project; the observed security advisor added no new finding.
+- **Supported-client native capture:** a Codex in-app browser discovered exactly five
+  production tools and invoked inspect, memory, my-work, and bounded wait. Native
+  proposal submission and the full canonical N01–N12 capture remain pending.
+- **Independent judges:** WebMCP Leverage 4.7/5, Execution 4.7/5, Potential Impact
+  4.6/5, and Creativity & Ambition 4.6/5; every criterion received a
+  top-10-credible pass with no blocker.
 - **Authoritative release rows:** N01–N12 and R01–R04 remain pending; see the
   [v3 results ledger](../EVAL_RESULTS.md#contract-row-release-status).
 - **v3 trajectories and ablation:** pending exact-SHA native A01–A07 runs and the
@@ -157,7 +177,8 @@ published hackathon score thresholds.
 - **Release manifest:** `pnpm eval:release:v3` is fail-closed and remains `PENDING`
   until every exact-SHA native, rehearsal, trajectory, visual, judge, and public link
   row is populated.
-- **Public source repository:** authorized; pending publication and observation.
+- **Public source repository:** pending; the configured GitHub URL returned 404 when
+  checked signed out.
 - **Narrated public YouTube video:** pending recording/upload; the script is capped at 2:40 and
   places the first native invocation before 0:45.
 - **Devpost submission:** authorized; pending completion and observation.
