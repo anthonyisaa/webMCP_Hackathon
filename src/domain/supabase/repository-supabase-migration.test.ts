@@ -86,6 +86,15 @@ describe("repository-v4 additive migration", () => {
     }
   });
 
+  it("parenthesizes CASE expressions used inside PL/pgSQL IF conditions", () => {
+    expect(migration.match(
+      /char_length\(v_next_value\) > \(case when v_task\.anchor_field = 'TITLE' then 160 else 50000 end\)/g,
+    )).toHaveLength(2);
+    expect(migration).not.toMatch(
+      /char_length\(v_next_value\) > case when v_task\.anchor_field = 'TITLE'/,
+    );
+  });
+
   it("stores only credential digests and makes issuance deliberately non-replayable", () => {
     expect(migration).toContain("extensions.digest(v_share_token, 'sha256')");
     expect(migration).toContain("extensions.digest(v_human, 'sha256')");

@@ -2668,7 +2668,7 @@ begin
         from 1 for v_task.range_start::integer) || v_task.proposal_replacement_text || substring(
         case when v_task.anchor_field = 'TITLE' then v_document.title else v_document.body end
         from v_task.range_end::integer + 1);
-      if char_length(v_next_value) > case when v_task.anchor_field = 'TITLE' then 160 else 50000 end
+      if char_length(v_next_value) > (case when v_task.anchor_field = 'TITLE' then 160 else 50000 end)
         or (v_task.anchor_field = 'TITLE' and char_length(ratiflow_document_private.trim_ecmascript_v4(v_next_value)) = 0) then
         return ratiflow_document_private.invalid_v4('The accepted replacement exceeds document bounds.');
       end if;
@@ -2970,7 +2970,7 @@ begin
         from 1 for v_task.range_start::integer) || v_replacement || substring(
         case when v_task.anchor_field = 'TITLE' then v_document.title else v_document.body end
         from v_task.range_end::integer + 1);
-      if char_length(v_next_value) > case when v_task.anchor_field = 'TITLE' then 160 else 50000 end
+      if char_length(v_next_value) > (case when v_task.anchor_field = 'TITLE' then 160 else 50000 end)
         or (v_task.anchor_field = 'TITLE' and char_length(ratiflow_document_private.trim_ecmascript_v4(v_next_value)) = 0) then
         return ratiflow_document_private.invalid_v4('The replacement exceeds document bounds.'); end if;
       if v_task.mode = 'REVIEW' then
