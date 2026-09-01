@@ -146,6 +146,60 @@ test("proposal is non-editing and creator acceptance atomically records both sid
   }
 });
 
+test("agent can submit one discrete proposal for every listed pending work order", async () => {
+  const body = "Alpha beta gamma delta";
+  const { service, jordan, maya } = await collaborativeDocument(body);
+  const targets = [
+    { rangeStart: 0, rangeEnd: 5, replacementText: "First" },
+    { rangeStart: 6, rangeEnd: 10, replacementText: "second" },
+    { rangeStart: 11, rangeEnd: 16, replacementText: "third" },
+  ];
+
+  for (const [index, target] of targets.entries()) {
+    const created = await service.createWorkOrder(
+      jordan.humanSessionToken,
+      workInput(maya, {
+        requestId: randomUUID(),
+        rangeStart: target.rangeStart,
+        rangeEnd: target.rangeEnd,
+        instruction: `Rewrite assigned item ${index + 1}.`,
+      }),
+    );
+    assert.equal(created.ok, true);
+  }
+
+  const listed = await service.listMyWork(maya.agentSessionToken, randomUUID());
+  assert.equal(listed.ok, true);
+  if (!listed.ok) return;
+  assert.equal(listed.data.workOrders.length, 3);
+  assert.equal(listed.data.revision, 1);
+
+  for (const [index, pending] of listed.data.workOrders.entries()) {
+    const submitted = await service.submitWorkProposal(
+      maya.agentSessionToken,
+      {
+        workOrderId: pending.workOrderId,
+        expectedRevision: listed.data.revision,
+        requestId: randomUUID(),
+        replacementText: targets[index]!.replacementText,
+        changeSummary: `Complete assigned item ${index + 1}.`,
+      },
+      randomUUID(),
+    );
+    assert.equal(submitted.ok, true);
+    if (!submitted.ok) return;
+    assert.equal(submitted.data.document.revision, 1);
+    assert.equal(submitted.data.document.body, body);
+  }
+
+  const remaining = await service.listMyWork(maya.agentSessionToken, randomUUID());
+  assert.equal(remaining.ok, true);
+  if (!remaining.ok) return;
+  assert.equal(remaining.data.workOrders.length, 0);
+  assert.equal(remaining.data.revision, 1);
+  assert.equal(remaining.data.activityVersion, 7);
+});
+
 test("rejection accepts a null note, rejects blank text, and preserves content revision", async () => {
   const { service, jordan, maya } = await collaborativeDocument();
   const created = await service.createWorkOrder(jordan.humanSessionToken, workInput(maya));

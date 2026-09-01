@@ -299,9 +299,9 @@ ownership, work status, and revision remain server-enforced.
 |---|---|---|
 | `inspect_document` | `{}` | Returns authoritative current content, revision, activity version, and collaborators. |
 | `read_document_memory` | `{ beforeActivityVersion?, limit? }` | Returns the bounded ascending memory window in Section 6. |
-| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent; empty means use the wait tool. |
-| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; timeout is integer seconds, minimum 1, default 20, hard maximum 20; repeat after `TIMEOUT` only while the same turn stays active. |
-| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Always registered; server accepts only pending work owned by this paired agent, stores a proposal, and never edits the document. |
+| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent; address every returned order with exactly one discrete proposal unless the user requests a limit; empty means use the wait tool. |
+| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; on `WORK_AVAILABLE`, process every returned order unless the user requests a limit; timeout is integer seconds, minimum 1, default 20, hard maximum 20; repeat after `TIMEOUT` only while the same turn stays active. |
+| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Always registered; call once per pending order being processed; server accepts only currently pending work owned by this paired agent, stores a review proposal, and never edits the document. |
 
 Every schema rejects additional properties. `afterRevision`, `afterActivityVersion`, and
 `expectedRevision` accept safe integers from 0 through `Number.MAX_SAFE_INTEGER`;

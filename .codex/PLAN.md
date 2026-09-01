@@ -253,7 +253,8 @@ P0 memory is this server-derived projection; there is no arbitrary memory writer
 - `inspect_document({})`: current content, revision, activity version, collaborators.
 - `read_document_memory({ beforeActivityVersion?, limit? })`: bounded ascending window
   with `hasMoreOlder`, `nextBeforeActivityVersion`, and `latestActivityVersion`.
-- `list_my_work({})`: oldest pending work assigned to this paired human's agent.
+- `list_my_work({})`: oldest pending work assigned to this paired human's agent; process
+  every returned order with exactly one discrete proposal unless the user limits scope.
 - `wait_for_my_work({ afterActivityVersion, afterRevision, timeoutSeconds? })`: default
   and hard cap 20 seconds. Authoritative fetch, subscribe, then refetch closes lost wake.
   Return immediately as `WORK_AVAILABLE`; return `DOCUMENT_CHANGED` only when revision
@@ -262,8 +263,9 @@ P0 memory is this server-derived projection; there is no arbitrary memory writer
   route/session abort throws `AbortError` and removes timers/listeners; selection
   changes do not cancel. Duplicate waits return `WAIT_ALREADY_ACTIVE`.
 - Conditional `submit_work_proposal({ workOrderId, expectedRevision, replacementText,
-  changeSummary })`: stores a proposal only while the paired agent owns pending work;
-  request IDs are callback-generated.
+  changeSummary })`: call once per pending order being processed; stores a review
+  proposal only while the paired agent owns pending work; request IDs are
+  callback-generated.
 
 All tool inputs reject additional properties and never accept document, member, actor,
 origin, assignee, range, stage, acceptance, or decision fields. Freeze exact descriptions,

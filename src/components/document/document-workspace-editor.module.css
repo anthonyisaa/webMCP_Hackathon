@@ -475,7 +475,7 @@
 
 .agentInboxHeading strong {
   color: #454944;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 690;
   line-height: 1.35;
 }
@@ -513,7 +513,7 @@
 .agentInbox > p {
   margin: 6px 0 0 15px;
   color: #565b54;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -531,7 +531,7 @@
   padding: 0 9px;
   background: #fff;
   color: #50544f;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   cursor: pointer;
 }
@@ -554,7 +554,7 @@
   display: block;
   margin-top: 7px;
   color: #5f645d;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -566,14 +566,14 @@
 
 .listenPromptDetails summary {
   color: #575c55;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 620;
   cursor: pointer;
 }
 
 .listenPromptDetails textarea {
   width: 100%;
-  min-height: 88px;
+  min-height: 160px;
   margin-top: 7px;
   border: 1px solid #dfe1da;
   border-radius: 7px;
@@ -582,7 +582,7 @@
   background: #fafaf7;
   color: #555a54;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
