@@ -1,5 +1,5 @@
 # Progress — Ratiflow
-_Updated: 2026-09-01T21:20:08+08:00_
+_Updated: 2026-09-01T21:22:45+08:00_
 
 ## Next action
 Record the 2:40 native hero on deployed runtime `921dfc4`, including the cross-human
@@ -8,8 +8,8 @@ wait resolution, native proposal, and a fresh agent avoiding the rejected Octobe
 ## In flight
 - Runtime `921dfc4236d6f95bbff0c4e4c4544efc6a947175` is READY at
   `https://ratiflow-webmcp.vercel.app` (`dpl_BvRbo4WkF9nDohFbDpCPn93gLGVb`).
-- Evidence docs reconcile the deployment and final judges; commit them above the
-  immutable runtime SHA without redeploying.
+- Evidence and final judges are committed and pushed at `6d9a376`, above the deployed
+  runtime SHA; do not redeploy the docs-only commit.
 - Video, full native N01–N12/R01–R04 evidence, YouTube, and Devpost remain pending.
 
 ## Verified
