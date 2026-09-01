@@ -106,6 +106,8 @@ async function installWebMCPHarness(
     const active = new Map<string, RegisteredTool>();
     const pending = new Map<string, Promise<unknown>>();
     let remainingRegistrationFailures = initialFailures;
+    let registrationAttempts = 0;
+    let registrationFailures = 0;
     const unwrap = (value: unknown): unknown => {
       if (value && typeof value === "object" && "structuredContent" in value) {
         return (value as { structuredContent: unknown }).structuredContent;
@@ -124,8 +126,10 @@ async function installWebMCPHarness(
       configurable: true,
       value: {
         registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
+          registrationAttempts += 1;
           if (remainingRegistrationFailures > 0) {
             remainingRegistrationFailures -= 1;
+            registrationFailures += 1;
             throw new Error("Synthetic transient registration failure.");
           }
           active.set(tool.name, tool);
@@ -143,6 +147,10 @@ async function installWebMCPHarness(
       configurable: true,
       value: {
         names: () => [...active.keys()],
+        registrationStats: () => ({
+          attempts: registrationAttempts,
+          failures: registrationFailures,
+        }),
         invoke,
         start(id: string, name: string, input: unknown) {
           if (pending.has(id)) throw new Error(`Pending tool ${id} already exists.`);
@@ -168,6 +176,20 @@ async function registeredToolNames(page: Page): Promise<string[]> {
       __ratiflowDocumentV3Harness: { names: () => string[] };
     }).__ratiflowDocumentV3Harness;
     return harness.names();
+  });
+}
+
+async function registrationStats(page: Page): Promise<{
+  attempts: number;
+  failures: number;
+}> {
+  return page.evaluate(() => {
+    const harness = (window as unknown as {
+      __ratiflowDocumentV3Harness: {
+        registrationStats: () => { attempts: number; failures: number };
+      };
+    }).__ratiflowDocumentV3Harness;
+    return harness.registrationStats();
   });
 }
 
@@ -310,7 +332,7 @@ async function openMemoryRail(page: Page): Promise<void> {
   await memoryTab.click();
 }
 
-test("agent inbox reaches ready only after the complete catalog retries", async ({
+test("agent catalog recovers from a transient registration failure", async ({
   browser,
   baseURL,
 }) => {
@@ -320,13 +342,14 @@ test("agent inbox reaches ready only after the complete catalog retries", async 
   const page = await context.newPage();
   try {
     await page.goto("/");
-    await expect(page.getByTestId("agent-inbox")).toContainText(
-      "Agent tools reconnecting",
-    );
     await expect(page.getByTestId("agent-inbox")).toContainText("Agent tools ready", {
       timeout: 5_000,
     });
     await expect.poll(() => registeredToolNames(page)).toEqual(DOCUMENT_TOOLS);
+    await expect.poll(() => registrationStats(page)).toEqual({
+      attempts: DOCUMENT_TOOLS.length + 1,
+      failures: 1,
+    });
   } finally {
     await context.close();
   }

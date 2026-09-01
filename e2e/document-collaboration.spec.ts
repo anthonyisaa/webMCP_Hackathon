@@ -15,17 +15,20 @@ async function selectBodyRange(page: Page, start: number, end: number): Promise<
 }
 
 async function selfMemberId(page: Page): Promise<string> {
-  return page.evaluate(() => {
+  const readMemberId = () => page.evaluate(() => {
     const key = Object.keys(sessionStorage).find((candidate) =>
       candidate.startsWith("ratiflow.document.session.v3:"),
     );
-    if (!key) throw new Error("The v3 document session was not stored.");
+    if (!key) return null;
     const bundle = JSON.parse(sessionStorage.getItem(key) ?? "null") as {
       selfMemberId?: string;
     } | null;
-    if (!bundle?.selfMemberId) throw new Error("The v3 member identity was absent.");
-    return bundle.selfMemberId;
+    return bundle?.selfMemberId ?? null;
   });
+  await expect.poll(readMemberId, { timeout: 10_000 }).not.toBeNull();
+  const memberId = await readMemberId();
+  if (!memberId) throw new Error("The v3 member identity was absent.");
+  return memberId;
 }
 
 function waitForDocumentSave(
@@ -86,6 +89,7 @@ test("two isolated humans edit, see presence, and retain creator-only work contr
     const malformedLinkTab = await firstContext.newPage();
     await malformedLinkTab.goto(`${sharedUrl}#ratiflow-bootstrap=malformed`);
     await expect(malformedLinkTab).toHaveURL(sharedUrl);
+    await expect(malformedLinkTab.getByLabel("Note body")).toBeEditable();
     expect(await selfMemberId(malformedLinkTab)).toBe(firstId);
     await malformedLinkTab.close();
 
