@@ -223,7 +223,7 @@ ordinary-browser rows, 10 deployed-native rows, six five-run agent trajectories,
 visual rows, five release gates, an ablation, and four independent competition judges.
 
 The v4 implementation is currently a verified local candidate: `.codex/verify.sh`
-passes 401 tests across 55 files, the production build passes, the ordinary-browser
+passes 408 tests across 55 files, the production build passes, the ordinary-browser
 suite passes 10/10, and the same ten journeys pass 50/50 across five consecutive
 rehearsals. A local supported-client diagnostic discovered exactly six tools, completed
 the read-only document/history/task calls, and observed clean teardown on `/new`; it is

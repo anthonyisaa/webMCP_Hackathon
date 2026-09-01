@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { LocalRepositoryService } from "../repository-service";
 import {
@@ -31,6 +31,36 @@ async function fixture() {
   const cleanRevision = JSON.parse(JSON.stringify(revision.data), (key, value: unknown) =>
     key === "color" ? undefined : value) as typeof revision.data;
   return { bundle, history: cleanHistory, revision: cleanRevision, direct, review, agentComment };
+}
+
+async function openTaskListFixture() {
+  const local = new LocalRepositoryService();
+  const launched = await local.launch({
+    kind: "POSTMORTEM",
+    displayName: "Priya Shah",
+  });
+  if (!launched.ok) throw new Error("template launch failed");
+  const created = await local.createTask(launched.data.humanSessionToken, {
+    requestId: randomUUID(),
+    expectedRevision: 1,
+    title: "Review the complete incident",
+    category: "GENERAL",
+    instruction: "Read the document and report one evidence-backed finding.",
+    agentLabel: "Incident agent",
+    mode: "COMMENT",
+    assignedToMemberId: launched.data.selfMemberId,
+    anchor: { scope: "DOCUMENT" },
+  });
+  if (!created.ok) throw new Error("task creation failed");
+  const listed = await local.listMyTasks(
+    launched.data.agentSessionToken,
+    {},
+    launched.data.sessionInstanceId,
+  );
+  if (!listed.ok || listed.data.tasks.length !== 1) {
+    throw new Error("open task listing failed");
+  }
+  return listed.data;
 }
 
 describe("SupabaseRepositoryService strict normalization", () => {
@@ -279,6 +309,370 @@ describe("SupabaseRepositoryService RPC adapter", () => {
       afterRevision: 4,
       timeoutSeconds: 1,
     }, randomUUID())).resolves.toMatchObject({ ok: false, code: "UNAUTHORIZED" });
+    expect(calls).toBe(2);
+  });
+
+  it("does not settle early and sees work that arrives during the final sleep", async () => {
+    const available = await openTaskListFixture();
+    const empty = {
+      tasks: [],
+      revision: available.revision,
+      activityVersion: available.activityVersion - 1,
+    };
+    let calls = 0;
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async () => {
+        calls += 1;
+        return Response.json({
+          ok: true,
+          data: calls < 3 ? empty : available,
+        });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      let settled = false;
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: empty.activityVersion,
+        afterRevision: empty.revision,
+        timeoutSeconds: 1,
+      }, randomUUID()).then((result) => {
+        settled = true;
+        return result;
+      });
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(waiting).resolves.toMatchObject({
+        ok: true,
+        data: {
+          outcome: "TASKS_AVAILABLE",
+          tasks: available.tasks,
+          revision: available.revision,
+          activityVersion: available.activityVersion,
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(3);
+  });
+
+  it("performs the boundary refresh when a pre-deadline read resumes after the deadline", async () => {
+    const available = await openTaskListFixture();
+    const empty = {
+      tasks: [],
+      revision: available.revision,
+      activityVersion: available.activityVersion - 1,
+    };
+    let calls = 0;
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async () => {
+        calls += 1;
+        if (calls === 2) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 500));
+          return Response.json({ ok: true, data: empty });
+        }
+        return Response.json({ ok: true, data: calls < 3 ? empty : available });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: empty.activityVersion,
+        afterRevision: empty.revision,
+        timeoutSeconds: 1,
+      }, randomUUID());
+      await vi.advanceTimersByTimeAsync(1_000);
+      await expect(waiting).resolves.toMatchObject({
+        ok: true,
+        data: {
+          outcome: "TASKS_AVAILABLE",
+          tasks: available.tasks,
+          revision: available.revision,
+          activityVersion: available.activityVersion,
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(3);
+  });
+
+  it("translates a hung initial read through the bounded final refresh", async () => {
+    let calls = 0;
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async (_url, init) => {
+        calls += 1;
+        if (calls === 1) {
+          const requestSignal = init?.signal;
+          return await new Promise<Response>((_resolve, reject) => {
+            const rejectWithReason = () => reject(
+              requestSignal?.reason
+                ?? new DOMException("The task wait was cancelled.", "AbortError"),
+            );
+            if (requestSignal?.aborted) rejectWithReason();
+            else requestSignal?.addEventListener("abort", rejectWithReason, { once: true });
+          });
+        }
+        return Response.json({
+          ok: true,
+          data: { tasks: [], revision: 1, activityVersion: 1 },
+        });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      let settled = false;
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, randomUUID()).then((result) => {
+        settled = true;
+        return result;
+      });
+      await vi.advanceTimersByTimeAsync(999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(waiting).resolves.toMatchObject({
+        ok: true,
+        data: { outcome: "TIMEOUT", tasks: [], revision: 1, activityVersion: 1 },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(2);
+  });
+
+  it("fails honestly when neither the initial nor final refresh yields a snapshot", async () => {
+    const available = await openTaskListFixture();
+    let calls = 0;
+    const pageSessionId = randomUUID();
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async (_url, init) => {
+        calls += 1;
+        if (calls <= 2) {
+          const requestSignal = init?.signal;
+          return await new Promise<Response>((_resolve, reject) => {
+            const rejectWithReason = () => reject(
+              requestSignal?.reason
+                ?? new DOMException("The task wait was cancelled.", "AbortError"),
+            );
+            if (requestSignal?.aborted) rejectWithReason();
+            else requestSignal?.addEventListener("abort", rejectWithReason, { once: true });
+          });
+        }
+        return Response.json({ ok: true, data: available });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 99,
+        afterRevision: 99,
+        timeoutSeconds: 1,
+      }, pageSessionId);
+      const rejected = expect(waiting).rejects.toMatchObject({ name: "TimeoutError" });
+      await vi.advanceTimersByTimeAsync(2_000);
+      await rejected;
+
+      await expect(service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId)).resolves.toMatchObject({
+        ok: true,
+        data: { outcome: "TASKS_AVAILABLE", tasks: available.tasks },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(3);
+  });
+
+  it("bounds a hung final refresh, returns TIMEOUT, and releases the page wait key", async () => {
+    const available = await openTaskListFixture();
+    let calls = 0;
+    const pageSessionId = randomUUID();
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async (_url, init) => {
+        calls += 1;
+        if (calls < 3) {
+          return Response.json({
+            ok: true,
+            data: { tasks: [], revision: 1, activityVersion: 1 },
+          });
+        }
+        if (calls === 3) {
+          const requestSignal = init?.signal;
+          return await new Promise<Response>((_resolve, reject) => {
+            const rejectWithReason = () => reject(
+              requestSignal?.reason
+                ?? new DOMException("The task wait was cancelled.", "AbortError"),
+            );
+            if (requestSignal?.aborted) rejectWithReason();
+            else requestSignal?.addEventListener("abort", rejectWithReason, { once: true });
+          });
+        }
+        return Response.json({ ok: true, data: available });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId);
+      let settled = false;
+      void waiting.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(waiting).resolves.toMatchObject({
+        ok: true,
+        data: { outcome: "TIMEOUT", tasks: [], revision: 1, activityVersion: 1 },
+      });
+      expect(Date.now()).toBe(Date.parse("2026-09-02T00:00:02.000Z"));
+
+      await expect(service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId)).resolves.toMatchObject({
+        ok: true,
+        data: { outcome: "TASKS_AVAILABLE", tasks: available.tasks },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(4);
+  });
+
+  it("preserves external abort and duplicate-wait cleanup", async () => {
+    const available = await openTaskListFixture();
+    let calls = 0;
+    const pageSessionId = randomUUID();
+    const controller = new AbortController();
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async () => {
+        calls += 1;
+        return Response.json({
+          ok: true,
+          data: calls < 2
+            ? { tasks: [], revision: 1, activityVersion: 1 }
+            : available,
+        });
+      },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    try {
+      const waiting = service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId, controller.signal);
+      await vi.advanceTimersByTimeAsync(0);
+      await expect(service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId)).resolves.toMatchObject({
+        ok: false,
+        code: "WAIT_ALREADY_ACTIVE",
+      });
+
+      controller.abort(new DOMException("cancel task wait", "AbortError"));
+      await expect(waiting).rejects.toMatchObject({ name: "AbortError" });
+      await expect(service.waitForMyTasks("a".repeat(64), {
+        afterActivityVersion: 1,
+        afterRevision: 1,
+        timeoutSeconds: 1,
+      }, pageSessionId)).resolves.toMatchObject({
+        ok: true,
+        data: { outcome: "TASKS_AVAILABLE", tasks: available.tasks },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(calls).toBe(2);
+  });
+
+  it("reserves the duplicate guard before transport and preserves body-decode AbortError", async () => {
+    const available = await openTaskListFixture();
+    const controller = new AbortController();
+    let calls = 0;
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async (_url, init) => {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => await new Promise<unknown>((_resolve, reject) => {
+              const requestSignal = init?.signal;
+              const rejectWithReason = () => reject(
+                requestSignal?.reason
+                  ?? new DOMException("The response read was cancelled.", "AbortError"),
+              );
+              if (requestSignal?.aborted) rejectWithReason();
+              else requestSignal?.addEventListener("abort", rejectWithReason, { once: true });
+            }),
+          } as Response;
+        }
+        return Response.json({ ok: true, data: available });
+      },
+    });
+    const pageSessionId = randomUUID();
+    const waiting = service.waitForMyTasks("a".repeat(64), {
+      afterActivityVersion: 1,
+      afterRevision: 1,
+      timeoutSeconds: 1,
+    }, pageSessionId, controller.signal);
+
+    await expect(service.waitForMyTasks("a".repeat(64), {
+      afterActivityVersion: 1,
+      afterRevision: 1,
+      timeoutSeconds: 1,
+    }, pageSessionId)).resolves.toMatchObject({
+      ok: false,
+      code: "WAIT_ALREADY_ACTIVE",
+    });
+    expect(calls).toBe(1);
+
+    controller.abort(new DOMException("cancel response body", "AbortError"));
+    await expect(waiting).rejects.toMatchObject({ name: "AbortError" });
+    await expect(service.waitForMyTasks("a".repeat(64), {
+      afterActivityVersion: 1,
+      afterRevision: 1,
+      timeoutSeconds: 1,
+    }, pageSessionId)).resolves.toMatchObject({
+      ok: true,
+      data: { outcome: "TASKS_AVAILABLE", tasks: available.tasks },
+    });
     expect(calls).toBe(2);
   });
 });

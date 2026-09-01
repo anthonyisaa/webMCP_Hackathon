@@ -80,6 +80,7 @@ const TOKEN = /^(?:[0-9a-f]{64}|[A-Za-z0-9_-]{32,128})$/u;
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const COLOR = /^#[0-9A-F]{6}$/iu;
 const ERROR_CODES = new Set<string>(REPOSITORY_ERROR_CODES);
+const ISSUE_WAIT_FINAL_REFRESH_GRACE_MS = 1_000;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -758,6 +759,38 @@ async function delay(milliseconds: number, signal?: AbortSignal): Promise<void> 
   });
 }
 
+function createWaitDeadlineSignal(
+  deadline: number,
+  deadlineReason: DOMException,
+  external?: AbortSignal,
+): {
+  signal: AbortSignal;
+  dispose: () => void;
+} {
+  const controller = new AbortController();
+  const forwardExternalAbort = () => {
+    controller.abort(external?.reason ?? abortError(external));
+  };
+  if (external?.aborted) forwardExternalAbort();
+  else external?.addEventListener("abort", forwardExternalAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (!controller.signal.aborted) {
+    if (Date.now() >= deadline) controller.abort(deadlineReason);
+    else {
+      timer = setTimeout(() => {
+        controller.abort(deadlineReason);
+      }, deadline - Date.now());
+    }
+  }
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      if (timer !== undefined) clearTimeout(timer);
+      external?.removeEventListener("abort", forwardExternalAbort);
+    },
+  };
+}
+
 export class SupabaseRepositoryService
 implements RepositoryServicePort, RepositoryEvaluationPort {
   private readonly endpoint: string;
@@ -945,74 +978,173 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         && (!counter(input.timeoutSeconds, 1) || input.timeoutSeconds > ISSUE_WAIT_MAX_SECONDS)) {
       return this.invalidInput<WaitForMyIssueTasksOutcome>("The wait cursors are invalid.");
     }
-    const deadline = Date.now()
-      + (input.timeoutSeconds ?? ISSUE_WAIT_DEFAULT_SECONDS) * 1_000;
-    let listed = await this.listMyTasks(agentSessionToken, {}, pageSessionId, signal);
-    if (!listed.ok) return listed;
-    if (input.afterRevision > listed.data.revision
-      || input.afterActivityVersion > listed.data.activityVersion) {
-      return this.invalidInput<WaitForMyIssueTasksOutcome>("A wait cursor cannot be in the future.");
-    }
-    const immediate = listed.data.tasks.filter(({ task }) => task.status === "OPEN");
-    if (immediate.length > 0) {
-      return { ok: true, data: {
-        outcome: "TASKS_AVAILABLE", tasks: immediate,
-        revision: listed.data.revision, activityVersion: listed.data.activityVersion,
-      } };
-    }
-    if (listed.data.revision > input.afterRevision) {
-      return { ok: true, data: {
-        outcome: "DOCUMENT_CHANGED", tasks: [],
-        revision: listed.data.revision, activityVersion: listed.data.activityVersion,
-      } };
-    }
+    const timeoutMilliseconds = (input.timeoutSeconds ?? ISSUE_WAIT_DEFAULT_SECONDS) * 1_000;
+    const deadline = Date.now() + timeoutMilliseconds;
+    const deadlineReason = new DOMException(
+      "The task wait reached its nominal deadline.",
+      "TimeoutError",
+    );
+    const deadlineSignal = createWaitDeadlineSignal(deadline, deadlineReason, signal);
     const key = `${agentSessionToken}:${pageSessionId}`;
-    if (this.activeWaits.has(key)) {
-      return {
-        ok: false,
-        code: "WAIT_ALREADY_ACTIVE",
-        message: "Only one task wait may be active for this page.",
-        retryable: false,
-      };
-    }
-    this.activeWaits.add(key);
-    let observedActivity = Math.max(input.afterActivityVersion, listed.data.activityVersion);
+    let registeredWait = false;
+    let lastSnapshot: ListMyIssueTasksOutcome = {
+      tasks: [],
+      revision: input.afterRevision,
+      activityVersion: input.afterActivityVersion,
+    };
+    let observedActivity = input.afterActivityVersion;
+    let hasAuthoritativeSnapshot = false;
+    const readyOutcome = (
+      snapshot: ListMyIssueTasksOutcome,
+    ): RepositoryResult<WaitForMyIssueTasksOutcome> | null => {
+      const open = snapshot.tasks.filter(({ task }) => task.status === "OPEN");
+      if (open.length > 0) {
+        return { ok: true, data: {
+          outcome: "TASKS_AVAILABLE", tasks: open,
+          revision: snapshot.revision, activityVersion: snapshot.activityVersion,
+        } };
+      }
+      if (snapshot.revision > input.afterRevision) {
+        return { ok: true, data: {
+          outcome: "DOCUMENT_CHANGED", tasks: [],
+          revision: snapshot.revision, activityVersion: snapshot.activityVersion,
+        } };
+      }
+      return null;
+    };
+    const timeoutOutcome = (): RepositoryResult<WaitForMyIssueTasksOutcome> => ({
+      ok: true,
+      data: {
+        outcome: "TIMEOUT",
+        tasks: [],
+        revision: lastSnapshot.revision,
+        activityVersion: observedActivity,
+      },
+    });
+    const registerWait = (): RepositoryFailure | null => {
+      if (this.activeWaits.has(key)) {
+        return {
+          ok: false,
+          code: "WAIT_ALREADY_ACTIVE",
+          message: "Only one task wait may be active for this page.",
+          retryable: false,
+        };
+      }
+      this.activeWaits.add(key);
+      registeredWait = true;
+      return null;
+    };
+    const finalRefresh = async (): Promise<RepositoryResult<WaitForMyIssueTasksOutcome>> => {
+      // The nominal deadline is an observation boundary, not evidence that no work
+      // arrived during the final sleep. Start one authoritative read at that boundary.
+      // Its separate grace period bounds transport cleanup without ending the logical
+      // wait early. If transport never yields a snapshot, the last successful one is
+      // the only honest cursor we can return with TIMEOUT.
+      const finalRefreshReason = new DOMException(
+        "The final task refresh exceeded its bounded transport grace period.",
+        "TimeoutError",
+      );
+      const finalRefreshSignal = createWaitDeadlineSignal(
+        deadline + ISSUE_WAIT_FINAL_REFRESH_GRACE_MS,
+        finalRefreshReason,
+        signal,
+      );
+      try {
+        if (finalRefreshSignal.signal.aborted) {
+          if (signal?.aborted) throw abortError(signal);
+          if (!hasAuthoritativeSnapshot) throw finalRefreshReason;
+          return timeoutOutcome();
+        }
+        let refreshed: RepositoryResult<ListMyIssueTasksOutcome>;
+        try {
+          refreshed = await this.listMyTasks(
+            agentSessionToken,
+            {},
+            pageSessionId,
+            finalRefreshSignal.signal,
+          );
+        } catch (error) {
+          if (signal?.aborted) throw abortError(signal);
+          if (finalRefreshSignal.signal.reason === finalRefreshReason) {
+            if (!hasAuthoritativeSnapshot) throw finalRefreshReason;
+            return timeoutOutcome();
+          }
+          throw error;
+        }
+        if (signal?.aborted) throw abortError(signal);
+        if (!refreshed.ok) return refreshed;
+        hasAuthoritativeSnapshot = true;
+        if (input.afterRevision > refreshed.data.revision
+          || input.afterActivityVersion > refreshed.data.activityVersion) {
+          return this.invalidInput<WaitForMyIssueTasksOutcome>(
+            "A wait cursor cannot be in the future.",
+          );
+        }
+        lastSnapshot = refreshed.data;
+        observedActivity = Math.max(observedActivity, refreshed.data.activityVersion);
+        return readyOutcome(refreshed.data) ?? timeoutOutcome();
+      } finally {
+        finalRefreshSignal.dispose();
+      }
+    };
     try {
-      while (true) {
+      if (signal?.aborted) throw abortError(signal);
+      const duplicate = registerWait();
+      if (duplicate) return duplicate;
+      let listed: RepositoryResult<ListMyIssueTasksOutcome>;
+      try {
+        listed = await this.listMyTasks(
+          agentSessionToken,
+          {},
+          pageSessionId,
+          deadlineSignal.signal,
+        );
+      } catch (error) {
+        if (signal?.aborted) throw abortError(signal);
+        if (deadlineSignal.signal.reason !== deadlineReason) throw error;
+        return await finalRefresh();
+      }
+      if (signal?.aborted) throw abortError(signal);
+      if (!listed.ok) return listed;
+      hasAuthoritativeSnapshot = true;
+      if (input.afterRevision > listed.data.revision
+        || input.afterActivityVersion > listed.data.activityVersion) {
+        return this.invalidInput<WaitForMyIssueTasksOutcome>("A wait cursor cannot be in the future.");
+      }
+      lastSnapshot = listed.data;
+      observedActivity = Math.max(observedActivity, listed.data.activityVersion);
+      const immediate = readyOutcome(listed.data);
+      if (immediate) return immediate;
+
+      while (Date.now() < deadline) {
         if (signal?.aborted) throw abortError(signal);
         const remaining = deadline - Date.now();
-        if (remaining <= 0) {
-          return { ok: true, data: {
-            outcome: "TIMEOUT", tasks: [], revision: listed.data.revision,
-            activityVersion: observedActivity,
-          } };
-        }
         await delay(Math.min(500, remaining), signal);
-        if (Date.now() >= deadline) {
-          return { ok: true, data: {
-            outcome: "TIMEOUT", tasks: [], revision: listed.data.revision,
-            activityVersion: observedActivity,
-          } };
+        if (Date.now() >= deadline) break;
+        try {
+          listed = await this.listMyTasks(
+            agentSessionToken,
+            {},
+            pageSessionId,
+            deadlineSignal.signal,
+          );
+        } catch (error) {
+          if (signal?.aborted) throw abortError(signal);
+          if (deadlineSignal.signal.reason === deadlineReason) break;
+          throw error;
         }
-        listed = await this.listMyTasks(agentSessionToken, {}, pageSessionId, signal);
+        if (signal?.aborted) throw abortError(signal);
         if (!listed.ok) return listed;
-        const open = listed.data.tasks.filter(({ task }) => task.status === "OPEN");
-        if (open.length > 0) {
-          return { ok: true, data: {
-            outcome: "TASKS_AVAILABLE", tasks: open,
-            revision: listed.data.revision, activityVersion: listed.data.activityVersion,
-          } };
-        }
-        if (listed.data.revision > input.afterRevision) {
-          return { ok: true, data: {
-            outcome: "DOCUMENT_CHANGED", tasks: [],
-            revision: listed.data.revision, activityVersion: listed.data.activityVersion,
-          } };
-        }
+        hasAuthoritativeSnapshot = true;
+        lastSnapshot = listed.data;
         observedActivity = Math.max(observedActivity, listed.data.activityVersion);
+        const ready = readyOutcome(listed.data);
+        if (ready) return ready;
       }
+      return await finalRefresh();
     } finally {
-      this.activeWaits.delete(key);
+      if (registeredWait) this.activeWaits.delete(key);
+      deadlineSignal.dispose();
     }
   }
 
@@ -1117,7 +1249,23 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       body: JSON.stringify(body),
       signal,
     });
-    const value: unknown = await response.json().catch(() => undefined);
+    let value: unknown;
+    try {
+      value = await response.json();
+    } catch (error) {
+      if (signal?.aborted) {
+        throw signal.reason instanceof DOMException
+          ? signal.reason
+          : abortError(signal);
+      }
+      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      value = undefined;
+    }
+    if (signal?.aborted) {
+      throw signal.reason instanceof DOMException
+        ? signal.reason
+        : abortError(signal);
+    }
     if (!response.ok) throw new Error(`Supabase RPC ${name} failed (${response.status}).`);
     return value;
   }

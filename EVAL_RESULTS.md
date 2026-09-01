@@ -24,7 +24,7 @@ after the v4 checkpoint is created; no release SHA is selected or asserted here.
 
 | Layer | Command / scope | Result | Evidence class | What it establishes |
 |---|---|---|---|---|
-| Fast gate | `.codex/verify.sh` | **PASS: 401/401 Vitest tests across 55 files**, plus TypeScript, ESLint, and v3/v4 protected-reset checks | `AUTOMATED` | The checked local candidate satisfies its deterministic domain, protocol, storage, adapter, route, lifecycle, hero, validator, and compatibility oracles |
+| Fast gate | `.codex/verify.sh` | **PASS: 408/408 Vitest tests across 55 files**, plus TypeScript, ESLint, and v3/v4 protected-reset checks | `AUTOMATED` | The checked local candidate satisfies its deterministic domain, protocol, storage, adapter, route, lifecycle, hero, validator, and compatibility oracles |
 | Production build | `pnpm build` (Next.js webpack path) | **PASS** | `AUTOMATED` | The v4 candidate produces a production build |
 | Ordinary-browser journeys | `RATIFLOW_BASE_URL=<local> pnpm eval:browser:v4` | **PASS: 10/10** | `AUTOMATED` / `ADAPTER_CAPTURED` where agent endpoints are driven | Both exact templates; explicit `/new` versus resume; completed hero; Comment, Review, Direct, history, restore, human save/reload; a named second-human clean-link join with live sync and draft conflict preservation; and 390px reachability, focus containment, Escape restoration, and overflow |
 | Five-run rehearsal | `RATIFLOW_BASE_URL=<local> pnpm eval:rehearse:v4` | **PASS: 50/50** | `ADAPTER_CAPTURED` | The same ten deterministic journeys completed five consecutive times without repair; this is not native WebMCP proof |
