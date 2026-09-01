@@ -65,7 +65,30 @@ test("two isolated humans edit, see presence, and retain creator-only work contr
     await first.goto("/");
     await expect(first).toHaveURL(/\/document\//);
     const sharedUrl = first.url();
+    const firstId = await selfMemberId(first);
     expect(new URL(sharedUrl).hash).toBe("");
+
+    const reopened = await firstContext.newPage();
+    await reopened.goto("/");
+    await expect(reopened).toHaveURL(sharedUrl);
+    expect(await selfMemberId(reopened)).toBe(firstId);
+    const persistedBrowserValues = await reopened.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("ratiflow.document."))
+        .map((key) => localStorage.getItem(key) ?? "")
+        .join("\n"),
+    );
+    expect(persistedBrowserValues).not.toContain("surface");
+    expect(persistedBrowserValues).not.toContain("workOrders");
+    expect(persistedBrowserValues).not.toContain("memory");
+    await reopened.close();
+
+    const malformedLinkTab = await firstContext.newPage();
+    await malformedLinkTab.goto(`${sharedUrl}#ratiflow-bootstrap=malformed`);
+    await expect(malformedLinkTab).toHaveURL(sharedUrl);
+    expect(await selfMemberId(malformedLinkTab)).toBe(firstId);
+    await malformedLinkTab.close();
+
     await second.goto(sharedUrl);
     await expect(second.getByLabel("Note body")).toBeEditable();
     const secondId = await selfMemberId(second);
@@ -108,8 +131,14 @@ test("two isolated humans edit, see presence, and retain creator-only work contr
     await expect(first.getByLabel("Note body")).toHaveValue(bodyText);
 
     await firstCard.getByRole("button", { name: "Cancel work" }).click();
-    await expect(firstCard).toContainText("Cancelled");
-    await expect(secondCard).toContainText("Cancelled", { timeout: 8_000 });
+    await expect(first.getByTestId("work-order-card")).toHaveCount(0);
+    await expect(second.getByTestId("work-order-card")).toHaveCount(0, { timeout: 8_000 });
+    await first.getByRole("tab", { name: "Memory" }).click();
+    await second.getByRole("tab", { name: "Memory" }).click();
+    await expect(first.getByTestId("memory-list")).toContainText("Work cancelled");
+    await expect(second.getByTestId("memory-list")).toContainText("Work cancelled", {
+      timeout: 8_000,
+    });
   } finally {
     await firstContext.close();
     await secondContext.close();

@@ -20,9 +20,6 @@ interface DocumentWorkspaceRegistrationRecord {
   contextKey: string;
 }
 
-const PERMANENT_TOOL_NAMES = DOCUMENT_WORKSPACE_TOOL_NAMES.slice(0, 4);
-const CAPABILITY_REMOVED_REASON = "Document workspace capability removed";
-
 function catalogOrder(names: Iterable<string>): DocumentWorkspaceToolName[] {
   const set = new Set(names);
   return DOCUMENT_WORKSPACE_TOOL_NAMES.filter((name) => set.has(name));
@@ -72,14 +69,6 @@ function wrapNativeResult(value: unknown): {
   };
 }
 
-function isSuccess(value: unknown): value is { ok: true } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { ok?: unknown }).ok === true
-  );
-}
-
 export function emptyDocumentWorkspaceRegistrationDiff(): DocumentWorkspaceWebMCPRegistrationDiff {
   return { added: [], removed: [], retained: [], reRegistered: [] };
 }
@@ -88,13 +77,11 @@ export function desiredDocumentWorkspaceWebMCPTools(
   surface: DocumentSurfaceV3,
   selfMemberId: string,
 ): DocumentWorkspaceToolName[] {
-  const hasAssignedPendingWork = surface.workOrders.some(
-    (order) =>
-      order.status === "PENDING" && order.assignedToMemberId === selfMemberId,
-  );
-  return hasAssignedPendingWork
-    ? [...DOCUMENT_WORKSPACE_TOOL_NAMES]
-    : [...PERMANENT_TOOL_NAMES];
+  // Tool presence guides the agent; the server remains authoritative for whether
+  // this paired agent currently owns pending work that can accept a proposal.
+  void surface;
+  void selfMemberId;
+  return [...DOCUMENT_WORKSPACE_TOOL_NAMES];
 }
 
 export function makeDocumentWorkspaceRegistrationContextKey(
@@ -168,7 +155,7 @@ export class DocumentWorkspaceWebMCPRegistrationManager {
           name,
           contextChanged
             ? "Document workspace registration context changed"
-            : CAPABILITY_REMOVED_REASON,
+            : "Document workspace capability removed",
         );
       }
     }
@@ -285,11 +272,7 @@ export class DocumentWorkspaceWebMCPRegistrationManager {
       if (options?.signal?.aborted) {
         throw documentWorkspaceAbortError(options.signal);
       }
-      const committedSelfRemovingProposal =
-        name === "submit_work_proposal" &&
-        isSuccess(result) &&
-        registrationSignal.reason === CAPABILITY_REMOVED_REASON;
-      if (registrationSignal.aborted && !committedSelfRemovingProposal) {
+      if (registrationSignal.aborted) {
         throw documentWorkspaceAbortError(registrationSignal);
       }
       return wrapNativeResult(result);

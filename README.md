@@ -5,8 +5,9 @@
 Ratiflow is a calm shared decision memo where people and their paired agents work on the
 same evolving artifact. A person selects exact text and assigns it to a collaborator's
 agent. The agent receives the work through the page's live WebMCP surface and returns a
-proposal without editing the document. The work creator accepts or rejects with a
-rationale, and that decision becomes durable memory for the next agent.
+proposal without editing the document. The work creator accepts or rejects in one click,
+may add an optional decision note, and that decision becomes durable memory for the next
+agent.
 
 This is deliberately a focused hackathon POC, not a full word processor. It proves one
 interaction that detached chat handles poorly: cross-human agent delegation with exact
@@ -41,9 +42,9 @@ The first native action is scripted by 0:45 and the complete narrated run is cap
 
 ## Five page-native tools
 
-The top-level v3 document page registers exactly five WebMCP definitions through the
-standards path, `document.modelContext`. Four are normally available; the fifth appears
-only while the current paired agent owns pending work.
+The top-level v3 document page registers exactly five WebMCP definitions from page start
+through the standards path, `document.modelContext`. Server-side ownership and revision
+checks—not tool visibility—govern proposal submission.
 
 | Tool | Role |
 | --- | --- |
@@ -51,14 +52,14 @@ only while the current paired agent owns pending work.
 | `read_document_memory` | Read bounded, chronological edits, work, proposals, decisions, diffs, and human rationale. |
 | `list_my_work` | List only pending work assigned to this human's paired agent. |
 | `wait_for_my_work` | Wait from explicit cursors for assigned work or a document change, with timeout and cancellation. |
-| `submit_work_proposal` | Conditional capability that stores a candidate replacement and summary; it never edits content. |
+| `submit_work_proposal` | Store an ownership-checked candidate replacement and summary; it never edits content. |
 
 The lifecycle is the point:
 
 ```text
 page opens → inspect → wait
                       ↓ another human assigns exact text
-            memory + my work → conditional proposal
+            memory + my work → governed proposal
                                    ↓
                       creator accepts or rejects in the UI
                                    ↓
@@ -72,16 +73,17 @@ guides the agent, while revision checks and authority remain server-enforced.
 
 ## A document interface first
 
-`/` opens a blank title and body, then moves into a temporary
+`/` resumes the last valid browser note or opens a blank title and body, then moves into a temporary
 `/document/[shareToken]` workspace. The document dominates the screen; a quiet
 **Work | Memory** margin holds assigned work, proposals, human decisions, and history.
-There is no stage machine, permanent composer, copied agent prompt, dashboard,
+There is no stage machine, permanent composer, always-open agent prompt, dashboard,
 Capability Field, or chat transcript on the flagship route.
 
-In a supported client, a quiet **Page capability** line makes the dynamic WebMCP
-boundary judge-visible: the page exposes read-only tools by default, temporarily adds
-the proposal tool for the paired assignee, then returns to read-only tools. The line is
-absent when WebMCP is unavailable and never claims an agent is connected or running.
+The Work panel makes the WebMCP boundary judge-visible with honest page-local states:
+tools connecting, all five tools ready, this page's paired agent listening or preparing
+a proposal, work waiting, or WebMCP unavailable. **Check now** refreshes the page but
+cannot wake a model; **Copy listen prompt** gives the external agent one operational
+instruction with a selectable fallback.
 
 A non-empty selection exposes **Ask agent**. An unmodified pointer-origin right-click
 on that selection opens **Rewrite**, **Research**, and **Assign…**. Holding a modifier,
@@ -103,7 +105,7 @@ is not required for ordinary document use.
 
 | Official criterion | Judge-visible proof |
 | --- | --- |
-| **WebMCP Leverage** | Native page discovery, an active cross-human wait, assignee-filtered work, a conditional proposal capability, durable memory, and teardown on navigation. Removing WebMCP removes the structured agent collaboration loop. |
+| **WebMCP Leverage** | Native page discovery, an active cross-human wait, assignee-filtered work, a stable server-governed proposal capability, durable memory, and teardown on navigation. Removing WebMCP removes the structured agent collaboration loop. |
 | **Execution** | A clean desktop and 390px editor; two human sessions; exact contextual assignment; proposal without mutation; creator-only decision; synchronized content and Memory; explicit conflict handling; WebMCP-off fallback. |
 | **Potential Impact** | The rationale behind edits no longer disappears into detached chats. The evolving artifact retains the request, proposer, accepter, server diff, and human reason. |
 | **Creativity & Ambition** | The live document becomes a rendezvous and capability plane for one agent per collaborator, while proposal governance and revision/activity memory prevent silent edits and repeated-idea loops. |
@@ -173,8 +175,9 @@ agent tokens are distinct, high-entropy, per-session credentials and never appea
 tool results.
 
 The protected Northstar evaluation setup uses one-time fragment bootstrap bundles. The
-page validates the bundle against path, share, protocol, and expiry, stores it in
-`sessionStorage`, and scrubs the fragment before WebMCP registers. Bootstrap paths,
+page validates the bundle against path, share, protocol, and expiry, stores the full
+bundle in tab storage plus a credential-only browser projection, and scrubs the fragment
+before WebMCP registers. Browser storage never retains document/work/memory content. Bootstrap paths,
 fragments, tokens, cookies, private document content, and unsanitized agent transcripts
 must never be logged, committed, recorded, or included in evidence.
 

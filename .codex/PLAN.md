@@ -1,4 +1,141 @@
-# Plan — Shared decision memory in one live document
+# Plan — Make the human-to-agent handoff obvious
+_Updated: 2026-09-01T19:45:32+08:00_
+
+## Goal and ambition mode
+
+Correct the deployed v3 demo around the user-observed failure: a person should reopen
+the same note as the same browser identity, understand exactly when their paired agent
+is listening, and decide a proposal with one click. This is a **brownfield demo
+correction**, not an account system, background agent host, notification service, CRDT,
+or general workflow product. Preserve the exact-range assignment, paired-token
+authorization, human-only document mutation, durable memory, and five-tool WebMCP
+surface already proven on production.
+
+## Chokepoint — freeze first
+
+Freeze these three interaction contracts in `docs/contracts/editor-contract.md`,
+`product_spec.md`, `EVALS.md`, and the exported constants/types in
+`src/document/contracts.ts` before implementation:
+
+1. **Agent inbox, honestly live:** all five scoped tools, including
+   `submit_work_proposal`, register from page start; server ownership, work status, and
+   revision checks remain authoritative. `wait_for_my_work` is the supported
+   active-turn long-poll. It returns immediately for existing work and otherwise waits
+   up to 20 seconds; after `TIMEOUT`, an agent should call it again while its turn
+   remains active. A page cannot wake a model after the agent/browser turn ends. The
+   Work rail says this plainly, shows **Connecting agent tools** while the complete
+   five-tool catalog registers, then **Agent tools ready**, **Your paired agent is
+   listening on this page**, **Your paired agent is preparing a proposal**, **Work
+   waiting — ask your agent to check**, or **WebMCP unavailable**; offers **Check now**
+   for an immediate authoritative page refresh; and offers one copyable and expandable
+   listening prompt. Failed registration retries three times before the page asks for a
+   reload. **Check now** never claims to start an external agent, and a listening state
+   is never projected onto another collaborator's page.
+2. **One-click decisions:** a proposal card defaults to `ask -> proposed change` with
+   Accept and Reject enabled. Before/after diff, attribution, model summary, and an
+   optional human decision note live behind **Details**. Decision input retains the
+   exact `rationale` key but accepts either a nonblank 1–500-code-point human note or
+   `null`; work and memory preserve that value without inventing human prose. A new
+   additive migration loosens only this nullable field and replaces the decision RPC;
+   the applied v3 migration remains untouched. The anti-loop golden still submits and
+   later retrieves its exact optional rationale, while a separate gate proves the
+   default no-note one-click path.
+3. **Browser continuity, not accounts:** a versioned, credential-only v3 record
+   (`shareToken`, both scoped bearers, session/member IDs, display name, expiry) and a
+   last-note pointer persist in `localStorage`; cached surface/document/work/memory stay
+   in tab-scoped `sessionStorage` and are always refreshed authoritatively on resume.
+   Direct-link precedence is bootstrap fragment -> valid tab session -> valid browser
+   credential -> fresh join. Reopening `/` resumes the last valid note; reloads and new
+   tabs in the same browser reuse the same member/paired-agent identity. Successful
+   migration from the old tab bundle writes the credential and pointer once. Expired,
+   `UNAUTHORIZED`, or `NOT_FOUND` credentials are cleared; transient failures are not.
+   Storage-blocked browsers retain the current tab-only fallback and say so, and a saved display
+   name is used for a fresh join. **New note** remains explicit. Separate humans use
+   separate browser profiles/surfaces.
+
+## Streams
+
+### C0 — Corrected contract freeze — pending
+- Owner / worktree: coordinating task in the current checkout.
+- Scope: every doc/spec/eval row, exported storage/rationale type and constant, exact
+  agent prompt/tool wording, golden scenario, and public demo instruction affected by
+  this correction.
+- Verification: the frozen contracts contain no conditional-proposal dependency, fake
+  rationale, cached-surface persistence, cross-page listening claim, or stale native
+  catalog count.
+
+### S1 — Browser continuity and resume — pending
+- Owner / worktree: coordinating task in the current clean checkout.
+- Scope and key files: `src/components/document/document-workspace-editor.tsx` and
+  focused document browser tests only.
+- Must not touch: applied migrations, legacy `/decision-demo`, WebMCP executor.
+- Inputs / frozen contracts: the C0 browser-continuity contract above.
+- Verification: reload and reopen `/` preserve share token, member ID, name, and work;
+  invalid/expired state clears safely; `New note` still creates a distinct document.
+
+### S2 — Agent listening affordance and reliable tool surface — pending
+- Owner / worktree: isolated implementation worker after C0.
+- Scope and key files: `src/webmcp/document-workspace-catalog.ts`,
+  `src/webmcp/document-workspace-registration.ts`, bridge registration dependencies,
+  and focused registration tests only.
+- Must not touch: editor TSX/CSS, domain/API, storage, applied migrations.
+- Inputs / frozen contracts: the C0 active-turn listening boundary.
+- Verification: all five tools register immediately; catalog tells agents to list
+  first, wait, repeat after timeout, read memory, and submit proposals only; schemas,
+  cancellation, context teardown, and server authority stay frozen.
+
+### S3 — Compact proposal, nullable decision note, and inbox UI — pending
+- Owner / worktree: coordinating task after S1/S2.
+- Scope and key files: v3 editor TSX/CSS, decision domain/adapter code, one additive
+  Supabase migration, and focused unit/route/Playwright specs.
+- Must not touch: the applied v3 migration or agent authority.
+- Inputs / frozen contracts: S1 storage behavior and S2 catalog wording.
+- Verification: two browser surfaces complete assign -> native wait -> proposal ->
+  one-click accept with `null` rationale; optional details/note and anti-loop golden
+  work; Check now refreshes; 390px rail is overflow-safe; WebMCP-off editing remains
+  usable.
+
+### S4 — Independent evaluation and deploy — pending
+- Owner / worktree: coordinating task plus fresh read-only design judge.
+- Scope: `.codex/verify.sh`, production build, exact hosted flow, desktop/mobile visual
+  review, then additive migration, exact-SHA Vercel deployment, and native re-check.
+- Verification: no BLOCK from visual judge; supported in-app Browser discovers tools,
+  wait resolves from a human assignment, proposal submits, and one-click acceptance is
+  visible in both sessions. Each official hackathon criterion gets a fresh critical
+  judge after the flow is proven.
+
+## Checkpoints
+
+- If browser storage cannot safely resume an unexpired scoped session, retain the
+  current session-only behavior and add a named profile only; do not invent accounts.
+- If supported clients cannot sustain a repeated wait within one turn, keep Check now
+  and the copyable prompt but remove every “listening” claim.
+- If the nullable-decision migration cannot be applied and verified before code deploy,
+  block deployment; never attribute generated fallback prose to a human.
+- Any regression in paired authority, proposal-without-mutation, ordinary-browser
+  editing, or native tool teardown blocks deployment.
+
+## Integration order
+
+`C0 -> (S1 || S2) -> S3 -> local verification -> dev-visual-review -> hosted native
+verification -> criterion judges`. S1 and S3 overlap the editor and must remain
+sequential. S2 is the only independent code stream. Reconcile and deploy one clean SHA;
+do not create release evidence from synthetic adapter fixtures.
+
+## Risks and open decisions
+
+- Persisting scoped credentials in `localStorage` is a deliberate POC tradeoff. They
+  remain high-entropy, same-origin, document-scoped, 24-hour expiring, and are deleted
+  on authorization failure; cached document, work, and memory content is never stored
+  there. A production account system would use a server-managed secure resume cookie.
+- WebMCP registers and executes tools; it does not provide a scheduler that starts a
+  dormant model. The demo must show the single explicit agent prompt before assignment.
+- Reusing one identity across tabs means a two-human demo needs Chrome plus the in-app
+  Browser, different browser profiles, or an incognito profile. This is clearer than
+  silently manufacturing Guest 3/4/5.
+
+---
+# Archived release plan — Shared decision memory in one live document
 _Updated: 2026-09-01T08:44:40+08:00_
 
 ## Goal and ambition mode

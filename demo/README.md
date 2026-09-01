@@ -26,12 +26,12 @@ The demo's native tool lifecycle is exact:
 2. `wait_for_my_work`
 3. `read_document_memory`
 4. `list_my_work`
-5. conditional `submit_work_proposal`
+5. `submit_work_proposal`
 
-The page initially exposes the first four definitions. The proposal tool appears only
-for Maya's paired agent while it owns pending work and disappears after the queue
-drains. No WebMCP tool can assign, directly edit, accept, reject, cancel, or choose an
-actor, assignee, or text range.
+The page exposes all five definitions from page start so a host's turn-start tool
+snapshot cannot strand newly assigned work. The server accepts a proposal only for the
+authenticated paired agent's pending order. No WebMCP tool can assign, directly edit,
+accept, reject, cancel, or choose an actor, assignee, or text range.
 
 ## Recording contract
 
@@ -44,21 +44,21 @@ top-level session paths.
 Required visible beats:
 
 - [ ] Calm memo, quiet **Work | Memory** margin, two attributed humans, and no stage,
-  permanent composer, copied prompt, dashboard, or chat transcript.
-- [ ] Native discovery of exactly the four initial tools, followed by a real
+  permanent composer, always-open prompt, dashboard, or chat transcript.
+- [ ] Native discovery of exactly the five page tools, followed by a real
   `inspect_document` invocation and an active `wait_for_my_work` by 0:45.
 - [ ] Jordan selects the frozen BODY range `[16, 71)`, uses an unmodified pointer
   right-click, chooses **Rewrite**, assigns Maya, and confirms the exact instruction.
 - [ ] Jordan's assignment resolves Maya's already-pending native wait with
   `WORK_AVAILABLE` at revision 1/activity 2.
-- [ ] Maya's agent calls Memory and My Work, sees only its assigned order, and discovers
-  the conditional proposal capability.
+- [ ] Maya's agent calls Memory and My Work, sees only its assigned order, and uses the
+  server-governed proposal capability.
 - [ ] The agent submits the exact October 15 beta / November 1 GA proposal and summary;
   both humans see it while the source sentence and revision remain unchanged.
 - [ ] Only Jordan sees enabled decision controls. Jordan enters the complete frozen
   rationale and accepts; both sessions show revision 2/activity 4 and completed work.
 - [ ] Memory shows one acceptance event with server diff and human rationale—not a
-  separate edit—and the proposal tool is gone after queue drain.
+  separate edit—and the five-tool catalog remains stable after queue drain.
 - [ ] A fresh Maya-paired agent calls `inspect_document` and `read_document_memory`, then
   cites Jordan's eight-day rejected-GA rationale rather than inventing it from the final
   text.

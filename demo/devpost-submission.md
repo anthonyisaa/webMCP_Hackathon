@@ -19,23 +19,26 @@ assigned, which paired agent owns it, and whether a candidate change is still aw
 a human decision.
 
 Ratiflow makes the live page that coordination boundary. Maya's already-active agent
-discovers four structured tools directly from the memo:
+discovers five structured tools directly from the memo:
 
 - `inspect_document` for authoritative text, revision, activity, and collaborators;
 - `read_document_memory` for chronological work, proposals, diffs, and human rationale;
 - `list_my_work` for only the orders assigned to Maya's paired identity; and
-- `wait_for_my_work` for an explicit-cursor, cancellable wait on cross-human activity.
+- `wait_for_my_work` for an explicit-cursor, cancellable wait on cross-human activity;
+  and
+- `submit_work_proposal` for an ownership-checked candidate that never edits directly.
 
-When Jordan assigns selected text to Maya, the native wait resolves and a fifth tool,
-`submit_work_proposal`, becomes available. It stores a bounded replacement and summary
-but cannot edit the memo. After submission, that conditional capability disappears.
+When Jordan assigns selected text to Maya, the native wait resolves. The proposal tool
+was already present so a turn-start tool snapshot cannot strand the assignment, but the
+server accepts it only for Maya's authenticated paired identity and pending work. It
+stores a bounded replacement and summary but cannot edit the memo.
 There is no tool to assign, reassign, directly edit, accept, reject, cancel, or choose an
 actor, assignee, document, or text range.
 
-The Work panel mirrors that exact catalog with one quiet, truthful **Page capability**
-line: read-only tools, then the paired member's temporary proposal tool, then read-only
-again. Unsupported pages omit the line, and Ratiflow never presents it as agent
-presence or background execution.
+The Work panel reports truthful page-local states: tools connecting, all five tools ready, this page's paired agent
+listening or preparing a proposal, work waiting, or WebMCP unavailable. **Check now**
+refreshes page state but cannot wake a model; Ratiflow never presents this as hosted
+background execution.
 
 WebMCP is essential rather than decorative here: it gives an external agent a
 zero-configuration, page-local rendezvous with current work and shared memory. Without
@@ -59,8 +62,9 @@ browser menu; spellcheck stays enabled.
 The composer shows the exact selected text, instruction, and currently available human
 assignee before anything is created. Everyone can see who created and owns work, but
 only the creator can accept, reject, or cancel it. Proposals appear beside the source
-while the document remains unchanged. A decision requires human rationale. Remote
-updates never silently overwrite a dirty draft; the writer chooses **Use latest** or
+while the document remains unchanged. Accept or reject is one click; an optional
+decision note can preserve why. Remote updates never silently overwrite a dirty draft;
+the writer chooses **Use latest** or
 **Keep mine**.
 
 The interface never claims that the page started, notified, or hosts an idle external
@@ -95,9 +99,9 @@ agent contributions enter an evolving artifact.
 
 The top-level Next.js document registers checked tool definitions with
 `document.modelContext.registerTool`; an observed `navigator.modelContext` namespace is
-only a compatibility fallback. An AbortSignal-backed registration manager owns the
-four base tools and adds the proposal tool only while the authenticated paired agent has
-pending work. Tool callbacks read current runtime state, validate closed JSON schemas,
+only a compatibility fallback. An AbortSignal-backed registration manager owns all five
+tools from page start while the server enforces paired proposal authority. Tool
+callbacks read current runtime state, validate closed JSON schemas,
 call the authoritative v3 service, and refetch before updating controlled React state.
 
 The wait path performs fetch → subscribe → refetch to close the lost-wake race. It uses
@@ -122,7 +126,7 @@ exclude tokens, paths, cookies, private content, and unrelated browser context.
 
 | Criterion | Submission proof |
 | --- | --- |
-| **WebMCP Leverage** | Native discovery and invocation, live wait resolved by another human, assignee-filtered work, conditional proposal authority, durable memory, teardown, and WebMCP-off ablation. Target: 5/5. |
+| **WebMCP Leverage** | Native discovery and invocation, live wait resolved by another human, assignee-filtered work, stable server-governed proposal authority, durable memory, teardown, and WebMCP-off ablation. Target: 5/5. |
 | **Execution** | Calm desktop/mobile editor, two isolated humans, exact context menu, proposal governance, synchronized acceptance, conflict recovery, accessibility, and evidence discipline. |
 | **Potential Impact** | Keeps request, proposer, accepter, diff, and decision rationale beside the artifact instead of losing them in detached chats, preventing repeated rejected ideas. |
 | **Creativity & Ambition** | Uses the page as a cross-human agent rendezvous and capability plane, combining native waiting, one-agent-per-human routing, proposal-only authority, and revision/activity memory. |

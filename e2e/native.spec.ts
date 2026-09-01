@@ -21,8 +21,7 @@ Open question
 
 Can a single-tenant beta meet Northstar's need while general availability moves to November 1?`;
 
-const PERMANENT_TOOL_NAMES = DOCUMENT_WORKSPACE_TOOL_NAMES.slice(0, 4);
-const SORTED_PERMANENT_TOOL_NAMES = [...PERMANENT_TOOL_NAMES].sort();
+const SORTED_DOCUMENT_TOOL_NAMES = [...DOCUMENT_WORKSPACE_TOOL_NAMES].sort();
 
 type NativeDiscovery = {
   supported: boolean;
@@ -204,8 +203,7 @@ test.describe("deployed v3 native WebMCP smoke precondition", () => {
       discovery.hasGetTools,
       "Native smoke precondition requires document.modelContext.getTools for discovery.",
     ).toBe(true);
-    expect([...discovery.tools].sort()).toEqual(SORTED_PERMANENT_TOOL_NAMES);
-    expect(discovery.tools).not.toContain("submit_work_proposal");
+    expect([...discovery.tools].sort()).toEqual(SORTED_DOCUMENT_TOOL_NAMES);
 
     if (discovery.hasExecuteTool) {
       const inspect = expectNativeEnvelope(

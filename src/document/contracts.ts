@@ -514,7 +514,7 @@ export interface DocumentWorkProposal {
 
 export interface DocumentWorkDecision {
   kind: "ACCEPTED" | "REJECTED";
-  rationale: string;
+  rationale: string | null;
   decidedBy: DocumentMemberSnapshot;
   decidedAt: string;
   decisionRevision: number;
@@ -636,6 +636,23 @@ export interface DocumentSessionBundleV3 {
   surface: DocumentSurfaceV3;
 }
 
+export interface DocumentWorkspaceCredentialV1 {
+  storageVersion: 1;
+  protocolVersion: DocumentWorkspaceProtocolVersion;
+  shareToken: string;
+  humanSessionToken: string;
+  agentSessionToken: string;
+  sessionInstanceId: string;
+  selfMemberId: string;
+  displayName: string;
+  expiresAt: string;
+}
+
+export interface DocumentWorkspaceBrowserProfileV1 {
+  storageVersion: 1;
+  displayName: string;
+}
+
 export const DOCUMENT_V3_ERROR_CODES = [
   "INVALID_INPUT",
   "UNAUTHORIZED",
@@ -723,7 +740,7 @@ export interface DecideWorkProposalInput {
   workOrderId: string;
   expectedRevision: number;
   requestId: string;
-  rationale: string;
+  rationale: string | null;
 }
 
 export interface ReadDocumentMemoryInput {
@@ -878,6 +895,13 @@ export interface DocumentActivitySignalPort {
 
 export const DOCUMENT_WORKSPACE_SESSION_STORAGE_PREFIX =
   "ratiflow.document.session.v3:";
+export const DOCUMENT_WORKSPACE_CREDENTIAL_STORAGE_PREFIX =
+  "ratiflow.document.credentials.v1:";
+export const DOCUMENT_WORKSPACE_LAST_NOTE_STORAGE_KEY =
+  "ratiflow.document.last-note.v1";
+export const DOCUMENT_WORKSPACE_BROWSER_PROFILE_STORAGE_KEY =
+  "ratiflow.document.browser-profile.v1";
+export const DOCUMENT_MEMBER_DISPLAY_NAME_MAX_LENGTH = 80;
 export const DOCUMENT_WORK_INSTRUCTION_MAX_LENGTH = 500;
 export const DOCUMENT_WORK_REPLACEMENT_MAX_LENGTH = 50_000;
 export const DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH = 500;
@@ -890,4 +914,4 @@ export const DOCUMENT_WAIT_DEFAULT_SECONDS = 20;
 export const DOCUMENT_WAIT_MAX_SECONDS = 20;
 export const DOCUMENT_WORKSPACE_TERMINAL_HISTORY_LIMIT = 20;
 export const DOCUMENT_WORKSPACE_AGENT_REQUEST =
-  "Use this page's WebMCP tools. Inspect the document and decision memory, then wait for or list work assigned to my paired agent. Submit proposals only; never claim to have changed the document until a person accepts one.";
+  "Work from this page using WebMCP. Inspect the document and read decision memory, then list work assigned to my paired agent. Complete any assigned item by submitting one proposal. If no work is waiting, call wait_for_my_work with the current activity and revision counters; after TIMEOUT, call it again while this turn remains active. Never claim the document changed until a person accepts a proposal.";

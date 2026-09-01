@@ -8,6 +8,11 @@ const migration = readFileSync(resolve(
   "supabase/migrations/20260901012216_document_workspace_v3.sql",
 ), "utf8");
 
+const optionalDecisionNotesMigration = readFileSync(resolve(
+  process.cwd(),
+  "supabase/migrations/20260901121107_optional_document_decision_notes.sql",
+), "utf8");
+
 describe("document workspace v3 additive migration", () => {
   it("adds protocol/counters and exactly the two frozen persistence tables", () => {
     expect(migration).toContain("add column protocol_version smallint not null default 2");
@@ -191,5 +196,65 @@ describe("document workspace v3 additive migration", () => {
     expect(migration).toContain("ratiflow_document_work_terminal_idx");
     expect(migration).toContain("ratiflow_document_events_memory_idx");
     expect(migration).toContain("to anon, authenticated;");
+  });
+});
+
+describe("optional document decision notes additive migration", () => {
+  it("keeps the exact rationale key while accepting only JSON null or bounded nonblank text", () => {
+    expect(optionalDecisionNotesMigration).toContain(
+      "p_input, array['workOrderId', 'expectedRevision', 'requestId', 'rationale']",
+    );
+    expect(optionalDecisionNotesMigration).toContain(
+      "p_input ?& array['workOrderId', 'expectedRevision', 'requestId', 'rationale']",
+    );
+    expect(optionalDecisionNotesMigration).toContain(
+      "jsonb_typeof(p_input->'rationale') is distinct from 'null'",
+    );
+    expect(optionalDecisionNotesMigration).toContain(
+      "nonblank_text_v3(p_input->'rationale', 500)",
+    );
+  });
+
+  it("allows null only for terminal decision notes and preserves it in work and memory", () => {
+    expect(optionalDecisionNotesMigration).toContain(
+      "drop constraint ratiflow_document_work_decision_coherent",
+    );
+    const constraintStart = optionalDecisionNotesMigration.indexOf(
+      "add constraint ratiflow_document_work_decision_coherent",
+    );
+    const functionStart = optionalDecisionNotesMigration.indexOf(
+      "create or replace function ratiflow_document_private.decide_document_proposal_v3",
+    );
+    const constraint = optionalDecisionNotesMigration.slice(constraintStart, functionStart);
+    expect(constraint).toContain("status = 'COMPLETED' and decision_kind = 'ACCEPTED'");
+    expect(constraint).toContain("status = 'REJECTED' and decision_kind = 'REJECTED'");
+    expect(constraint).not.toMatch(
+      /status = '(?:COMPLETED|REJECTED)'[^;]*decision_rationale is not null/,
+    );
+    expect(constraint).toContain(
+      "status in ('PENDING', 'PROPOSED', 'CANCELLED', 'STALE')",
+    );
+    expect(constraint).toContain("decision_kind is null and decision_rationale is null");
+    expect(optionalDecisionNotesMigration.match(
+      /decision_rationale = p_input->>'rationale'/g,
+    )).toHaveLength(2);
+    expect(optionalDecisionNotesMigration.match(/p_input->>'rationale'/g)).toHaveLength(4);
+  });
+
+  it("retains creator authority, row locks, replay identity, and terminal operation names", () => {
+    expect(optionalDecisionNotesMigration).toContain(
+      "v_work.creator_member_id <> v_member.member_id",
+    );
+    expect(optionalDecisionNotesMigration).toContain(
+      "where id = v_member.document_id for update",
+    );
+    expect(optionalDecisionNotesMigration).toContain(
+      "where document_id = v_document.id and work_order_id = v_work_id for update",
+    );
+    expect(optionalDecisionNotesMigration).toContain("request_fingerprint_v3(");
+    expect(optionalDecisionNotesMigration).toContain("'ACCEPT_DOCUMENT_PROPOSAL_V3'");
+    expect(optionalDecisionNotesMigration).toContain("'REJECT_DOCUMENT_PROPOSAL_V3'");
+    expect(optionalDecisionNotesMigration).toContain("REQUEST_REPLAY_MISMATCH");
+    expect(optionalDecisionNotesMigration).not.toMatch(/drop table|truncate table/i);
   });
 });

@@ -125,6 +125,10 @@ test("proposal is non-editing and creator acceptance atomically records both sid
   if (completed?.status === "COMPLETED") {
     assert.equal(completed.proposal.proposedBy.displayName, "Maya Chen's paired agent");
     assert.equal(completed.decision.resultRevision, 2);
+    assert.equal(
+      completed.decision.rationale,
+      "Accepted because this is the clearest precise wording.",
+    );
   }
   const memory = await service.readMemory(maya.agentSessionToken, { limit: 20 });
   assert.equal(memory.ok, true);
@@ -142,7 +146,7 @@ test("proposal is non-editing and creator acceptance atomically records both sid
   }
 });
 
-test("rejection requires rationale, preserves content revision, and advances activity", async () => {
+test("rejection accepts a null note, rejects blank text, and preserves content revision", async () => {
   const { service, jordan, maya } = await collaborativeDocument();
   const created = await service.createWorkOrder(jordan.humanSessionToken, workInput(maya));
   assert.equal(created.ok, true);
@@ -165,11 +169,19 @@ test("rejection requires rationale, preserves content revision, and advances act
   });
   assert.equal(blank.ok, false);
   if (!blank.ok) assert.equal(blank.code, "INVALID_INPUT");
+  const tooLong = await service.rejectWorkProposal(jordan.humanSessionToken, {
+    workOrderId: pending.workOrderId,
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    rationale: "😀".repeat(501),
+  });
+  assert.equal(tooLong.ok, false);
+  if (!tooLong.ok) assert.equal(tooLong.code, "INVALID_INPUT");
   const rejected = await service.rejectWorkProposal(jordan.humanSessionToken, {
     workOrderId: pending.workOrderId,
     expectedRevision: 1,
     requestId: randomUUID(),
-    rationale: "Rejected because Delta removes necessary specificity.",
+    rationale: null,
   });
   assert.equal(rejected.ok, true);
   if (rejected.ok) {
@@ -177,7 +189,44 @@ test("rejection requires rationale, preserves content revision, and advances act
     assert.equal(rejected.data.document.activityVersion, 4);
     assert.equal(rejected.data.document.body, "Alpha 😀 beta gamma");
     assert.equal(rejected.data.workOrders[0]?.status, "REJECTED");
+    const rejectedWork = rejected.data.workOrders[0];
+    if (rejectedWork?.status === "REJECTED") {
+      assert.equal(rejectedWork.decision.rationale, null);
+    }
+    assert.equal(rejected.data.memory.at(-1)?.rationale, null);
   }
+});
+
+test("acceptance preserves an omitted decision note as null in work and memory", async () => {
+  const { service, jordan, maya } = await collaborativeDocument();
+  const created = await service.createWorkOrder(jordan.humanSessionToken, workInput(maya));
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  const pending = created.data.workOrders[0];
+  assert.ok(pending);
+  const proposal = await service.submitWorkProposal(maya.agentSessionToken, {
+    workOrderId: pending.workOrderId,
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    replacementText: "Omega",
+    changeSummary: "Use Omega.",
+  }, randomUUID());
+  assert.equal(proposal.ok, true);
+  const accepted = await service.acceptWorkProposal(jordan.humanSessionToken, {
+    workOrderId: pending.workOrderId,
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    rationale: null,
+  });
+  assert.equal(accepted.ok, true);
+  if (!accepted.ok) return;
+  const completed = accepted.data.workOrders.find(
+    (workOrder) => workOrder.workOrderId === pending.workOrderId,
+  );
+  assert.equal(completed?.status, "COMPLETED");
+  if (completed?.status === "COMPLETED") assert.equal(completed.decision.rationale, null);
+  assert.equal(accepted.data.memory.at(-1)?.kind, "PROPOSAL_ACCEPTED");
+  assert.equal(accepted.data.memory.at(-1)?.rationale, null);
 });
 
 test("Unicode anchors conservatively shift or stale in one content event", async () => {

@@ -432,8 +432,8 @@ async function executeSubmitWorkProposal(
     if (!projectProposalOutcome(result.data, captured, dependencies)) {
       return stalePageContext();
     }
-    // No abort check follows the projection: removing the last pending order may
-    // synchronously unregister this conditional tool after the server committed.
+    // No abort check follows the projection: a late page teardown after the server
+    // commits must not rewrite the authoritative outcome in this callback.
     return { ok: true, ...result.data };
   } finally {
     dependencies.onToolExecutionChange?.(null);

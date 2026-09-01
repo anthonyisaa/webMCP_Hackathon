@@ -104,20 +104,20 @@ Focused unit/protocol/SQL tests run without an LLM and must pass 100%.
 | D08 Creator decision authority | Only Jordan may cancel, accept, or reject the hero work. Maya, either agent, WebMCP, and direct agent routes cannot decide it. |
 | D09 Decision races | Accept/accept, accept/reject, reject/accept, cancel/submit, and stale-anchor races lock document first; exactly one transition wins and no proposal is double-applied. |
 | D10 Atomic acceptance | Hero acceptance revalidates the stored anchor, applies the stored proposal, completes the order, attributes proposer/accepter, appends one `PROPOSAL_ACCEPTED` event, records decision/result revisions `1 -> 2`, and advances exactly r1/av3 → r2/av4; any other anchors staled by that replacement are listed in this same compound event. |
-| D11 Rejection truth | Rejection leaves content/revision unchanged, records equal pre-decision `decisionRevision` and post-decision `resultRevision`, preserves required human rationale exactly in one event, and cannot later be accepted. |
-| D12 Server diff and rationale | Event before/after excerpts and changed fields are server-computed; model summary remains untrusted; human rationale is preserved exactly and never replaced by model prose. |
+| D11 Rejection truth | Rejection leaves content/revision unchanged, records equal pre-decision `decisionRevision` and post-decision `resultRevision`, preserves null or an exact optional human rationale in one event, and cannot later be accepted. |
+| D12 Server diff and rationale | Event before/after excerpts and changed fields are server-computed; model summary remains untrusted; present human rationale is preserved exactly, null remains null, and neither is replaced by model prose. |
 | D13 Anchor behavior | Unicode offsets are authoritative; changes before/after non-overlapping work rebase deterministically; overlaps or ambiguity produce `STALE`; acceptance rechecks the current stored anchor; edit-induced stale rows are committed with the primary edit/accept rather than separate events. |
 | D14 Idempotency and replay | Same request ID and canonical input returns the original result without counters advancing; changed input returns `REQUEST_REPLAY_MISMATCH`; abort followed by retry/re-inspect is safe. |
 | D15 Memory pagination | Default 20 and min/max 1/50 select newest events before the cursor, return ascending, expose exact `hasMoreOlder`, first-returned `nextBeforeActivityVersion` when needed, latest activity, and current revision without duplicates or gaps. |
-| D16 Memory privacy | Only target/instruction/proposal/server-diff excerpts are bounded to 320 code points; change summary keeps its 240 bound and human rationale is preserved exactly up to 500. Attribution is server-derived, and tokens, member handles, external browser context, and unrelated data never appear. |
-| D17 Schema bounds | Unknown properties, unsafe integers, blank/overlong instruction, summary, rationale, title/body, replacement, malformed IDs, extra identity fields, and invalid wait/memory bounds fail at schema and server layers. |
+| D16 Memory privacy | Only target/instruction/proposal/server-diff excerpts are bounded to 320 code points; change summary keeps its 240 bound and a present human rationale is preserved exactly up to 500. Attribution is server-derived, and tokens, member handles, external browser context, and unrelated data never appear. |
+| D17 Schema bounds | Unknown properties, unsafe integers, blank/overlong non-null instruction, summary, rationale, title/body, replacement, malformed IDs, extra identity fields, and invalid wait/memory bounds fail at schema and server layers; decision rationale accepts exact null. |
 | D18 Work limits | Oldest-first `list_my_work` returns at most 50 pending items; active capacity counts `PENDING` plus `PROPOSED`; document/assignee caps 100/50, keyed by immutable `assignedToMemberId` rather than creator or generic member, return `RATE_LIMITED` with no partial state. |
 | D19 v2/v3 isolation | Existing v2 rows retain scoped rollback behavior; legacy direct-apply RPC rejects v3; proposal/decision RPCs reject v2 with `PROTOCOL_MISMATCH`; grants, revokes, RLS, and server identity checks hold. |
 | D20 Transaction and index discipline | Content/work paths use deterministic document-first locks, short transactions, indexed foreign keys and queue/cursor predicates, and pass isolated v2/v3 smoke plus security/performance advisor review. |
-| D21 Catalog/schema oracle | The independent ordered catalog and exact five input schemas/descriptions/annotations/results/errors match checked runtime definitions; checked exports use exactly `DocumentWorkOrder`, `PendingDocumentWorkOrder`, `CreateDocumentWorkOrderInput`, and `CancelDocumentWorkOrderInput`; all results are JSON-serializable. |
+| D21 Catalog/schema oracle | All five tools register from page start, and the independent ordered catalog plus exact five input schemas/descriptions/annotations/results/errors match checked runtime definitions; checked exports use exactly `DocumentWorkOrder`, `PendingDocumentWorkOrder`, `CreateDocumentWorkOrderInput`, and `CancelDocumentWorkOrderInput`; all results are JSON-serializable. |
 | D22 Wait cursor/deadline | Future `afterRevision` or `afterActivityVersion` returns `INVALID_INPUT` before any listener/timer; one absolute deadline is created on entry and repeated signals/refetches never extend the requested timeout or 20-second cap. |
 | D23 Frozen namespace | Tests enumerate exactly the thirteen v3 routes (including preview/eval-only reset), two v3 tables, and thirteen v3 RPC names from the product contract (including reset); omitted, duplicated, legacy-mixed, or invented names fail. |
-| D24 Reset/bootstrap boundary | `ratiflow_reset_document_hero_v3` is service-role-only and revoked from `public`/`anon`/`authenticated`; protected HTTP reset works only in preview/eval and is disabled canonical; exact reset outcome has two bearer bootstrap paths and 1/1 counters; page validates/stores/scrubs the base64url fragment before registration and no path, fragment, or bundle reaches logs/captures. |
+| D24 Reset/bootstrap boundary | `ratiflow_reset_document_hero_v3` is service-role-only and revoked from `public`/`anon`/`authenticated`; protected HTTP reset works only in preview/eval and is disabled canonical; exact reset outcome has two bearer bootstrap paths and 1/1 counters; page validates/stores/scrubs the base64url fragment before registration, persists only a credential projection outside the tab, and no path, fragment, bundle, or cached surface reaches logs/captures or localStorage. |
 
 Property/fuzz coverage targets Unicode anchors, bounds, authorization, replay, races,
 cursors, and protocol isolation. It does not substitute for native or visual proof.
@@ -129,7 +129,7 @@ exact release HTTPS URL. These rows are `AUTOMATED` or `ADAPTER_CAPTURED`, never
 
 | ID | Required browser assertion |
 |---|---|
-| B01 Entry/session/link | Ordinary `/` launches a blank document; reload safely reuses/rejoins; sharing creates a distinct member; invalid/expired links recover. Separately, each authorized bootstrap path validates and stores its v3 bundle, clears the fragment before WebMCP registration, and never exposes it to logs or UI. |
+| B01 Entry/session/link | Ordinary `/` resumes the last valid browser note or launches a blank document. Reload and a new tab reuse the same member/work through a valid credential-only browser record; its localStorage value contains no document/work/memory surface. Bootstrap → tab session → browser credential → fresh join precedence, one-way migration, blocked-storage fallback, and selective expiry/authorization cleanup are asserted. Sharing in an isolated browser profile creates a distinct member; invalid/expired links recover. |
 | B02 Calm pageless editor | Title/body dominate; compact top bar and quiet Work/Memory margin replace stage controls, permanent composer, copied prompt, dashboard, and chat transcript. |
 | B03 Editing/conflict | Autosave, reload, native textarea undo/redo, authoritative remote save, dirty-draft preservation, Use latest, and explicit Keep mine work without WebMCP. |
 | B04 Presence | Two isolated contexts show distinct attributed members and bounded field/typing awareness; expiration does not revoke already-assigned work. |
@@ -139,12 +139,13 @@ exact release HTTPS URL. These rows are `AUTOMATED` or `ADAPTER_CAPTURED`, never
 | B08 Keyboard equivalent | Cmd/Ctrl+K opens the same contextual composer with the exact authoritative range; submit/cancel focus behavior is keyboard accessible. |
 | B09 Cross-human work | Jordan confirms the exact selection/instruction/assignee; both humans see immutable creator/assignee attribution and Work count at r1/av2. |
 | B10 Proposal visibility | Maya's paired adapter agent submits the golden proposal; both humans see it at r1/av3 while original content remains unchanged. |
-| B11 Human decision | Only Jordan sees enabled accept/reject controls; rationale is preserved exactly up to 500 rather than truncated to the 320 excerpt cap; acceptance synchronizes replacement, COMPLETED state, decision/result revisions 1/2, r2/av4, diff, and Memory in both sessions. |
+| B11 Human decision | Only Jordan sees enabled one-click accept/reject controls. The default stores null without fake rationale; Details accepts an optional note preserved exactly up to 500 rather than truncated to the 320 excerpt cap. Golden acceptance synchronizes replacement, COMPLETED state, decision/result revisions 1/2, r2/av4, diff, and Memory in both sessions. |
 | B12 Activity reconciliation | Delayed equal-revision responses cannot hide work, proposal, terminal status, or memory; lower activity never regresses state. |
-| B13 390px and accessibility | No horizontal overflow; document remains primary; Work/Memory is reachable; menus, composer, proposal, decisions, errors, and focus order work by keyboard with visible focus and reduced motion. |
-| B14 WebMCP-off fallback | Humans can edit, share, assign, review, decide, and read memory with WebMCP absent; UI makes no claim that an agent was connected, notified, or started. |
-| B15 Route/catalog isolation | Adapter catalog is the exact v3 document set; navigation to `/decision-demo`, another document, expiry, or teardown removes tools, waits, listeners, and timers. |
+| B13 390px and accessibility | No horizontal overflow; document remains primary; Work/Memory is reachable; context-menu arrows/Home/End/Escape, composer, proposal, decisions, errors, and focus order work by keyboard with visible focus and reduced motion. |
+| B14 WebMCP-off fallback | Humans can edit, share, assign, review, decide, and read memory with WebMCP absent; inbox says WebMCP unavailable and never claims that an agent was connected, notified, or started. |
+| B15 Route/catalog isolation | Adapter catalog exposes all five exact v3 document tools from page start; navigation to `/decision-demo`, another document, expiry, or teardown removes tools, waits, listeners, and timers. |
 | B16 Runtime health | No uncaught page, hydration, listener, duplicate-registration, request-loop, or overflow errors occur through the full flow. |
+| B17 Agent inbox truth | The current page alone shows connecting until all five tools register, tools ready only with the full catalog, paired wait executing, proposal executing, or owned work waiting. Registration retries are bounded. **Check now** refetches only the captured session and cannot wake a model; the copied or selectable prompt instructs list/read/wait/repeat/submit without claiming background execution. |
 
 A dated manual capture must also open the real platform spelling/dictionary menu through
 Shift+pointer-right-click. Synthetic `contextmenu` assertions prove event branching but
@@ -160,14 +161,14 @@ release SHA.
 
 | ID | Required native assertion |
 |---|---|
-| N01 Discovery | Native setup allows a human to open the Maya/Jordan top-level bootstrap paths; after fragment validation/storage/scrubbing, the agent uses WebMCP only. At r1/av1 the page exposes exactly `inspect_document`, `read_document_memory`, `list_my_work`, and `wait_for_my_work`; no stage, direct-apply, decision, actor, assignee, acceptance, reset, bootstrap, or internal-route tool exists. |
+| N01 Discovery | Native setup allows a human to open the Maya/Jordan top-level bootstrap paths; after fragment validation/storage/scrubbing, the agent uses WebMCP only. At r1/av1 the page exposes exactly `inspect_document`, `read_document_memory`, `list_my_work`, `wait_for_my_work`, and `submit_work_proposal`; no stage, direct-apply, decision, actor, assignee, acceptance, reset, bootstrap, or internal-route tool exists. |
 | N02 Inspect invocation | Native agent invokes `inspect_document` and receives the exact current Northstar content, r1/av1, activity, and collaborators as JSON. |
 | N03 Memory invocation | Native agent invokes `read_document_memory` and receives the exact bounded ascending envelope and untrusted-content annotation; target/instruction/proposal/diff excerpts cap at 320 while full valid human rationale remains exact through 500. |
 | N04 Active wait/lost-wake | Maya's native agent starts the frozen wait before Jordan acts; authoritative fetch → subscribe → refetch closes the race and Jordan's r1/av2 assignment returns `WORK_AVAILABLE`, not timeout. |
 | N05 Assignee filtering | Native `list_my_work` returns one atomic `{ok:true,workOrders,revision,activityVersion}` snapshot containing the exact Jordan-created/Maya-assigned item for Maya's paired agent and does not expose it to Jordan's paired agent. |
-| N06 Conditional proposal | Pending owned work adds `submit_work_proposal`; native invocation uses no model request ID, returns PROPOSED r1/av3, and does not mutate content/revision. |
+| N06 Proposal submission | The permanently present `submit_work_proposal` still requires server-derived paired ownership and pending status; native invocation uses no model request ID, returns PROPOSED r1/av3, and does not mutate content/revision. |
 | N07 Cross-session projection | Jordan's human page sees the proposal while its selected source text remains unchanged; the native mutation capability follows owned lifecycle rather than UI selection. |
-| N08 Human boundary and acceptance | Native catalog never exposes accept/reject. Jordan accepts in ordinary UI; both sessions refetch to exact r2/av4 content/work/memory, decision/result revisions 1/2, and the complete untruncated hero rationale; the proposal tool disappears after queue drain. |
+| N08 Human boundary and acceptance | Native catalog never exposes accept/reject. Jordan accepts in ordinary UI; both sessions refetch to exact r2/av4 content/work/memory, decision/result revisions 1/2, and the complete untruncated hero rationale; the five-tool catalog remains stable after queue drain. A separate run proves no-note one-click acceptance stores null. |
 | N09 Fresh-agent memory | A fresh Maya-paired native agent discovers and invokes memory, then correctly cites the eight-export-day rejected-GA fact absent from final title/body. |
 | N10 Wait outcomes | Dated native or supported-client captures prove explicit-cursor `DOCUMENT_CHANGED`, `TIMEOUT`, and `WAIT_ALREADY_ACTIVE` behavior without false work wakes; signals never extend the one absolute 20-second deadline, and future revision/activity cursors return `INVALID_INPUT` before listener installation. |
 | N11 Abort and teardown | Execution/registration abort plus document, route, and session teardown throw/observe `AbortError` as supported and leave no active wait, timer, listener, or document tool; selection change does not cancel. |
@@ -205,7 +206,7 @@ The v3 ablation supersedes the old decision-room static-ten-tool comparison. Wit
 same model/version, fixture, prompt, and five seeds, compare:
 
 1. **Native v3 Ratiflow** — the exact document tools, live wait, paired work filtering,
-   conditional proposal, and memory; and
+   server-authorized proposal, and memory; and
 2. **WebMCP disabled** — the ordinary human UI remains usable, but the external agent has
    no zero-configuration structured content, assignment wake, revision-bound proposal,
    or durable rationale surface.
@@ -241,7 +242,7 @@ must-fix.
 
 | Judge | Required focus | Release threshold |
 |---|---|---|
-| J01 WebMCP Leverage | Native page discovery/invocation, live wait, paired conditional authority, memory, cleanup, and WebMCP-off ablation. Decorative or replaceable WebMCP is a blocker. | **5.0/5** |
+| J01 WebMCP Leverage | Native page discovery/invocation, live wait, paired server authority, stable proposal capability, memory, cleanup, and WebMCP-off ablation. Decorative or replaceable WebMCP is a blocker. | **5.0/5** |
 | J02 Execution | Calm editor, complete two-human flow, reliability, fallback, accessibility, visual review, and evidence quality. | **≥4.5/5** |
 | J03 Potential Impact | Specific detached-chat/stale-context/lost-rationale/repeated-idea pain and credible value of document-native shared memory. | **≥4.5/5** |
 | J04 Creativity and Ambition | Cross-human agent routing, page-native waiting, proposal governance, and revision/activity memory as a coherent new interaction. | **≥4.5/5** |

@@ -44,11 +44,19 @@ async function fixtures() {
     changeSummary: "Use Omega.",
   }, randomUUID());
   if (!proposed.ok) throw new Error("fixture proposal failed");
+  const decided = await local.acceptWorkProposal(launched.data.humanSessionToken, {
+    workOrderId: pending.workOrderId,
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    rationale: null,
+  });
+  if (!decided.ok) throw new Error("fixture decision failed");
   return {
     bundle: launched.data,
     surface: created.data,
     pending,
     proposal: proposed.data,
+    decidedSurface: decided.data,
     list: {
       workOrders: [pending],
       revision: 1,
@@ -68,6 +76,9 @@ describe("SupabaseDocumentWorkspaceService normalization", () => {
   it("accepts exact v3 surfaces and rejects shape or protocol drift", async () => {
     const fixture = await fixtures();
     expect(isDocumentWorkspaceSurface(fixture.surface)).toBe(true);
+    expect(isDocumentWorkspaceSurface(fixture.decidedSurface)).toBe(true);
+    const completed = fixture.decidedSurface.workOrders.find((order) => order.status === "COMPLETED");
+    expect(completed?.decision.rationale).toBeNull();
     expect(isDocumentWorkspaceSurface({ ...fixture.surface, secret: "no" })).toBe(false);
     expect(isDocumentWorkspaceSurface({
       ...fixture.surface,
@@ -159,7 +170,7 @@ describe("SupabaseDocumentWorkspaceService RPC adapter", () => {
     });
     await service.cancelWorkOrder(human, { workOrderId, requestId: randomUUID() });
     await service.acceptWorkProposal(human, {
-      workOrderId, expectedRevision: 1, requestId: randomUUID(), rationale: "Accept.",
+      workOrderId, expectedRevision: 1, requestId: randomUUID(), rationale: null,
     });
     await service.rejectWorkProposal(human, {
       workOrderId, expectedRevision: 1, requestId: randomUUID(), rationale: "Reject.",
@@ -193,6 +204,8 @@ describe("SupabaseDocumentWorkspaceService RPC adapter", () => {
     expect(JSON.stringify(requests)).not.toContain("pageSessionId");
     expect(JSON.stringify(requests)).not.toContain("actorType");
     expect(JSON.stringify(requests)).not.toContain("origin");
+    expect(requests.find(({ name }) => name === "ratiflow_accept_document_proposal_v3")?.body)
+      .toMatchObject({ p_input: { rationale: null } });
   });
 
   it("validates page UUIDs locally and never invents a wait RPC", async () => {

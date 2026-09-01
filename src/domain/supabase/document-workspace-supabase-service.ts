@@ -137,7 +137,7 @@ function isDecision(value: unknown, kind: "ACCEPTED" | "REJECTED"): boolean {
     "kind", "rationale", "decidedBy", "decidedAt", "decisionRevision", "resultRevision",
   ])
     && value.kind === kind
-    && bounded(value.rationale, 500, true)
+    && (value.rationale === null || bounded(value.rationale, 500, true))
     && exact(value.decidedBy, ["memberId", "displayName"])
     && uuid(value.decidedBy.memberId)
     && bounded(value.decidedBy.displayName, 80, true)

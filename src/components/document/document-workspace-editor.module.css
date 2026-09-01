@@ -446,34 +446,139 @@
   overscroll-behavior: contain;
 }
 
-.capabilityState {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 5px;
+.agentInbox {
   margin: 0 0 12px;
-  border: 1px solid #dce2f4;
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: #f7f8fc;
-  color: #596174;
+  border: 1px solid #dfe2da;
+  border-radius: 11px;
+  padding: 11px;
+  background: #fff;
+}
+
+.agentInboxHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agentInboxHeading > span {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: #949991;
+}
+
+.agentInboxHeading strong {
+  color: #454944;
   font-size: 11px;
+  font-weight: 690;
   line-height: 1.35;
 }
 
-.capabilityState span {
-  color: #46516f;
-  font-weight: 690;
+.agentInbox[data-state="ready"] .agentInboxHeading > span,
+.agentInbox[data-state="listening"] .agentInboxHeading > span,
+.agentInbox[data-state="proposing"] .agentInboxHeading > span {
+  background: #238265;
 }
 
-.capabilityState[data-proposal="true"] {
-  border-color: #cde3d8;
-  background: #f5faf7;
-  color: #456457;
+.agentInbox[data-state="connecting"] .agentInboxHeading > span {
+  background: #5772c7;
+  box-shadow: 0 0 0 4px rgb(87 114 199 / 10%);
 }
 
-.capabilityState[data-proposal="true"] span {
-  color: #315c4a;
+.agentInbox[data-state="listening"] {
+  border-color: #bcded0;
+  background: #f5fbf8;
+}
+
+.agentInbox[data-state="listening"] .agentInboxHeading > span {
+  box-shadow: 0 0 0 4px rgb(35 130 101 / 12%);
+  animation: inbox-pulse 1.4s ease-in-out infinite;
+}
+
+.agentInbox[data-state="waiting"] {
+  border-color: #ead6ad;
+  background: #fffbf2;
+}
+
+.agentInbox[data-state="waiting"] .agentInboxHeading > span {
+  background: #b6792e;
+}
+
+.agentInbox > p {
+  margin: 6px 0 0 15px;
+  color: #666b64;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.agentInboxActions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.agentInboxActions button {
+  min-height: 32px;
+  border: 1px solid #d7d9d2;
+  border-radius: 8px;
+  padding: 0 9px;
+  background: #fff;
+  color: #50544f;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.agentInboxActions button:first-child {
+  border-color: #cbd5f3;
+  color: #3455b0;
+}
+
+.agentInboxActions button:hover:not(:disabled) {
+  background: #f7f8f4;
+}
+
+.agentInboxActions button:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.agentInbox small {
+  display: block;
+  margin-top: 7px;
+  color: #898d86;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.listenPromptDetails {
+  margin-top: 7px;
+  border-top: 1px solid #ecece7;
+  padding-top: 6px;
+}
+
+.listenPromptDetails summary {
+  color: #686d66;
+  font-size: 9px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.listenPromptDetails textarea {
+  width: 100%;
+  min-height: 88px;
+  margin-top: 7px;
+  border: 1px solid #dfe1da;
+  border-radius: 7px;
+  padding: 7px 8px;
+  resize: vertical;
+  background: #fafaf7;
+  color: #555a54;
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1.45;
 }
 
 .railEmpty {
@@ -624,6 +729,87 @@
   font-weight: 500;
 }
 
+.pendingHint {
+  margin: 8px 0 0;
+  color: #777c75;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.proposalFlow {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.proposalFlow > div {
+  border: 1px solid #e2e4de;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: #f8f8f5;
+}
+
+.proposalFlow > div:last-child {
+  border-color: #cfd9f8;
+  background: #f4f7ff;
+}
+
+.proposalFlow span {
+  display: block;
+  margin-bottom: 4px;
+  color: #666b64;
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: .065em;
+  text-transform: uppercase;
+}
+
+.proposalFlow p {
+  margin: 0;
+  color: #3f433f;
+  font-size: 12px;
+  line-height: 1.48;
+  overflow-wrap: anywhere;
+}
+
+.proposalFlow > b {
+  height: 9px;
+  color: #89918a;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 9px;
+  text-align: center;
+}
+
+.proposalDetails {
+  margin-top: 8px;
+  border-top: 1px solid #e5e6e1;
+}
+
+.proposalDetails > summary {
+  min-height: 36px;
+  color: #626761;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 36px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.proposalDetails > summary:hover {
+  color: #30332f;
+}
+
+.proposalDetails > summary:focus-visible {
+  border-radius: 6px;
+  outline: 3px solid rgb(49 94 232 / 24%);
+  outline-offset: 1px;
+}
+
+.proposalDetails .proposalDiff {
+  margin-top: 11px;
+}
+
 .proposal {
   margin-top: 13px;
   border: 1px solid #d9e0f8;
@@ -767,6 +953,13 @@
   font-weight: 650;
 }
 
+.decisionComposer > label small {
+  margin-left: 5px;
+  color: #92968f;
+  font-size: 9px;
+  font-weight: 500;
+}
+
 .decisionComposer textarea,
 .instructionField textarea {
   width: 100%;
@@ -786,9 +979,12 @@
 
 .decisionActions {
   display: flex;
-  justify-content: flex-end;
   gap: 7px;
-  margin-top: 8px;
+  margin-top: 10px;
+}
+
+.decisionActions > button {
+  flex: 1;
 }
 
 .primaryButton,
@@ -1191,6 +1387,10 @@
   from { opacity: 0; transform: translateY(4px); }
 }
 
+@keyframes inbox-pulse {
+  50% { box-shadow: 0 0 0 7px rgb(35 130 101 / 5%); }
+}
+
 @media (max-width: 920px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) 316px;
@@ -1289,6 +1489,7 @@
   }
 
   .railTabs button,
+  .agentInboxActions button,
   .textButton {
     min-height: 44px;
   }

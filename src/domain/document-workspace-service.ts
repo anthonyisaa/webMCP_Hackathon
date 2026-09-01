@@ -958,7 +958,8 @@ export class LocalDocumentWorkspaceService implements DocumentV3ServicePort {
       || !isUuid(input.workOrderId)
       || !isCounter(input.expectedRevision)
       || !isUuid(input.requestId)
-      || !boundedText(input.rationale, DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH, false)) {
+      || (input.rationale !== null
+        && !boundedText(input.rationale, DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH, false))) {
       return failure("INVALID_INPUT", "The proposal decision is malformed.");
     }
     const { workspace, member } = resolved;

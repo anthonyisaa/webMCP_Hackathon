@@ -270,7 +270,8 @@ Negative controls must also pass without altering the canonical timeline:
   work.
 - Maya cannot accept or reject Jordan's order; Jordan cannot submit the agent proposal.
 - Proposal submission does not change the document; identical replacement is rejected.
-- Rejection requires rationale and leaves revision unchanged while advancing activity.
+- Rejection accepts null or an exact optional rationale, leaves revision unchanged, and
+  advances activity.
 - A human overlap before proposal/acceptance stales the work and produces one primary
   content event listing the work ID.
 

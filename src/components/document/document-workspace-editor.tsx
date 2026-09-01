@@ -19,8 +19,10 @@ import {
   DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH,
   DOCUMENT_TITLE_MAX_LENGTH,
   DOCUMENT_WORK_INSTRUCTION_MAX_LENGTH,
+  DOCUMENT_WORKSPACE_AGENT_REQUEST,
   DOCUMENT_WORKSPACE_PROTOCOL_VERSION,
   DOCUMENT_WORKSPACE_SESSION_STORAGE_PREFIX,
+  DOCUMENT_WORKSPACE_TOOL_NAMES,
   type DocumentField,
   type DocumentMemoryEvent,
   type DocumentPresence,
@@ -31,6 +33,14 @@ import {
   type DocumentWorkOrder,
   type DocumentWorkSource,
 } from "@/document/contracts";
+import {
+  readDocumentWorkspaceBrowserProfile,
+  readDocumentWorkspaceCredential,
+  readLastDocumentShareToken,
+  removeDocumentWorkspaceCredential,
+  sessionFromDocumentWorkspaceCredential,
+  writeDocumentWorkspaceCredential,
+} from "@/document/document-workspace-browser-storage";
 import {
   codePointOffsetToUtf16Index,
   utf16IndexToCodePointOffset,
@@ -46,6 +56,7 @@ import styles from "./document-workspace-editor.module.css";
 type LoadState = "LOADING" | "READY" | "UNAVAILABLE" | "ERROR";
 type SaveState = "SAVED" | "UNSAVED" | "SAVING" | "CONFLICT" | "ERROR";
 type RailTab = "WORK" | "MEMORY";
+type ActiveAgentTool = "submit_work_proposal" | "wait_for_my_work" | null;
 type EditorControl = HTMLInputElement | HTMLTextAreaElement;
 
 interface DocumentWorkspaceEditorProps {
@@ -387,7 +398,7 @@ function MemoryEventCard({ event }: { event: DocumentMemoryEvent }) {
       ) : null}
       {event.changeSummary ? (
         <p className={styles.untrustedSummary}>
-          <span>Agent summary · untrusted</span>
+          <span>Agent note · untrusted</span>
           {event.changeSummary}
         </p>
       ) : null}
@@ -400,7 +411,7 @@ function MemoryEventCard({ event }: { event: DocumentMemoryEvent }) {
       ))}
       {event.rationale ? (
         <blockquote className={styles.rationaleMemory}>
-          <span>Human rationale</span>
+          <span>Decision note</span>
           {event.rationale}
         </blockquote>
       ) : null}
@@ -432,6 +443,10 @@ export function DocumentWorkspaceEditor({
   const [shareCopied, setShareCopied] = useState(false);
   const [workBusyId, setWorkBusyId] = useState<string | null>(null);
   const [rationales, setRationales] = useState<Record<string, string>>({});
+  const [activeAgentTool, setActiveAgentTool] = useState<ActiveAgentTool>(null);
+  const [inboxChecking, setInboxChecking] = useState(false);
+  const [listenPromptCopied, setListenPromptCopied] = useState(false);
+  const [listenPromptExpanded, setListenPromptExpanded] = useState(false);
   const [webMCPStatus, setWebMCPStatus] =
     useState<DocumentWorkspaceWebMCPBridgeStatus | null>(null);
 
@@ -451,6 +466,8 @@ export function DocumentWorkspaceEditor({
   const railToggleRef = useRef<HTMLButtonElement>(null);
   const railHeadingRef = useRef<HTMLHeadingElement>(null);
   const pointerContextRef = useRef<PointerContextRecord | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const inboxCheckAbortRef = useRef<AbortController | null>(null);
   const presenceRef = useRef<PresenceDraft>({
     state: "VIEWING",
     field: null,
@@ -461,6 +478,7 @@ export function DocumentWorkspaceEditor({
   const typingTimerRef = useRef<number | null>(null);
   const humanSessionToken = bundle?.humanSessionToken ?? null;
   const activeShareToken = bundle?.shareToken ?? null;
+  const activeSessionInstanceId = bundle?.sessionInstanceId ?? null;
 
   const updateStoredSurface = useCallback((nextSurface: DocumentSurfaceV3) => {
     const currentBundle = bundleRef.current;
@@ -472,6 +490,8 @@ export function DocumentWorkspaceEditor({
   }, []);
 
   const setReadyBundle = useCallback((nextBundle: DocumentSessionBundleV3) => {
+    inboxCheckAbortRef.current?.abort();
+    inboxCheckAbortRef.current = null;
     bundleRef.current = nextBundle;
     surfaceRef.current = nextBundle.surface;
     const nextDraft = {
@@ -490,10 +510,26 @@ export function DocumentWorkspaceEditor({
     setLoadState("READY");
     setLoadMessage("");
     setStatusMessage(null);
+    setInboxChecking(false);
     setWebMCPStatus(null);
+    setActiveAgentTool(null);
     setComposer(null);
     setAppMenu(null);
     writeStoredSession(nextBundle);
+    let persisted = false;
+    try {
+      const profile = readDocumentWorkspaceBrowserProfile(window.localStorage);
+      persisted = writeDocumentWorkspaceCredential(
+        window.localStorage,
+        nextBundle,
+        profile?.displayName,
+      );
+    } catch {
+      // The in-memory and tab session remain usable when persistent storage is blocked.
+    }
+    if (!persisted) {
+      setStatusMessage("Persistent sign-in is blocked. This tab still works.");
+    }
   }, []);
 
   const adoptCleanSurface = useCallback(
@@ -533,6 +569,13 @@ export function DocumentWorkspaceEditor({
 
   const reconcileRemoteSurface = useCallback(
     (incoming: DocumentSurfaceV3) => {
+      const currentBundle = bundleRef.current;
+      if (
+        currentBundle &&
+        incoming.document.id !== currentBundle.surface.document.id
+      ) {
+        return;
+      }
       const current = surfaceRef.current;
       if (!current) {
         adoptCleanSurface(incoming);
@@ -566,50 +609,80 @@ export function DocumentWorkspaceEditor({
 
     if (initializationRef.current?.key !== initializationKey) {
       const promise = (async (): Promise<InitializationOutcome> => {
+        const browserProfile = readDocumentWorkspaceBrowserProfile(window.localStorage);
         const hasBootstrapFragment = window.location.hash.startsWith(
           BOOTSTRAP_FRAGMENT_PREFIX,
         );
         if (hasBootstrapFragment) {
           const bootstrapBundle = decodeBootstrapBundle(window.location.hash, shareToken);
-          if (!bootstrapBundle) {
-            removeStoredSession(shareToken);
-            clearBootstrapFragment();
-            return {
-              kind: "UNAVAILABLE",
-              message: "This access link is invalid or has expired. Start a new note to continue.",
-            };
+          if (bootstrapBundle) {
+            const inspected = await documentWorkspaceHttpService.inspect(
+              bootstrapBundle.humanSessionToken,
+            );
+            if (
+              inspected.ok &&
+              inspected.data.document.id === bootstrapBundle.surface.document.id &&
+              inspected.data.document.protocolVersion === DOCUMENT_WORKSPACE_PROTOCOL_VERSION
+            ) {
+              const validatedBundle = { ...bootstrapBundle, surface: inspected.data };
+              if (!writeStoredSession(validatedBundle)) {
+                clearBootstrapFragment();
+                return {
+                  kind: "ERROR",
+                  message: "This browser blocked session storage, so the secure document session could not start.",
+                };
+              }
+              clearBootstrapFragment();
+              return { kind: "READY", bundle: validatedBundle, replaceRoute: false };
+            }
+            if (
+              !inspected.ok &&
+              inspected.code !== "UNAUTHORIZED" &&
+              inspected.code !== "NOT_FOUND"
+            ) {
+              clearBootstrapFragment();
+              return { kind: "ERROR", message: failureMessage(inspected) };
+            }
           }
-          const inspected = await documentWorkspaceHttpService.inspect(
-            bootstrapBundle.humanSessionToken,
-          );
-          if (
-            !inspected.ok ||
-            inspected.data.document.id !== bootstrapBundle.surface.document.id ||
-            inspected.data.document.protocolVersion !== DOCUMENT_WORKSPACE_PROTOCOL_VERSION
-          ) {
-            removeStoredSession(bootstrapBundle.shareToken);
-            clearBootstrapFragment();
-            return {
-              kind: "UNAVAILABLE",
-              message: "This access link is invalid or has expired. Start a new note to continue.",
-            };
-          }
-          const validatedBundle = { ...bootstrapBundle, surface: inspected.data };
-          if (!writeStoredSession(validatedBundle)) {
-            clearBootstrapFragment();
-            return {
-              kind: "ERROR",
-              message: "This browser blocked session storage, so the secure document session could not start.",
-            };
-          }
+          // The URL fragment is untrusted and one-time. A malformed or expired fragment
+          // must not erase a valid tab or browser credential for the same clean URL.
           clearBootstrapFragment();
-          return { kind: "READY", bundle: validatedBundle, replaceRoute: false };
         }
 
         if (window.location.hash) clearBootstrapFragment();
 
         if (launchOnMount) {
-          const launched = await documentWorkspaceHttpService.launchV3({});
+          const lastShareToken = readLastDocumentShareToken(window.localStorage);
+          if (lastShareToken) {
+            const credential = readDocumentWorkspaceCredential(
+              window.localStorage,
+              lastShareToken,
+            );
+            if (credential) {
+              const inspected = await documentWorkspaceHttpService.inspect(
+                credential.humanSessionToken,
+              );
+              if (inspected.ok) {
+                return {
+                  kind: "READY",
+                  bundle: sessionFromDocumentWorkspaceCredential(
+                    credential,
+                    inspected.data,
+                  ),
+                  replaceRoute: true,
+                };
+              }
+              if (inspected.code === "UNAUTHORIZED" || inspected.code === "NOT_FOUND") {
+                removeStoredSession(lastShareToken);
+                removeDocumentWorkspaceCredential(window.localStorage, lastShareToken);
+              } else {
+                return { kind: "ERROR", message: failureMessage(inspected) };
+              }
+            }
+          }
+          const launched = await documentWorkspaceHttpService.launchV3(
+            browserProfile ? { displayName: browserProfile.displayName } : {},
+          );
           return launched.ok
             ? { kind: "READY", bundle: launched.data, replaceRoute: true }
             : { kind: "ERROR", message: failureMessage(launched) };
@@ -635,12 +708,40 @@ export function DocumentWorkspaceEditor({
             };
           }
           removeStoredSession(shareToken);
+          if (inspected.code === "UNAUTHORIZED" || inspected.code === "NOT_FOUND") {
+            removeDocumentWorkspaceCredential(window.localStorage, shareToken);
+          }
           if (inspected.code !== "UNAUTHORIZED" && inspected.code !== "NOT_FOUND") {
             return { kind: "ERROR", message: failureMessage(inspected) };
           }
         }
 
-        const joined = await documentWorkspaceHttpService.joinV3({ shareToken });
+        const credential = readDocumentWorkspaceCredential(
+          window.localStorage,
+          shareToken,
+        );
+        if (credential) {
+          const inspected = await documentWorkspaceHttpService.inspect(
+            credential.humanSessionToken,
+          );
+          if (inspected.ok) {
+            return {
+              kind: "READY",
+              bundle: sessionFromDocumentWorkspaceCredential(credential, inspected.data),
+              replaceRoute: false,
+            };
+          }
+          if (inspected.code === "UNAUTHORIZED" || inspected.code === "NOT_FOUND") {
+            removeDocumentWorkspaceCredential(window.localStorage, shareToken);
+          } else {
+            return { kind: "ERROR", message: failureMessage(inspected) };
+          }
+        }
+
+        const joined = await documentWorkspaceHttpService.joinV3({
+          shareToken,
+          ...(browserProfile ? { displayName: browserProfile.displayName } : {}),
+        });
         if (joined.ok) {
           return { kind: "READY", bundle: joined.data, replaceRoute: false };
         }
@@ -784,10 +885,30 @@ export function DocumentWorkspaceEditor({
   }, [conflictSurface, dirty, draft, loadState, saveDraft]);
 
   useEffect(() => {
-    if (loadState !== "READY" || !humanSessionToken) return;
+    if (
+      loadState !== "READY" ||
+      !humanSessionToken ||
+      !activeShareToken ||
+      !activeSessionInstanceId
+    ) {
+      return;
+    }
     let cancelled = false;
     let timer: number | null = null;
     let controller: AbortController | null = null;
+    const capturedIdentity = {
+      shareToken: activeShareToken,
+      humanSessionToken,
+      sessionInstanceId: activeSessionInstanceId,
+    };
+    const isCurrentSession = () => {
+      const latest = bundleRef.current;
+      return (
+        latest?.shareToken === capturedIdentity.shareToken &&
+        latest.humanSessionToken === capturedIdentity.humanSessionToken &&
+        latest.sessionInstanceId === capturedIdentity.sessionInstanceId
+      );
+    };
 
     const poll = async () => {
       controller = new AbortController();
@@ -796,16 +917,20 @@ export function DocumentWorkspaceEditor({
           humanSessionToken,
           controller.signal,
         );
-        if (!cancelled) {
+        if (!cancelled && isCurrentSession()) {
           if (result.ok) reconcileRemoteSurface(result.data);
           else if (result.code === "NOT_FOUND" || result.code === "UNAUTHORIZED") {
             removeStoredSession(activeShareToken ?? undefined);
+            removeDocumentWorkspaceCredential(
+              window.localStorage,
+              activeShareToken ?? undefined,
+            );
             setLoadState("UNAVAILABLE");
             setLoadMessage("This note session has expired. Start a new note to continue.");
           }
         }
       } catch (error) {
-        if (!cancelled && !isAbortError(error)) {
+        if (!cancelled && isCurrentSession() && !isAbortError(error)) {
           setStatusMessage("Live updates paused. Your draft is still here.");
         }
       } finally {
@@ -820,14 +945,40 @@ export function DocumentWorkspaceEditor({
       if (timer !== null) window.clearTimeout(timer);
       controller?.abort();
     };
-  }, [activeShareToken, humanSessionToken, loadState, reconcileRemoteSurface]);
+  }, [
+    activeSessionInstanceId,
+    activeShareToken,
+    humanSessionToken,
+    loadState,
+    reconcileRemoteSurface,
+  ]);
 
   useEffect(() => {
-    if (loadState !== "READY" || !humanSessionToken) return;
+    if (
+      loadState !== "READY" ||
+      !humanSessionToken ||
+      !activeShareToken ||
+      !activeSessionInstanceId
+    ) {
+      return;
+    }
     let cancelled = false;
     let timer: number | null = null;
     let controller: AbortController | null = null;
     let inFlight = false;
+    const capturedIdentity = {
+      shareToken: activeShareToken,
+      humanSessionToken,
+      sessionInstanceId: activeSessionInstanceId,
+    };
+    const isCurrentSession = () => {
+      const latest = bundleRef.current;
+      return (
+        latest?.shareToken === capturedIdentity.shareToken &&
+        latest.humanSessionToken === capturedIdentity.humanSessionToken &&
+        latest.sessionInstanceId === capturedIdentity.sessionInstanceId
+      );
+    };
 
     const heartbeat = async () => {
       if (cancelled || inFlight) return;
@@ -856,7 +1007,9 @@ export function DocumentWorkspaceEditor({
           },
           controller.signal,
         );
-        if (!cancelled && result.ok) reconcileRemoteSurface(result.data);
+        if (!cancelled && isCurrentSession() && result.ok) {
+          reconcileRemoteSurface(result.data);
+        }
       } catch (error) {
         if (!isAbortError(error)) {
           // Presence is advisory; editing and autosave continue independently.
@@ -877,10 +1030,17 @@ export function DocumentWorkspaceEditor({
       if (timer !== null) window.clearTimeout(timer);
       controller?.abort();
     };
-  }, [humanSessionToken, loadState, reconcileRemoteSurface]);
+  }, [
+    activeSessionInstanceId,
+    activeShareToken,
+    humanSessionToken,
+    loadState,
+    reconcileRemoteSurface,
+  ]);
 
   useEffect(() => {
     return () => {
+      inboxCheckAbortRef.current?.abort();
       if (typingTimerRef.current !== null) {
         window.clearTimeout(typingTimerRef.current);
       }
@@ -891,11 +1051,19 @@ export function DocumentWorkspaceEditor({
     if (!appMenu) return;
     const dismiss = () => setAppMenu(null);
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") dismiss();
+      if (event.key === "Escape") {
+        dismiss();
+        const editor = appMenu.selection.field === "TITLE" ? titleRef.current : bodyRef.current;
+        window.requestAnimationFrame(() => editor?.focus());
+      }
     };
+    const focusFrame = window.requestAnimationFrame(() => {
+      contextMenuRef.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]')?.focus();
+    });
     window.addEventListener("pointerdown", dismiss);
     window.addEventListener("keydown", onKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("pointerdown", dismiss);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -1225,10 +1393,6 @@ export function DocumentWorkspaceEditor({
       ) {
         return;
       }
-      if (!rationale.trim()) {
-        setStatusMessage("Add your rationale before accepting or rejecting this proposal.");
-        return;
-      }
       setWorkBusyId(order.workOrderId);
       setStatusMessage(null);
       try {
@@ -1238,7 +1402,7 @@ export function DocumentWorkspaceEditor({
           workOrderId: order.workOrderId,
           expectedRevision: savedSurface.document.revision,
           requestId: crypto.randomUUID(),
-          rationale,
+          rationale: rationale.trim() ? rationale : null,
         };
         const result =
           decision === "ACCEPT"
@@ -1262,11 +1426,10 @@ export function DocumentWorkspaceEditor({
           delete next[order.workOrderId];
           return next;
         });
-        setRailTab("MEMORY");
         setStatusMessage(
           decision === "ACCEPT"
-            ? "Proposal accepted. The document and decision memory updated together."
-            : "Proposal rejected. Your rationale is now part of decision memory.",
+            ? "Accepted. The document and memory updated together."
+            : "Rejected. The decision is now in memory.",
         );
       } catch (error) {
         setStatusMessage(
@@ -1292,6 +1455,69 @@ export function DocumentWorkspaceEditor({
     }
   }, []);
 
+  const checkForUpdates = useCallback(async () => {
+    const currentBundle = bundleRef.current;
+    if (!currentBundle || inboxChecking) return;
+    const capturedIdentity = {
+      shareToken: currentBundle.shareToken,
+      humanSessionToken: currentBundle.humanSessionToken,
+      sessionInstanceId: currentBundle.sessionInstanceId,
+    };
+    const isCurrentSession = () => {
+      const latest = bundleRef.current;
+      return (
+        latest?.shareToken === capturedIdentity.shareToken &&
+        latest.humanSessionToken === capturedIdentity.humanSessionToken &&
+        latest.sessionInstanceId === capturedIdentity.sessionInstanceId
+      );
+    };
+    const controller = new AbortController();
+    inboxCheckAbortRef.current?.abort();
+    inboxCheckAbortRef.current = controller;
+    setInboxChecking(true);
+    try {
+      const inspected = await documentWorkspaceHttpService.inspect(
+        currentBundle.humanSessionToken,
+        controller.signal,
+      );
+      if (!isCurrentSession()) return;
+      if (inspected.ok) {
+        reconcileRemoteSurface(inspected.data);
+        setStatusMessage("Page refreshed. This does not start or wake an agent.");
+        return;
+      }
+      if (inspected.code === "UNAUTHORIZED" || inspected.code === "NOT_FOUND") {
+        removeStoredSession(currentBundle.shareToken);
+        removeDocumentWorkspaceCredential(
+          window.localStorage,
+          currentBundle.shareToken,
+        );
+      }
+      setStatusMessage(failureMessage(inspected));
+    } catch (error) {
+      if (isAbortError(error) || !isCurrentSession()) return;
+      setStatusMessage(
+        error instanceof Error ? error.message : "The page could not be refreshed.",
+      );
+    } finally {
+      if (inboxCheckAbortRef.current === controller) {
+        inboxCheckAbortRef.current = null;
+        setInboxChecking(false);
+      }
+    }
+  }, [inboxChecking, reconcileRemoteSurface]);
+
+  const copyListenPrompt = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(DOCUMENT_WORKSPACE_AGENT_REQUEST);
+      setListenPromptCopied(true);
+      window.setTimeout(() => setListenPromptCopied(false), 1_600);
+    } catch {
+      setListenPromptExpanded(true);
+      setStatusMessage("Copy is blocked. Select the listening prompt below.");
+    }
+  }, []);
+
   const createNewNote = useCallback(async () => {
     if (dirtyRef.current && !window.confirm("Save this note and start a new one?")) return;
     if (dirtyRef.current) {
@@ -1299,7 +1525,10 @@ export function DocumentWorkspaceEditor({
       if (!saved || dirtyRef.current) return;
     }
     try {
-      const launched = await documentWorkspaceHttpService.launchV3({});
+      const browserProfile = readDocumentWorkspaceBrowserProfile(window.localStorage);
+      const launched = await documentWorkspaceHttpService.launchV3(
+        browserProfile ? { displayName: browserProfile.displayName } : {},
+      );
       if (!launched.ok) {
         setStatusMessage(failureMessage(launched));
         return;
@@ -1347,16 +1576,68 @@ export function DocumentWorkspaceEditor({
   );
 
   const orderedWork = useMemo(
-    () => orderedWorkOrders(surface?.workOrders ?? []),
+    () =>
+      orderedWorkOrders(surface?.workOrders ?? []).filter(
+        (order) => order.status === "PENDING" || order.status === "PROPOSED",
+      ),
     [surface?.workOrders],
   );
-  const activeWorkCount = orderedWork.filter(
-    (order) => order.status === "PENDING" || order.status === "PROPOSED",
-  ).length;
+  const activeWorkCount = orderedWork.length;
   const visiblePresence = useMemo(() => activeMembers(surface), [surface]);
   const selfPresence = visiblePresence.find(
     (person) => person.memberId === bundle?.selfMemberId,
   );
+  const hasOwnedPendingWork = orderedWork.some(
+    (order) =>
+      order.status === "PENDING" && order.assignedToMemberId === bundle?.selfMemberId,
+  );
+  const agentToolsReady = Boolean(
+    webMCPStatus?.supported &&
+    !webMCPStatus.error &&
+    DOCUMENT_WORKSPACE_TOOL_NAMES.every((tool) =>
+      webMCPStatus.registeredTools.includes(tool),
+    ),
+  );
+  const agentInboxState =
+    activeAgentTool === "wait_for_my_work"
+      ? {
+          state: "listening",
+          title: "Your paired agent is listening on this page",
+          detail: "The wait lasts up to 20 seconds while this agent turn remains active.",
+        }
+      : activeAgentTool === "submit_work_proposal"
+        ? {
+            state: "proposing",
+            title: "Your paired agent is preparing a proposal",
+            detail: "The document stays unchanged until a person accepts the result.",
+          }
+        : hasOwnedPendingWork
+          ? {
+              state: "waiting",
+              title: "Work waiting — ask your agent to check",
+              detail: "The page cannot wake a dormant model, so prompt your paired agent once.",
+            }
+          : agentToolsReady
+            ? {
+                state: "ready",
+                title: "Agent tools ready",
+                detail: "Ask your paired agent to check now or listen for the next assignment.",
+              }
+            : webMCPStatus === null || webMCPStatus.supported
+              ? {
+                  state: "connecting",
+                  title: webMCPStatus?.error
+                    ? "Agent tools reconnecting"
+                    : "Connecting agent tools",
+                  detail: webMCPStatus?.error
+                    ? "This page is retrying WebMCP registration. Reload if it does not recover."
+                    : "Keep this page open while the five document tools register.",
+                }
+            : {
+                state: "unsupported",
+                title: "WebMCP unavailable",
+                detail: "Editing still works here. Use a WebMCP-capable browser for agent work.",
+              };
   const otherPeople = visiblePresence.filter(
     (person) => person.memberId !== bundle?.selfMemberId,
   );
@@ -1589,32 +1870,55 @@ export function DocumentWorkspaceEditor({
             <div className={styles.railContent}>
               {railTab === "WORK" ? (
                 <div role="tabpanel" aria-label="Work" data-testid="work-order-list">
-                  {webMCPStatus?.supported &&
-                  webMCPStatus.registeredTools.length > 0 ? (
-                    <p
-                      className={styles.capabilityState}
-                      data-proposal={webMCPStatus.registeredTools.includes(
-                        "submit_work_proposal",
-                      )}
-                      data-testid="page-capability-state"
-                      aria-live="polite"
+                  <section
+                    className={styles.agentInbox}
+                    data-state={agentInboxState.state}
+                    data-testid="agent-inbox"
+                    aria-live="polite"
+                  >
+                    <div className={styles.agentInboxHeading}>
+                      <span aria-hidden="true" />
+                      <strong>{agentInboxState.title}</strong>
+                    </div>
+                    <p>{agentInboxState.detail}</p>
+                    <div className={styles.agentInboxActions}>
+                      <button type="button" onClick={() => void copyListenPrompt()}>
+                        {listenPromptCopied ? "Copied" : "Copy listen prompt"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={inboxChecking}
+                        onClick={() => void checkForUpdates()}
+                      >
+                        {inboxChecking ? "Checking…" : "Check now"}
+                      </button>
+                    </div>
+                    <details
+                      className={styles.listenPromptDetails}
+                      open={listenPromptExpanded}
+                      onToggle={(event) => setListenPromptExpanded(event.currentTarget.open)}
                     >
-                      <span>Page capability ·</span>
-                      {webMCPStatus.registeredTools.includes("submit_work_proposal")
-                        ? `Proposal tool available for ${selfPresence?.displayName ?? "this member"}’s paired agent`
-                        : "Read-only tools"}
-                    </p>
-                  ) : null}
+                      <summary>View listening prompt</summary>
+                      <textarea
+                        aria-label="Agent listening prompt"
+                        readOnly
+                        rows={5}
+                        value={DOCUMENT_WORKSPACE_AGENT_REQUEST}
+                      />
+                    </details>
+                    <small>Check now refreshes this page. It cannot wake an agent.</small>
+                  </section>
                   {orderedWork.length === 0 ? (
                     <div className={styles.railEmpty}>
                       <span aria-hidden="true">✦</span>
-                      <h3>No assigned work yet</h3>
-                      <p>Select a useful passage, then ask a collaborator’s agent for help.</p>
+                      <h3>No active work</h3>
+                      <p>Select a passage to assign it. Resolved work stays in Memory.</p>
                     </div>
                   ) : (
                     <ul className={styles.workList}>
                       {orderedWork.map((order) => {
                         const isCreator = order.creatorMemberId === bundle?.selfMemberId;
+                        const isAssignee = order.assignedToMemberId === bundle?.selfMemberId;
                         const isBusy = workBusyId === order.workOrderId;
                         const rationale = rationales[order.workOrderId] ?? "";
                         return (
@@ -1632,98 +1936,117 @@ export function DocumentWorkspaceEditor({
                                 {WORK_STATUS_LABELS[order.status]}
                               </span>
                             </div>
-                            <blockquote className={styles.targetExcerpt}>
-                              <span>{order.anchor.field === "TITLE" ? "Title" : "Selected text"}</span>
-                              “{compactExcerpt(order.anchor.selectedText)}”
-                            </blockquote>
-                            <p className={styles.workInstruction}>{order.instruction}</p>
-                            <p className={styles.workAttribution}>
-                              <span>{order.creatorDisplayName}</span>
-                              <b aria-hidden="true">→</b>
-                              <span>{order.assignedToDisplayName}</span>
-                            </p>
-
-                            {order.proposal ? (
-                              <div className={styles.proposal}>
-                                <div className={styles.proposalHeader}>
-                                  <span>Proposed change</span>
-                                  <small>Document unchanged</small>
-                                </div>
-                                <div className={styles.proposalDiff}>
+                            {order.status === "PROPOSED" && order.proposal ? (
+                              <>
+                                <div className={styles.proposalFlow}>
                                   <div>
-                                    <span>Before</span>
-                                    <del>{order.anchor.selectedText || "Empty"}</del>
+                                    <span>Asked</span>
+                                    <p>{order.instruction}</p>
                                   </div>
+                                  <b aria-hidden="true">↓</b>
                                   <div>
-                                    <span>After</span>
-                                    <ins>{order.proposal.replacementText || "Remove selection"}</ins>
+                                    <span>Proposed</span>
+                                    <p>{order.proposal.replacementText || "Remove the selection"}</p>
                                   </div>
                                 </div>
-                                <p className={styles.untrustedSummary}>
-                                  <span>Agent summary · untrusted</span>
-                                  {order.proposal.changeSummary}
+                                <details className={styles.proposalDetails}>
+                                  <summary>Details</summary>
+                                  <blockquote className={styles.targetExcerpt}>
+                                    <span>{order.anchor.field === "TITLE" ? "Title" : "Selected text"}</span>
+                                    “{compactExcerpt(order.anchor.selectedText)}”
+                                  </blockquote>
+                                  <p className={styles.workAttribution}>
+                                    <span>{order.creatorDisplayName}</span>
+                                    <b aria-hidden="true">→</b>
+                                    <span>{order.assignedToDisplayName}</span>
+                                  </p>
+                                  <div className={styles.proposalDiff}>
+                                    <div>
+                                      <span>Before</span>
+                                      <del>{order.anchor.selectedText || "Empty"}</del>
+                                    </div>
+                                    <div>
+                                      <span>After</span>
+                                      <ins>{order.proposal.replacementText || "Remove selection"}</ins>
+                                    </div>
+                                  </div>
+                                  <p className={styles.untrustedSummary}>
+                                    <span>Agent note · untrusted</span>
+                                    {order.proposal.changeSummary}
+                                  </p>
+                                  {isCreator ? (
+                                    <div className={styles.decisionComposer}>
+                                      <label htmlFor={`work-rationale-${order.workOrderId}`}>
+                                        Decision note <small>Optional</small>
+                                      </label>
+                                      <textarea
+                                        id={`work-rationale-${order.workOrderId}`}
+                                        value={rationale}
+                                        placeholder="Add context worth remembering…"
+                                        onChange={(event) => {
+                                          const value = clampCodePoints(
+                                            event.target.value,
+                                            DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH,
+                                          );
+                                          setRationales((current) => ({
+                                            ...current,
+                                            [order.workOrderId]: value,
+                                          }));
+                                        }}
+                                      />
+                                    </div>
+                                  ) : null}
+                                </details>
+                                {isCreator ? (
+                                  <div className={styles.decisionActions}>
+                                    <button
+                                      className={styles.secondaryButton}
+                                      type="button"
+                                      disabled={Boolean(workBusyId)}
+                                      onClick={() => void decideWorkOrder(order, "REJECT")}
+                                    >
+                                      {isBusy ? "Saving…" : "Reject"}
+                                    </button>
+                                    <button
+                                      className={styles.primaryButton}
+                                      type="button"
+                                      disabled={Boolean(workBusyId)}
+                                      onClick={() => void decideWorkOrder(order, "ACCEPT")}
+                                    >
+                                      {isBusy ? "Saving…" : "Accept"}
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <>
+                                <blockquote className={styles.targetExcerpt}>
+                                  <span>{order.anchor.field === "TITLE" ? "Title" : "Selected text"}</span>
+                                  “{compactExcerpt(order.anchor.selectedText)}”
+                                </blockquote>
+                                <p className={styles.workInstruction}>{order.instruction}</p>
+                                <p className={styles.workAttribution}>
+                                  <span>{order.creatorDisplayName}</span>
+                                  <b aria-hidden="true">→</b>
+                                  <span>{order.assignedToDisplayName}</span>
                                 </p>
-                              </div>
-                            ) : null}
-
-                            {order.decision ? (
-                              <blockquote className={styles.decisionRationale}>
-                                <span>Human rationale · {order.decision.decidedBy.displayName}</span>
-                                {order.decision.rationale}
-                              </blockquote>
-                            ) : null}
-
-                            {isCreator && order.status === "PENDING" ? (
-                              <button
-                                className={styles.textButton}
-                                type="button"
-                                disabled={Boolean(workBusyId)}
-                                onClick={() => void cancelWorkOrder(order)}
-                              >
-                                {isBusy ? "Cancelling…" : "Cancel work"}
-                              </button>
-                            ) : null}
-
-                            {isCreator && order.status === "PROPOSED" ? (
-                              <div className={styles.decisionComposer}>
-                                <label htmlFor={`work-rationale-${order.workOrderId}`}>
-                                  Your rationale
-                                </label>
-                                <textarea
-                                  id={`work-rationale-${order.workOrderId}`}
-                                  value={rationale}
-                                  placeholder="Record why this proposal should or should not shape the document…"
-                                  onChange={(event) => {
-                                    const value = clampCodePoints(
-                                      event.target.value,
-                                      DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH,
-                                    );
-                                    setRationales((current) => ({
-                                      ...current,
-                                      [order.workOrderId]: value,
-                                    }));
-                                  }}
-                                />
-                                <div className={styles.decisionActions}>
+                                <p className={styles.pendingHint}>
+                                  {isAssignee
+                                    ? "Your paired agent has work waiting on this page."
+                                    : `Waiting for ${order.assignedToDisplayName}’s paired agent.`}
+                                </p>
+                                {isCreator ? (
                                   <button
-                                    className={styles.secondaryButton}
+                                    className={styles.textButton}
                                     type="button"
-                                    disabled={Boolean(workBusyId) || !rationale.trim()}
-                                    onClick={() => void decideWorkOrder(order, "REJECT")}
+                                    disabled={Boolean(workBusyId)}
+                                    onClick={() => void cancelWorkOrder(order)}
                                   >
-                                    {isBusy ? "Saving…" : "Reject"}
+                                    {isBusy ? "Cancelling…" : "Cancel work"}
                                   </button>
-                                  <button
-                                    className={styles.primaryButton}
-                                    type="button"
-                                    disabled={Boolean(workBusyId) || !rationale.trim()}
-                                    onClick={() => void decideWorkOrder(order, "ACCEPT")}
-                                  >
-                                    {isBusy ? "Saving…" : "Accept"}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : null}
+                                ) : null}
+                              </>
+                            )}
                           </li>
                         );
                       })}
@@ -1742,7 +2065,7 @@ export function DocumentWorkspaceEditor({
                     <div className={styles.railEmpty}>
                       <span aria-hidden="true">◷</span>
                       <h3>Decisions will collect here</h3>
-                      <p>Edits, proposals, and human rationale form a shared memory over time.</p>
+                      <p>Edits, proposals, and decisions collect here as the note evolves.</p>
                     </div>
                   )}
                 </div>
@@ -1775,11 +2098,29 @@ export function DocumentWorkspaceEditor({
 
       {appMenu ? (
         <div
+          ref={contextMenuRef}
           className={styles.contextMenu}
           role="menu"
           aria-label="Agent actions"
           style={{ left: appMenu.x, top: appMenu.y }}
           onPointerDown={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const items = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]'),
+            );
+            if (items.length === 0) return;
+            const currentIndex = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+            const nextIndex = event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? items.length - 1
+                : event.key === "ArrowDown"
+                  ? (currentIndex + 1) % items.length
+                  : (currentIndex - 1 + items.length) % items.length;
+            items[nextIndex]?.focus();
+          }}
         >
           <button
             type="button"
@@ -1958,6 +2299,7 @@ export function DocumentWorkspaceEditor({
             if (status.error) setStatusMessage(status.error);
           }}
           onAuthoritativeSurface={reconcileRemoteSurface}
+          onToolExecutionChange={setActiveAgentTool}
         />
       ) : null}
     </div>

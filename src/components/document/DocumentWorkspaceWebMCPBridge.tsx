@@ -80,14 +80,9 @@ export function DocumentWorkspaceWebMCPBridge({
   const authoritativeCallbackRef = useRef(onAuthoritativeSurface);
   const executionCallbackRef = useRef(onToolExecutionChange);
 
-  const hasAssignedPendingWork = surface.workOrders.some(
-    (order) =>
-      order.status === "PENDING" && order.assignedToMemberId === selfMemberId,
-  );
   const registrationSurfaceKey = JSON.stringify([
     surface.document.id,
     surface.document.protocolVersion,
-    hasAssignedPendingWork,
   ]);
 
   useLayoutEffect(() => {
@@ -137,36 +132,6 @@ export function DocumentWorkspaceWebMCPBridge({
       activeWaitKeys,
       onAuthoritativeSurface: (nextSurface) => {
         authoritativeCallbackRef.current?.(nextSurface);
-        const manager = managerRef.current;
-        if (!manager) return;
-        const current = latest.current;
-        const key = makeDocumentWorkspaceRegistrationContextKey(
-          current.surface.document.id,
-          current.surface.document.protocolVersion,
-          current.sessionInstanceId,
-          current.pageSessionId,
-          current.agentSessionToken,
-          current.selfMemberId,
-        );
-        void manager.reconcile(nextSurface, current.selfMemberId, key).then(
-          (lastDiff) => {
-            statusCallbackRef.current?.({
-              namespace: namespaceRef.current,
-              supported: true,
-              registeredTools: manager.registeredTools,
-              lastDiff,
-            });
-          },
-          (error: unknown) => {
-            statusCallbackRef.current?.({
-              namespace: namespaceRef.current,
-              supported: true,
-              registeredTools: manager.registeredTools,
-              lastDiff: emptyDocumentWorkspaceRegistrationDiff(),
-              error: error instanceof Error ? error.message : String(error),
-            });
-          },
-        );
       },
       onToolExecutionChange: (tool) => executionCallbackRef.current?.(tool),
     };
@@ -197,39 +162,52 @@ export function DocumentWorkspaceWebMCPBridge({
   useEffect(() => {
     const manager = managerRef.current;
     if (!manager) return;
-    const current = latest.current;
-    const key = makeDocumentWorkspaceRegistrationContextKey(
-      current.surface.document.id,
-      current.surface.document.protocolVersion,
-      current.sessionInstanceId,
-      current.pageSessionId,
-      current.agentSessionToken,
-      current.selfMemberId,
-    );
     let superseded = false;
-    void manager.reconcile(current.surface, current.selfMemberId, key).then(
-      (lastDiff) => {
-        if (superseded) return;
-        statusCallbackRef.current?.({
-          namespace: namespaceRef.current,
-          supported: true,
-          registeredTools: manager.registeredTools,
-          lastDiff,
-        });
-      },
-      (error: unknown) => {
-        if (superseded) return;
-        statusCallbackRef.current?.({
-          namespace: namespaceRef.current,
-          supported: true,
-          registeredTools: manager.registeredTools,
-          lastDiff: emptyDocumentWorkspaceRegistrationDiff(),
-          error: error instanceof Error ? error.message : String(error),
-        });
-      },
-    );
+    let retryTimer: number | null = null;
+    let failedAttempts = 0;
+    const maximumAttempts = 3;
+
+    const reconcile = () => {
+      const current = latest.current;
+      const key = makeDocumentWorkspaceRegistrationContextKey(
+        current.surface.document.id,
+        current.surface.document.protocolVersion,
+        current.sessionInstanceId,
+        current.pageSessionId,
+        current.agentSessionToken,
+        current.selfMemberId,
+      );
+      void manager.reconcile(current.surface, current.selfMemberId, key).then(
+        (lastDiff) => {
+          if (superseded) return;
+          statusCallbackRef.current?.({
+            namespace: namespaceRef.current,
+            supported: true,
+            registeredTools: manager.registeredTools,
+            lastDiff,
+          });
+        },
+        (error: unknown) => {
+          if (superseded) return;
+          failedAttempts += 1;
+          statusCallbackRef.current?.({
+            namespace: namespaceRef.current,
+            supported: true,
+            registeredTools: manager.registeredTools,
+            lastDiff: emptyDocumentWorkspaceRegistrationDiff(),
+            error: error instanceof Error ? error.message : String(error),
+          });
+          if (failedAttempts < maximumAttempts) {
+            retryTimer = window.setTimeout(reconcile, 500 * 2 ** (failedAttempts - 1));
+          }
+        },
+      );
+    };
+
+    reconcile();
     return () => {
       superseded = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
   }, [
     agentSessionToken,

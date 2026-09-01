@@ -211,7 +211,14 @@ test("v3 note is calm without WebMCP and owns only an exact pointer-origin menu"
       navigatorModelContext: "modelContext" in navigator,
     })),
   ).toEqual({ documentModelContext: false, navigatorModelContext: false });
-  await expect(page.getByTestId("page-capability-state")).toHaveCount(0);
+  await expect(page.getByTestId("agent-inbox")).toContainText("WebMCP unavailable");
+  await expect(page.getByTestId("agent-inbox")).toContainText(
+    "Check now refreshes this page. It cannot wake an agent.",
+  );
+  await page.getByText("View listening prompt", { exact: true }).click();
+  await expect(page.getByLabel("Agent listening prompt")).toHaveValue(
+    /Work from this page using WebMCP\./,
+  );
 
   const firstSave = waitForSuccessfulSave(page, {
     title: "A decision note",
@@ -275,6 +282,22 @@ test("v3 note is calm without WebMCP and owns only an exact pointer-origin menu"
   expect((await readContextMenuObservation(page)).defaultPrevented).toBe(true);
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem")).toHaveCount(3);
+  const rewriteItem = menu.getByRole("menuitem", { name: /Rewrite/ });
+  const researchItem = menu.getByRole("menuitem", { name: /Research/ });
+  const assignItem = menu.getByRole("menuitem", { name: /Assign/ });
+  await expect(rewriteItem).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(researchItem).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(assignItem).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(rewriteItem).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(body).toBeFocused();
+
+  await selectAllBodyWithKeyboard(page);
+  await body.click({ button: "right", position: { x: 20, y: 20 } });
   await menu.getByRole("menuitem", { name: /Rewrite/ }).click();
   await expect(page.getByTestId("work-target-preview")).toContainText(
     "Launch timing needs a clear recommendation",
@@ -300,8 +323,148 @@ test("v3 note is calm without WebMCP and owns only an exact pointer-origin menu"
   await expect(card).toContainText("Make this phrase more decisive.");
   await expect(body).toHaveValue("Launch timing needs a clear recommendation for the team.");
   await card.getByRole("button", { name: "Cancel work" }).click();
-  await expect(card).toContainText("Cancelled");
+  await expect(page.getByTestId("work-order-card")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Memory" }).click();
+  await expect(page.getByTestId("memory-list")).toContainText("Work cancelled");
 });
+
+test("Check now cannot apply an old document response after New note", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/document\//);
+  const originalUrl = page.url();
+  const save = waitForSuccessfulSave(page, { title: "", body: "Old note content." });
+  await page.getByLabel("Note body").fill("Old note content.");
+  await save;
+
+  let requestCaptured = false;
+  let releaseRequest: (() => void) | undefined;
+  await page.route("**/api/document-v3/surface", async (route) => {
+    if (requestCaptured || route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    requestCaptured = true;
+    await new Promise<void>((resolve) => {
+      releaseRequest = resolve;
+    });
+    await route.continue();
+  });
+
+  await page.getByRole("button", { name: "Check now" }).click();
+  await expect.poll(() => requestCaptured).toBe(true);
+  await page.getByRole("button", { name: "New note" }).click();
+  await expect(page).not.toHaveURL(originalUrl);
+  releaseRequest?.();
+  await page.waitForTimeout(300);
+  await expect(page.getByLabel("Note body")).toHaveValue("");
+  await expect(page).not.toHaveURL(originalUrl);
+});
+
+for (const staleUpdate of [
+  {
+    label: "automatic document poll",
+    routePattern: "**/api/document-v3/surface",
+    method: "GET",
+    trigger: async (targetPage: Page) => {
+      void targetPage;
+      // The document poll starts 2.5 seconds after a session becomes ready.
+    },
+  },
+  {
+    label: "presence heartbeat",
+    routePattern: "**/api/document-v3/presence",
+    method: "POST",
+    trigger: async (targetPage: Page) => {
+      await targetPage.evaluate(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    },
+  },
+] as const) {
+  test(`${staleUpdate.label} cannot replace a newly opened note`, async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/document\//);
+    const originalUrl = page.url();
+
+    await page.evaluate(() => {
+      const NativeAbortController = window.AbortController;
+      class NonAbortingController extends NativeAbortController {
+        override abort(): void {
+          // Exercise the identity guard even when transport cancellation loses the race.
+        }
+      }
+      Object.defineProperty(window, "AbortController", {
+        configurable: true,
+        value: NonAbortingController,
+      });
+    });
+
+    let releaseResponse: (() => void) | undefined;
+    let markResponseCaptured: (() => void) | undefined;
+    const responseCaptured = new Promise<void>((resolve) => {
+      markResponseCaptured = resolve;
+    });
+    const responseRelease = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    let captured = false;
+
+    await page.route(staleUpdate.routePattern, async (route) => {
+      if (captured || route.request().method() !== staleUpdate.method) {
+        await route.continue();
+        return;
+      }
+      captured = true;
+      const oldSessionResponse = await route.fetch();
+      markResponseCaptured?.();
+      await responseRelease;
+      await route.fulfill({ response: oldSessionResponse });
+    });
+
+    await staleUpdate.trigger(page);
+    await responseCaptured;
+    await page.getByRole("button", { name: "New note" }).click();
+    await expect(page).not.toHaveURL(originalUrl);
+    const newShareToken = new URL(page.url()).pathname.split("/").at(-1);
+    expect(newShareToken).toBeTruthy();
+
+    releaseResponse?.();
+    await page.waitForTimeout(300);
+
+    await expect(page.getByLabel("Note body")).toHaveValue("");
+    await expect(page).not.toHaveURL(originalUrl);
+    await expect
+      .poll(() =>
+        page.evaluate((shareToken) => {
+          const rawBundle = window.sessionStorage.getItem(
+            `ratiflow.document.session.v3:${shareToken}`,
+          );
+          const rawPointer = window.localStorage.getItem(
+            "ratiflow.document.last-note.v1",
+          );
+          if (!rawBundle || !rawPointer) return null;
+          const bundle = JSON.parse(rawBundle) as {
+            shareToken: string;
+            selfMemberId: string;
+            surface: { document: { body: string; id: string } };
+          };
+          const pointer = JSON.parse(rawPointer) as { shareToken: string };
+          return {
+            bundleShareToken: bundle.shareToken,
+            documentBody: bundle.surface.document.body,
+            documentId: bundle.surface.document.id,
+            memberId: bundle.selfMemberId,
+            pointerShareToken: pointer.shareToken,
+          };
+        }, newShareToken),
+      )
+      .toMatchObject({
+        bundleShareToken: newShareToken,
+        documentBody: "",
+        pointerShareToken: newShareToken,
+      });
+  });
+}
 
 test("390px Work and Memory drawer is reachable, overflow-safe, and restores selection", async ({
   page,

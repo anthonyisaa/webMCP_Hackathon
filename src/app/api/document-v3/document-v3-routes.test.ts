@@ -124,7 +124,7 @@ test("v3 route chain preserves agent proposal and human acceptance authority", a
         workOrderId: listed.data.workOrders[0]?.workOrderId,
         expectedRevision: 1,
         requestId: randomUUID(),
-        rationale: "The beta fits the available capacity and protects the renewal.",
+        rationale: null,
       },
       launched.data.humanSessionToken,
     )),
@@ -147,7 +147,7 @@ test("v3 route chain preserves agent proposal and human acceptance authority", a
   );
   expect(remembered.data.events.at(-1)).toMatchObject({
     kind: "PROPOSAL_ACCEPTED",
-    rationale: "The beta fits the available capacity and protects the renewal.",
+    rationale: null,
   });
 });
 

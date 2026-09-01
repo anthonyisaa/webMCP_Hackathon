@@ -37,7 +37,8 @@ The page is the coordination boundary. A supported agent discovers current docum
 memory, assignment, waiting, and proposal tools directly from the open top-level page
 through `document.modelContext`; it does not need an MCP server configuration, copied
 workspace ID, API key, DOM scraping, or pasted prompt. Humans retain the consequential
-actions: they create and route work, then accept or reject proposals with rationale.
+actions: they create and route work, then accept or reject proposals in one click, with
+an optional decision note when the reasoning should enter shared memory.
 
 This is a hackathon POC, not a general word processor, CRDT, autonomous agent host, chat
 product, account system, rich-text editor, or workflow engine. The submission proves one
@@ -49,7 +50,7 @@ decision memory for a later agent.
 
 | Official criterion | Judge-visible v3 proof |
 |---|---|
-| WebMCP Leverage | The page-native tool surface exposes authoritative content and memory, waits on a live cross-human assignment, conditionally gains a proposal tool for the paired assignee, and cleans up on navigation. Removing WebMCP removes the structured agent collaboration loop. |
+| WebMCP Leverage | The page-native five-tool surface exposes authoritative content and memory, waits on a live cross-human assignment, submits an ownership-checked proposal, and cleans up on navigation. Removing WebMCP removes the structured agent collaboration loop. |
 | Execution | Two isolated human sessions complete select → assign → wait → inspect → propose → human accept → synchronized content and memory, with ordinary editing still usable when WebMCP is absent. |
 | Potential Impact | Teams lose the rationale behind document edits in detached chats. Ratiflow keeps exact work, proposer/accepter provenance, server diff, and human rationale beside the evolving artifact. |
 | Creativity and Ambition | WebMCP turns the live document into a rendezvous and capability plane for one agent per collaborator, while revision-bound proposals and append-only memory prevent silent edits and repetitive idea loops. |
@@ -60,7 +61,7 @@ does not prove the promise.
 
 ## 3. Flagship surface
 
-`/` creates a blank v3 note and opens its temporary high-entropy
+`/` resumes the last valid browser note or creates a blank v3 note and opens its temporary high-entropy
 `/document/[shareToken]` workspace. The
 ordinary surface is a plain title/body document with a compact top bar, lightweight
 presence, and a quiet **Work | Memory** margin. The writing surface dominates desktop
@@ -68,10 +69,12 @@ and 390px layouts. Shared documents remain account-free and expire with their 24
 session; possession of the link grants temporary access and is not described as private
 authenticated storage.
 
-On supported pages, one quiet Work-panel line mirrors the registered capability set:
-read-only page tools normally, and a temporary proposal tool only for the member whose
-paired agent owns pending work. Unsupported pages omit the line; it never claims an
-agent is connected or running.
+The Work panel is an honest page-local inbox. It distinguishes tools connecting, tools ready, this page's
+paired agent actively waiting, this page's paired agent preparing a proposal, work
+waiting for the agent, and WebMCP unavailable. **Check now** refreshes authoritative
+page state but cannot start a model. **Copy listen prompt** supplies one operational
+prompt, with a selectable fallback when clipboard access is blocked; no state on one
+collaborator's page claims another collaborator's agent is live.
 
 The v3 flagship has no visible four-stage control, stage-generated work, permanent
 annotation composer, creator-only agent queue, direct agent mutation, copied **Ask
@@ -102,8 +105,11 @@ interface ResetDocumentHeroOutcome {
 
 Each bootstrap path is a top-level document path whose URL fragment contains a
 base64url-encoded v3 session bundle. The fragment is a bearer credential. The page
-validates it against the path, share, protocol, and expiry; stores the bundle in
-`sessionStorage`; and clears the fragment before any WebMCP registration. Bootstrap
+validates it against the path, share, protocol, and expiry; stores the full bundle in
+tab-scoped `sessionStorage`, stores only its credential projection and last-note pointer
+in `localStorage`, fetches the authoritative surface on every resume, and clears the
+fragment before any WebMCP registration. Browser credentials never contain document,
+work, or memory content. Bootstrap
 paths and fragments are never logged, committed, screenshotted, or retained in capture
 artifacts. A human operator may open the Maya and Jordan top-level bootstrap paths during
 native setup; after that, the agent interacts only through WebMCP.
@@ -213,10 +219,11 @@ Lifecycle is exact:
 summary; it never mutates content. A replacement identical to the current authoritative
 target is an invalid no-op and is rejected without a proposal, event, or counter change.
 Human accept/reject requires exactly
-`{ workOrderId, expectedRevision, requestId, rationale }`. Acceptance atomically
+`{ workOrderId, expectedRevision, requestId, rationale }`, where rationale is null or a
+nonblank 1–500-code-point optional human note. Acceptance atomically
 revalidates the stored anchor, applies the stored proposal, completes the work, and
-attributes proposer plus accepter. Rejection leaves content unchanged. Human rationale
-is authoritative. The first locked decision wins; later conflicting decisions fail
+attributes proposer plus accepter. Rejection leaves content unchanged. Present human
+rationale is authoritative and exact; null never produces fabricated human prose. The first locked decision wins; later conflicting decisions fail
 without mutation.
 
 Every accepted/rejected `WorkDecision` records `decisionRevision` as the authoritative
@@ -227,7 +234,8 @@ document content.
 Active-work caps count `PENDING` plus `PROPOSED`: 100 per document and 50 per assignee.
 The member key is immutable `assignedToMemberId`, never creator or mere workspace
 membership.
-Instructions and human rationales are 1–500 nonblank Unicode code points; change
+Instructions are 1–500 nonblank Unicode code points; human rationales are null or
+1–500 nonblank Unicode code points; change
 summaries are 1–240; title is at most 160 and body at most 50,000. A generic proposal is
 at most 50,000 code points, but its resulting field must still meet the title/body bound.
 
@@ -264,7 +272,7 @@ Event kinds are exact:
 Events contain server-derived actor and origin, base/result revision, linked work IDs,
 changed fields, and timestamp. Only target, instruction, proposal, and server-computed
 diff excerpts are truncated to 320 Unicode code points. Change summary retains its
-240-code-point bound, while human rationale is preserved exactly up to its 500-code-point
+240-code-point bound, while a present human rationale is preserved exactly up to its 500-code-point
 bound. Events never contain external browser context, credentials, bearer or member
 handles, or unrelated private data. There is no arbitrary memory writer.
 
@@ -278,16 +286,17 @@ otherwise `null`.
 
 ## 7. Exact WebMCP surface
 
-The v3 document page registers exactly five tool definitions. The proposal tool is
-conditional, so a page without owned pending work exposes four.
+The v3 document page registers exactly five tool definitions from page start. Product
+correctness does not depend on a host accepting mid-turn catalog changes; proposal
+ownership, work status, and revision remain server-enforced.
 
 | Tool | Exact input | Contract |
 |---|---|---|
 | `inspect_document` | `{}` | Returns authoritative current content, revision, activity version, and collaborators. |
 | `read_document_memory` | `{ beforeActivityVersion?, limit? }` | Returns the bounded ascending memory window in Section 6. |
-| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent. |
-| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; timeout is integer seconds, minimum 1, default 20, hard maximum 20. |
-| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Conditionally registered only while this paired agent owns pending work; stores a proposal and never edits the document. |
+| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent; empty means use the wait tool. |
+| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; timeout is integer seconds, minimum 1, default 20, hard maximum 20; repeat after `TIMEOUT` only while the same turn stays active. |
+| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Always registered; server accepts only pending work owned by this paired agent, stores a proposal, and never edits the document. |
 
 Every schema rejects additional properties. `afterRevision`, `afterActivityVersion`, and
 `expectedRevision` accept safe integers from 0 through `Number.MAX_SAFE_INTEGER`;
@@ -372,8 +381,9 @@ native zero-configuration structured collaboration loop.
 6. Submission changes activity but not content/revision. Both humans see the proposal
    while the original sentence remains; a replacement identical to its target is
    rejected as a no-op.
-7. Only Jordan, as creator, can accept/reject. Acceptance atomically changes content and
-   work state with the exact rationale, revision, activity version, server diff, and
+7. Only Jordan, as creator, can accept/reject. One-click decisions store null rationale;
+   the golden optional-note path preserves its exact rationale. Acceptance atomically
+   changes content and work state with revision, activity version, server diff, and
    provenance. Decision races cannot double-apply.
 8. Equal-revision activity, pagination, nearby anchor rebasing, overlaps, replay,
    timeout, abort, duplicate wait, navigation, and session teardown pass their frozen

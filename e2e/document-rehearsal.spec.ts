@@ -51,13 +51,13 @@ const HERO_RATIONALE =
   "Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.";
 const FINAL_BODY = HERO_BODY.replace(HERO_SELECTION, HERO_REPLACEMENT);
 
-const PERMANENT_TOOLS = [
+const ALL_V3_TOOLS = [
   "inspect_document",
   "read_document_memory",
   "list_my_work",
   "wait_for_my_work",
+  "submit_work_proposal",
 ] as const;
-const ALL_V3_TOOLS = [...PERMANENT_TOOLS, "submit_work_proposal"] as const;
 
 interface ResetOutcome {
   shareToken: string;
@@ -463,22 +463,19 @@ async function storedMemberId(page: Page): Promise<string> {
 async function expectAdapterRegisteredAfterScrub(page: Page): Promise<void> {
   await expect
     .poll(async () => (await adapterState(page)).active)
-    .toEqual([...PERMANENT_TOOLS]);
+    .toEqual([...ALL_V3_TOOLS]);
   const state = await adapterState(page);
   const v3Registrations = state.registrations.filter((entry) =>
     (ALL_V3_TOOLS as readonly string[]).includes(entry.name),
   );
-  expect(v3Registrations.map((entry) => entry.name)).toEqual([...PERMANENT_TOOLS]);
+  expect(v3Registrations.map((entry) => entry.name)).toEqual([...ALL_V3_TOOLS]);
   expect(v3Registrations.every((entry) => !entry.fragmentWasPresent)).toBe(true);
 }
 
-async function expectAdapterNeverRegistered(
-  page: Page,
-  toolName: string,
-): Promise<void> {
-  const state = await adapterState(page);
-  expect(state.active).not.toContain(toolName);
-  expect(state.registrations.map((entry) => entry.name)).not.toContain(toolName);
+async function expectStableAdapterCatalog(page: Page): Promise<void> {
+  await expect
+    .poll(async () => (await adapterState(page)).active)
+    .toEqual([...ALL_V3_TOOLS]);
 }
 
 async function selectHeroSentenceWithKeyboard(page: Page): Promise<void> {
@@ -577,7 +574,6 @@ test.describe("adapter rehearsal (not native WebMCP evidence)", () => {
         expectAdapterRegisteredAfterScrub(maya),
         expectAdapterRegisteredAfterScrub(jordan),
       ]);
-      await expectAdapterNeverRegistered(jordan, "submit_work_proposal");
       await expect(jordan.getByLabel(/other (person|people) here/)).toHaveAttribute(
         "aria-label",
         "1 other person here",
@@ -670,10 +666,10 @@ test.describe("adapter rehearsal (not native WebMCP evidence)", () => {
         revision: 1,
         activityVersion: 2,
       });
-      await expectAdapterNeverRegistered(jordan, "submit_work_proposal");
-      await expect
-        .poll(async () => (await adapterState(maya)).active)
-        .toEqual([...PERMANENT_TOOLS, "submit_work_proposal"]);
+      await Promise.all([
+        expectStableAdapterCatalog(jordan),
+        expectStableAdapterCatalog(maya),
+      ]);
 
       const memoryBeforeProposal = await invokeTool<MemoryResult>(
         maya,
@@ -744,12 +740,14 @@ test.describe("adapter rehearsal (not native WebMCP evidence)", () => {
         revision: 1,
         activityVersion: 3,
       });
-      await expectAdapterNeverRegistered(jordan, "submit_work_proposal");
+      await expectStableAdapterCatalog(jordan);
 
       const jordanCard = jordan.getByTestId("work-order-card");
       await expect(jordanCard).toContainText(HERO_REPLACEMENT);
-      await expect(jordanCard).toContainText("Document unchanged");
-      await jordanCard.getByLabel("Your rationale").fill(HERO_RATIONALE);
+      await expect(jordanCard).toContainText("Asked");
+      await expect(jordanCard).toContainText("Proposed");
+      await jordanCard.getByText("Details", { exact: true }).click();
+      await jordanCard.getByLabel(/Decision note/).fill(HERO_RATIONALE);
       await clickWithRealPointer(
         jordan,
         jordanCard.getByRole("button", { name: "Accept" }),
@@ -762,7 +760,7 @@ test.describe("adapter rehearsal (not native WebMCP evidence)", () => {
         revision: 2,
         activityVersion: 4,
       });
-      await expectAdapterNeverRegistered(jordan, "submit_work_proposal");
+      await expectStableAdapterCatalog(jordan);
 
       // Adapter preflight only: route teardown aborts the live page-local wait. The
       // callback settles only after its finally block releases the active wait key.

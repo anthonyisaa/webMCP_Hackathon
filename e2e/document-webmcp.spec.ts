@@ -31,11 +31,12 @@ const HERO_RATIONALE =
   "Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.";
 const FINAL_BODY = HERO_BODY.replace(HERO_SELECTION, HERO_REPLACEMENT);
 
-const PERMANENT_TOOLS = [
+const DOCUMENT_TOOLS = [
   "inspect_document",
   "read_document_memory",
   "list_my_work",
   "wait_for_my_work",
+  "submit_work_proposal",
 ];
 
 type InspectResult = {
@@ -87,8 +88,11 @@ type ProposalResult = {
   event?: { kind: string; changeSummary: string | null };
 };
 
-async function installWebMCPHarness(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
+async function installWebMCPHarness(
+  context: BrowserContext,
+  failedRegistrationAttempts = 0,
+): Promise<void> {
+  await context.addInitScript(({ failedRegistrationAttempts: initialFailures }) => {
     type RegisteredTool = {
       name: string;
       inputSchema?: Record<string, unknown>;
@@ -101,6 +105,7 @@ async function installWebMCPHarness(context: BrowserContext): Promise<void> {
 
     const active = new Map<string, RegisteredTool>();
     const pending = new Map<string, Promise<unknown>>();
+    let remainingRegistrationFailures = initialFailures;
     const unwrap = (value: unknown): unknown => {
       if (value && typeof value === "object" && "structuredContent" in value) {
         return (value as { structuredContent: unknown }).structuredContent;
@@ -119,6 +124,10 @@ async function installWebMCPHarness(context: BrowserContext): Promise<void> {
       configurable: true,
       value: {
         registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
+          if (remainingRegistrationFailures > 0) {
+            remainingRegistrationFailures -= 1;
+            throw new Error("Synthetic transient registration failure.");
+          }
           active.set(tool.name, tool);
           options?.signal?.addEventListener(
             "abort",
@@ -150,7 +159,7 @@ async function installWebMCPHarness(context: BrowserContext): Promise<void> {
         },
       },
     });
-  });
+  }, { failedRegistrationAttempts });
 }
 
 async function registeredToolNames(page: Page): Promise<string[]> {
@@ -301,6 +310,28 @@ async function openMemoryRail(page: Page): Promise<void> {
   await memoryTab.click();
 }
 
+test("agent inbox reaches ready only after the complete catalog retries", async ({
+  browser,
+  baseURL,
+}) => {
+  if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
+  const context = await browser.newContext({ baseURL });
+  await installWebMCPHarness(context, 1);
+  const page = await context.newPage();
+  try {
+    await page.goto("/");
+    await expect(page.getByTestId("agent-inbox")).toContainText(
+      "Agent tools reconnecting",
+    );
+    await expect(page.getByTestId("agent-inbox")).toContainText("Agent tools ready", {
+      timeout: 5_000,
+    });
+    await expect.poll(() => registeredToolNames(page)).toEqual(DOCUMENT_TOOLS);
+  } finally {
+    await context.close();
+  }
+});
+
 for (const pointerViewport of [
   { name: "desktop", width: 1280, height: 720 },
   { name: "390px", width: 390, height: 844 },
@@ -325,10 +356,8 @@ for (const pointerViewport of [
     await expect(maya).toHaveURL(/\/document\/[A-Za-z0-9_-]+$/);
     expect(new URL(maya.url()).hash).toBe("");
     const mayaId = await selfMemberId(maya);
-    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
-    await expect(maya.getByTestId("page-capability-state")).toContainText(
-      /Page capability ·\s*Read-only tools/,
-    );
+    await expect.poll(() => registeredToolNames(maya)).toEqual(DOCUMENT_TOOLS);
+    await expect(maya.getByTestId("agent-inbox")).toContainText("Agent tools ready");
     await jordan.goto(maya.url());
     await expect(jordan.getByLabel(/other (person|people) here/)).toHaveAttribute(
       "aria-label",
@@ -360,6 +389,9 @@ for (const pointerViewport of [
       afterRevision: 1,
       timeoutSeconds: 20,
     });
+    await expect(maya.getByTestId("agent-inbox")).toContainText(
+      "Your paired agent is listening on this page",
+    );
 
     await openRewriteMenu(jordan);
     await expect(jordan.getByTestId("work-target-preview")).toContainText(HERO_SELECTION);
@@ -385,12 +417,9 @@ for (const pointerViewport of [
     });
     const workOrder = waited.workOrders?.[0];
     if (!workOrder) throw new Error("The assigned work did not resolve the pending wait.");
-    await expect.poll(() => registeredToolNames(maya)).toEqual([
-      ...PERMANENT_TOOLS,
-      "submit_work_proposal",
-    ]);
-    await expect(maya.getByTestId("page-capability-state")).toContainText(
-      /Page capability ·\s*Proposal tool available for .+’s paired agent/,
+    await expect.poll(() => registeredToolNames(maya)).toEqual(DOCUMENT_TOOLS);
+    await expect(maya.getByTestId("agent-inbox")).toContainText(
+      "Work waiting — ask your agent to check",
     );
 
     const memoryBeforeProposal = await invokeTool<MemoryResult>(
@@ -420,19 +449,21 @@ for (const pointerViewport of [
       event: { kind: "PROPOSAL_SUBMITTED", changeSummary: HERO_SUMMARY },
     });
     await expect(maya.getByLabel("Note body")).toHaveValue(HERO_BODY);
-    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
-    await expect(maya.getByTestId("page-capability-state")).toContainText(
-      /Page capability ·\s*Read-only tools/,
-    );
+    await expect.poll(() => registeredToolNames(maya)).toEqual(DOCUMENT_TOOLS);
+    await expect(maya.getByTestId("agent-inbox")).toContainText("Agent tools ready");
 
     const jordanCard = jordan.getByTestId("work-order-card");
     await expect(jordanCard).toContainText(HERO_REPLACEMENT, { timeout: 8_000 });
-    await expect(jordanCard).toContainText("Document unchanged");
+    await expect(jordanCard).toContainText("Asked");
+    await expect(jordanCard).toContainText("Proposed");
     await expect(jordan.getByLabel("Note body")).toHaveValue(HERO_BODY);
     await expect(maya.getByTestId("work-order-card").getByRole("button", { name: "Accept" }))
       .toHaveCount(0);
-    await expect(jordanCard.getByRole("button", { name: "Accept" })).toBeDisabled();
-    await jordanCard.getByLabel("Your rationale").fill(HERO_RATIONALE);
+    await expect(jordanCard.getByRole("button", { name: "Accept" })).toBeEnabled();
+    if (pointerViewport.name === "desktop") {
+      await jordanCard.getByText("Details", { exact: true }).click();
+      await jordanCard.getByLabel(/Decision note/).fill(HERO_RATIONALE);
+    }
     await expect(
       jordan.getByRole("status").filter({ hasText: "Work assigned" }),
     ).toBeVisible();
@@ -444,11 +475,15 @@ for (const pointerViewport of [
     await expect(jordan.getByLabel("Note body")).toHaveValue(FINAL_BODY);
     await expect(maya.getByLabel("Note body")).toHaveValue(FINAL_BODY, { timeout: 8_000 });
     await openMemoryRail(jordan);
-    await expect(jordan.getByTestId("memory-list")).toContainText(HERO_RATIONALE);
+    if (pointerViewport.name === "desktop") {
+      await expect(jordan.getByTestId("memory-list")).toContainText(HERO_RATIONALE);
+    }
     await openMemoryRail(maya);
-    await expect(maya.getByTestId("memory-list")).toContainText(HERO_RATIONALE, {
-      timeout: 8_000,
-    });
+    if (pointerViewport.name === "desktop") {
+      await expect(maya.getByTestId("memory-list")).toContainText(HERO_RATIONALE, {
+        timeout: 8_000,
+      });
+    }
     const accepted = await invokeTool<InspectResult>(maya, "inspect_document", {});
     expect(accepted).toMatchObject({
       ok: true,
@@ -457,7 +492,7 @@ for (const pointerViewport of [
 
     await maya.reload();
     expect(new URL(maya.url()).hash).toBe("");
-    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
+    await expect.poll(() => registeredToolNames(maya)).toEqual(DOCUMENT_TOOLS);
     const freshMemory = await invokeTool<MemoryResult>(maya, "read_document_memory", {
       limit: 20,
     });
@@ -478,12 +513,16 @@ for (const pointerViewport of [
     );
     expect(acceptedEvent).toMatchObject({
       activityVersion: 4,
-      rationale: HERO_RATIONALE,
+      rationale: pointerViewport.name === "desktop" ? HERO_RATIONALE : null,
       changeSummary: HERO_SUMMARY,
       diffs: [{ beforeExcerpt: HERO_SELECTION, afterExcerpt: HERO_REPLACEMENT }],
     });
     expect(FINAL_BODY).not.toContain("eight export days");
-    expect(acceptedEvent?.rationale).toContain("eight export days");
+    if (pointerViewport.name === "desktop") {
+      expect(acceptedEvent?.rationale).toContain("eight export days");
+    } else {
+      expect(acceptedEvent?.rationale).toBeNull();
+    }
     expect(await invokeTool<WorkResult>(maya, "list_my_work", {})).toMatchObject({
       ok: true,
       workOrders: [],
