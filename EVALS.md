@@ -72,6 +72,11 @@ Product document template, r1 digest, and required headings. Production launch/e
 builders must match the goldens byte-for-byte; tests must not derive expected values from
 production constants.
 
+`evals/goldens/repo-document-v4/postmortem-template.json` independently freezes the
+blank Incident postmortem template, r1 digest, required headings, and empty
+task/discussion state. It is separate from the populated `INC-482` hero golden, so the
+first-run template is not accidentally validated by its own production builder.
+
 ## 3. Layer D — domain, protocol, and persistence oracle
 
 All rows run without an LLM and pass 100%.
@@ -104,9 +109,10 @@ All rows run without an LLM and pass 100%.
 | D24 Retention and storage | Issue/session expiry is bounded to 30 days; expiry invalidates reads/mutations. Browser persistence contains credentials and pointers only; authoritative content is fetched before tool registration and secrets never enter results/logs. Credential-issuing response loss never requires recoverable plaintext storage. |
 | D25 Hero oracle | Public example accepts `{}`, opens as Priya, and equals completed r4/av10 after normalizing only IDs, credentials/paths, timestamps/expiry, and colors; graph relationships, event order, content/digests, names/labels, tasks/anchors, comments/replies, evidence, counters, diffs, and provenance remain exact. Protected reset similarly produces r1/av4 Open work and the checked four-path outcome; raw paths are never captured. |
 
-Property/fuzz tests cover Unicode anchors, bounds, authorization, replay, concurrency,
-pagination, and protocol isolation. Static SQL inspection does not replace local adapter
-parity or database security/performance advisors before remote apply.
+Deterministic boundary and adversarial matrices cover Unicode anchors, bounds,
+authorization, replay, concurrency, pagination, wait races, and protocol isolation.
+Static SQL inspection does not replace local adapter parity or database
+security/performance advisors before remote apply.
 
 ## 4. Layer B — ordinary browser and adapter evidence
 

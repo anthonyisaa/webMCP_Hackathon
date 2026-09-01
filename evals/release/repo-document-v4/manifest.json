@@ -1,0 +1,124 @@
+{
+  "contractVersion": "repo-document-v4",
+  "releaseStatus": "PENDING",
+  "releaseIdentity": {
+    "sourceCommitSha": null,
+    "publicRepositoryHeadSha": null,
+    "deployedSourceCommitSha": null,
+    "manifestSourceCommitSha": null,
+    "videoSourceCommitSha": null,
+    "submissionSourceCommitSha": null,
+    "deployedUrl": null,
+    "deploymentId": null,
+    "migrationIdentity": null,
+    "repositoryUrl": null,
+    "licenseSpdx": null,
+    "licenseUrl": null,
+    "videoUrl": null,
+    "submissionUrl": null,
+    "fixtureVersions": [
+      "repo-document-v4.postmortem.v1",
+      "repo-document-v4.product-document.v1"
+    ],
+    "recordedAtUtc": null,
+    "supportedNativeSurface": {
+      "client": null,
+      "clientVersion": null,
+      "browser": null,
+      "browserVersion": null
+    }
+  },
+  "domainEvidence": [
+    { "id": "D01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D05", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D06", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D07", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D08", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D09", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D10", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D11", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D12", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D13", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D14", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D15", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D16", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D17", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D18", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D19", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D20", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D21", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D22", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D23", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D24", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "D25", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "browserEvidence": [
+    { "id": "B01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B05", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B06", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B07", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B08", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B09", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B10", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B11", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B12", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B13", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B14", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B15", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "B16", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "nativeEvidence": [
+    { "id": "N01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N05", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N06", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N07", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N08", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N09", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "N10", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "agentEvidence": [
+    { "id": "A01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "A02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "A03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "A04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "A05", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "A06", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "ablation": {
+    "status": "PENDING",
+    "evidenceClass": "PENDING",
+    "sourceCommitSha": null,
+    "deployedUrl": null,
+    "deploymentId": null,
+    "capturedAtUtc": null,
+    "artifactRefs": []
+  },
+  "visualEvidence": [
+    { "id": "V01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "V02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "V03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "V04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "releaseEvidence": [
+    { "id": "R01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "R02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "R03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "R04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] },
+    { "id": "R05", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [] }
+  ],
+  "judges": [
+    { "id": "J01", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [], "criterion": "WebMCP Leverage", "phase": "FINAL", "score": null, "evaluatorId": null, "citations": [], "strongestGap": null, "mustFix": null },
+    { "id": "J02", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [], "criterion": "Execution", "phase": "FINAL", "score": null, "evaluatorId": null, "citations": [], "strongestGap": null, "mustFix": null },
+    { "id": "J03", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [], "criterion": "Potential Impact", "phase": "FINAL", "score": null, "evaluatorId": null, "citations": [], "strongestGap": null, "mustFix": null },
+    { "id": "J04", "status": "PENDING", "evidenceClass": "PENDING", "sourceCommitSha": null, "deployedUrl": null, "deploymentId": null, "capturedAtUtc": null, "artifactRefs": [], "criterion": "Creativity & Ambition", "phase": "FINAL", "score": null, "evaluatorId": null, "citations": [], "strongestGap": null, "mustFix": null }
+  ]
+}

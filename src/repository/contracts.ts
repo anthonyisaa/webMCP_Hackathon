@@ -405,6 +405,8 @@ export type IssueAnchor =
       anchorState: "ACTIVE" | "STALE";
     };
 
+export type IssueSelectionAnchor = Extract<IssueAnchor, { scope: "SELECTION" }>;
+
 export interface IssueComment {
   commentId: string;
   threadId: string;
@@ -419,6 +421,9 @@ export interface IssueComment {
 export interface IssueThread {
   threadId: string;
   taskId: string | null;
+  /** Immutable target captured when the thread was created. */
+  creationAnchor: IssueAnchor;
+  /** Current target after deterministic rebases. */
   anchor: IssueAnchor;
   status: IssueThreadStatus;
   createdBy: IssueMemberSnapshot;
@@ -433,6 +438,8 @@ export interface IssueTaskProposal {
   resultSummary: string;
   evidenceRefs: string[];
   sourceRevision: number;
+  /** Live target snapshot used when the proposal was submitted. */
+  liveAnchor: IssueSelectionAnchor;
   proposedBy: IssueAgentActorSnapshot;
   proposedAt: string;
 }
@@ -446,8 +453,7 @@ export interface IssueTaskDecision {
   resultRevision: number;
 }
 
-export interface IssueTaskResult {
-  outcome: "COMMENTED" | "COMMITTED";
+interface IssueTaskResultCore {
   resultSummary: string;
   evidenceRefs: string[];
   sourceRevision: number;
@@ -455,6 +461,19 @@ export interface IssueTaskResult {
   submittedBy: IssueAgentActorSnapshot;
   submittedAt: string;
 }
+
+export type IssueTaskResult = IssueTaskResultCore & (
+  | {
+      outcome: "COMMENTED";
+      liveAnchor: IssueAnchor;
+      replacementText: null;
+    }
+  | {
+      outcome: "COMMITTED";
+      liveAnchor: IssueSelectionAnchor;
+      replacementText: string;
+    }
+);
 
 interface IssueTaskCore {
   taskId: string;
@@ -470,10 +489,9 @@ interface IssueTaskCore {
   updatedAt: string;
 }
 
-type IssueSelectionAnchor = Extract<IssueAnchor, { scope: "SELECTION" }>;
 type IssueTaskOpenScope =
-  | { mode: "COMMENT"; anchor: IssueAnchor }
-  | { mode: "REVIEW" | "DIRECT"; anchor: IssueSelectionAnchor };
+  | { mode: "COMMENT"; creationAnchor: IssueAnchor; anchor: IssueAnchor }
+  | { mode: "REVIEW" | "DIRECT"; creationAnchor: IssueSelectionAnchor; anchor: IssueSelectionAnchor };
 
 export type IssueTask = IssueTaskCore &
   (
@@ -487,6 +505,7 @@ export type IssueTask = IssueTaskCore &
     | {
         mode: "REVIEW";
         status: "PROPOSED";
+        creationAnchor: IssueSelectionAnchor;
         anchor: IssueSelectionAnchor;
         proposal: IssueTaskProposal;
         result: null;
@@ -496,6 +515,7 @@ export type IssueTask = IssueTaskCore &
     | {
         mode: "COMMENT";
         status: "COMPLETED";
+        creationAnchor: IssueAnchor;
         anchor: IssueAnchor;
         proposal: null;
         result: IssueTaskResult & { outcome: "COMMENTED" };
@@ -505,6 +525,7 @@ export type IssueTask = IssueTaskCore &
     | {
         mode: "DIRECT";
         status: "COMPLETED";
+        creationAnchor: IssueSelectionAnchor;
         anchor: IssueSelectionAnchor;
         proposal: null;
         result: IssueTaskResult & { outcome: "COMMITTED" };
@@ -514,6 +535,7 @@ export type IssueTask = IssueTaskCore &
     | {
         mode: "REVIEW";
         status: "COMPLETED";
+        creationAnchor: IssueSelectionAnchor;
         anchor: IssueSelectionAnchor;
         proposal: IssueTaskProposal;
         result: null;
@@ -523,6 +545,7 @@ export type IssueTask = IssueTaskCore &
     | {
         mode: "REVIEW";
         status: "REJECTED";
+        creationAnchor: IssueSelectionAnchor;
         anchor: IssueSelectionAnchor;
         proposal: IssueTaskProposal;
         result: null;
@@ -539,16 +562,19 @@ export type IssueTask = IssueTaskCore &
     | (
         | {
             mode: "COMMENT";
+            creationAnchor: IssueSelectionAnchor;
             anchor: IssueSelectionAnchor;
             proposal: null;
           }
         | {
             mode: "DIRECT";
+            creationAnchor: IssueSelectionAnchor;
             anchor: IssueSelectionAnchor;
             proposal: null;
           }
         | {
             mode: "REVIEW";
+            creationAnchor: IssueSelectionAnchor;
             anchor: IssueSelectionAnchor;
             proposal: IssueTaskProposal | null;
           }

@@ -1,0 +1,92 @@
+{
+  "fixtureVersion": "repo-document-v4.postmortem-template.v1",
+  "protocolVersion": 4,
+  "scenarioId": "POSTMORTEM_TEMPLATE_SMOKE",
+  "document": {
+    "id": "00000000-0000-4000-8000-000000000601",
+    "protocolVersion": 4,
+    "kind": "POSTMORTEM",
+    "title": "Untitled incident postmortem",
+    "body": "## Summary\n\nDescribe what happened, when it started, and when service recovered.\n\n## Impact\n\nQuantify affected customers, failed operations, and data integrity.\n\n## Timeline\n\nList key events in UTC.\n\n## Root cause\n\nDistinguish the triggering event from the system condition that amplified it.\n\n## Detection and response\n\nExplain how the incident was detected and how responders acted.\n\n## Contributing factors\n\nList the conditions that increased likelihood or impact.\n\n## Corrective actions\n\n- [ ] Assign an owner and target date.\n\n## Learnings\n\nRecord what should change in how the team designs, operates, or responds.",
+    "revision": 1,
+    "activityVersion": 1,
+    "updatedAt": "2026-08-18T11:00:00.000Z",
+    "lastRevision": {
+      "revisionId": "00000000-0000-4000-8000-000000000651",
+      "author": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000611",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "authority": "HUMAN",
+      "summary": "Launch incident postmortem."
+    }
+  },
+  "members": [
+    {
+      "memberId": "00000000-0000-4000-8000-000000000611",
+      "displayName": "Priya Shah"
+    }
+  ],
+  "tasks": [],
+  "threads": [],
+  "revision": {
+    "revisionId": "00000000-0000-4000-8000-000000000651",
+    "revision": 1,
+    "parentRevision": null,
+    "title": "Untitled incident postmortem",
+    "body": "## Summary\n\nDescribe what happened, when it started, and when service recovered.\n\n## Impact\n\nQuantify affected customers, failed operations, and data integrity.\n\n## Timeline\n\nList key events in UTC.\n\n## Root cause\n\nDistinguish the triggering event from the system condition that amplified it.\n\n## Detection and response\n\nExplain how the incident was detected and how responders acted.\n\n## Contributing factors\n\nList the conditions that increased likelihood or impact.\n\n## Corrective actions\n\n- [ ] Assign an owner and target date.\n\n## Learnings\n\nRecord what should change in how the team designs, operates, or responds.",
+    "contentDigest": "sha256:48c5409e8c80fa3268843ea97d3f08108affc0268f8f6f9bcf525cb7d11f7ba2",
+    "diffs": [
+      {
+        "field": "TITLE",
+        "rangeStart": 0,
+        "rangeEnd": 0,
+        "before": "",
+        "after": "Untitled incident postmortem"
+      },
+      {
+        "field": "BODY",
+        "rangeStart": 0,
+        "rangeEnd": 0,
+        "before": "",
+        "after": "## Summary\n\nDescribe what happened, when it started, and when service recovered.\n\n## Impact\n\nQuantify affected customers, failed operations, and data integrity.\n\n## Timeline\n\nList key events in UTC.\n\n## Root cause\n\nDistinguish the triggering event from the system condition that amplified it.\n\n## Detection and response\n\nExplain how the incident was detected and how responders acted.\n\n## Contributing factors\n\nList the conditions that increased likelihood or impact.\n\n## Corrective actions\n\n- [ ] Assign an owner and target date.\n\n## Learnings\n\nRecord what should change in how the team designs, operates, or responds."
+      }
+    ],
+    "provenance": {
+      "authority": "HUMAN",
+      "origin": "ORDINARY_UI",
+      "authorOrigin": "ORDINARY_UI",
+      "taskId": null,
+      "sourceRevision": 0,
+      "author": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000611",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "committer": {
+        "actorType": "HUMAN",
+        "displayName": "Priya Shah",
+        "member": {
+          "memberId": "00000000-0000-4000-8000-000000000611",
+          "displayName": "Priya Shah"
+        },
+        "agentLabel": null
+      },
+      "grantedBy": null,
+      "approvedBy": null,
+      "restoredRevision": null
+    },
+    "changeSummary": "Launch incident postmortem.",
+    "evidenceRefs": [],
+    "createdAt": "2026-08-18T11:00:00.000Z"
+  }
+}

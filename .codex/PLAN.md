@@ -1,5 +1,5 @@
 # Plan — Versioned issue documents for people and their own agents
-_Updated: 2026-09-01T22:52:00+08:00_
+_Updated: 2026-09-02T01:51:28+08:00_
 
 ## Goal and ambition mode
 
@@ -73,7 +73,7 @@ The contract freezes these non-negotiable decisions:
   checkpoint commit, records its SHA in the handoff, and never stages user-owned media,
   `.gitignore`, or unrelated changes.
 
-### S1 — reference domain, revisions, tasks, and comments — pending
+### S1 — reference domain, revisions, tasks, and comments — completed
 - Owner / isolation: one implementation worker; exclusive new v4 domain paths only.
 - Scope and key files: `src/domain/repository-service.ts`, its tests, and v4 surface
   reconciliation/range helpers under `src/repository/`, including the production public
@@ -85,7 +85,7 @@ The contract freezes these non-negotiable decisions:
   human, direct-agent, reviewed-agent, and restore revisions; comments/replies; task
   authority attacks; two disjoint r1 results land; overlap fails; exact final r4 hero.
 
-### S2 — additive Supabase persistence and strict adapter — pending
+### S2 — additive Supabase persistence and strict adapter — completed locally; remote apply pending
 - Owner / isolation: one implementation worker; exclusive migration/adapter paths only.
 - Scope and key files: one CLI-generated additive migration,
   `src/domain/supabase/repository-supabase-service.ts`, and focused migration/adapter
@@ -101,7 +101,7 @@ The contract freezes these non-negotiable decisions:
   replay ledger, and indexed history/task/comment access. Run database advisors before
   any remote apply; remote mutation remains a release action, not inferred here.
 
-### S3 — v4 API and page-native agent surface — pending
+### S3 — v4 API and page-native agent surface — completed locally
 - Owner / isolation: one implementation worker; exclusive v4 transport/WebMCP paths.
 - Scope and key files: `src/app/api/repository-v4/**`,
   `src/components/repository/repository-http-service.ts`,
@@ -117,7 +117,7 @@ The contract freezes these non-negotiable decisions:
   navigation/session teardown removes tools/listeners/timers; review tasks cannot direct
   commit and direct tasks cannot escape their stored range.
 
-### S4 — postmortem/product-document workspace UI — pending
+### S4 — postmortem/product-document workspace UI — completed locally
 - Owner / isolation: one UI worker after C0; exclusive component/test paths, developing
   against the frozen
   `RepositoryBrowserClientPort` and a deterministic fake.
@@ -134,7 +134,7 @@ The contract freezes these non-negotiable decisions:
   restore; resolved-task discovery; WebMCP-off usability; keyboard path and 390px no
   overflow with 44px controls.
 
-### I1 — serialized runtime, page, config, and parity integration — pending
+### I1 — serialized runtime, page, config, and parity integration — completed
 - Owner / isolation: coordinator only, serialized after S1-S4 outputs are reviewable.
 - Scope and key files: `src/domain/repository-runtime.ts`, `src/app/page.tsx`,
   `src/app/issue/[shareToken]/page.tsx`, route/runtime seams, any new barrels,
@@ -146,7 +146,7 @@ The contract freezes these non-negotiable decisions:
   and hero oracle as well as retained v3 compatibility; package scripts expose v4 agent
   and release gates. Integration fixes return to the owning stream where possible.
 
-### S5 — deterministic example, evaluation, and release story — pending
+### S5 — deterministic example, evaluation, and release story — active; local gates complete
 - Owner / isolation: coordinating task after I1 integration.
 - Scope and key files: v4 reset harness, `e2e/`, `evals/`, `README.md`, sanitized
   native/browser captures, `demo/shot-script-v4.md`, narration/captions, rendered
@@ -163,7 +163,7 @@ The contract freezes these non-negotiable decisions:
   evidence. Deployment, repository visibility, YouTube upload, and Devpost submission
   require their own release authority/observation.
 
-### S6 — adversarial visual and competition judging — pending
+### S6 — adversarial visual and competition judging — active; official visual review unavailable
 - Owner / isolation: fresh read-only design judge plus four fresh criterion judges.
 - Scope: running release candidate, exact evidence, submission copy, and <3 minute cut.
 - Must not touch: source during scoring. Evidence-backed corrections return to the owning

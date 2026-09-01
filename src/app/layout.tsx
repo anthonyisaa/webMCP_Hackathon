@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ratiflow · Shared notes for people and agents",
-  description: "A clean shared document where people guide and agents help with the work.",
+  title: "Ratiflow · Git-grade documents for people and agents",
+  description:
+    "Collaborate on postmortems and product documents with anchored tasks, governed agent changes, and reconstructable revision history.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

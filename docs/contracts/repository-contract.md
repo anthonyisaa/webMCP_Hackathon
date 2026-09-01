@@ -98,6 +98,13 @@ end-exclusive code-point offsets, exact selected text, creation revision, curren
 revision, and `ACTIVE | STALE` state. Document anchors contain no field, offsets, or
 selected text and are always active.
 
+Every task and thread exposes two anchor records. `creationAnchor` is an immutable copy
+of the exact target at creation and is never rebased or replaced. `anchor` is the live
+target and is the only record updated by deterministic rebases, staleness, restore, or a
+task's own committed replacement. Direct results and Review proposals also snapshot the
+pre-apply live Selection anchor used for that submission, so provenance never has to be
+reconstructed from a later mutable anchor.
+
 Review and Direct tasks require a non-empty Selection anchor. Comment tasks and
 standalone discussion may use Document or Selection.
 
@@ -191,6 +198,13 @@ input returns the original result without new counters; changed canonical input 
 `REQUEST_REPLAY_MISMATCH`. A browser client creates one request ID per logical mutation
 and reuses it only for transport retries of that same call. A separately invoked comment
 is a new logical append even when its model-visible arguments are identical.
+
+For mutations that name a task, the server validates only enough UUID shape to locate
+the target, proves creator/assignee authority, and only then consults the document replay
+ledger or validates the remaining payload. An unauthorized or missing target always
+returns nondisclosing `UNAUTHORIZED`, cannot reveal a cached result/mismatch, and is
+never recorded; therefore an attacker cannot reserve a request ID ahead of its owner.
+Authorized terminal successes and failures remain replayable.
 
 Cancellation is definitive only before dispatch or before the server transaction begins.
 After a remote write is dispatched, the client may observe `AbortError` even though the
@@ -337,7 +351,10 @@ The exact v4 route namespace is:
 - `POST /api/repository-v4/eval/reset` in preview/eval only
 
 Human routes require human bearer except launch/join/example. Agent routes require agent
-bearer and page-session header. Credential-issuing launch, example, join, and protected
+bearer and a valid per-page UUID header. The page UUID is distinct from the credential's
+session-instance UUID: the server uses it to scope concurrent waits, while the registered
+callback compares both captured identities to reject stale navigation. Credential-issuing
+launch, example, join, and protected
 reset accept no idempotency key. Every other mutation, including presence, requires a
 UUID `Idempotency-Key` header. Public bodies use the exact `*HttpInput` or model-visible
 `*ToolInput` shapes in `src/repository/contracts.ts`, reject unknown properties, and never

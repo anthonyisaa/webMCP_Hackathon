@@ -1,5 +1,5 @@
-import { DocumentWorkspaceEditor } from "@/components/document/document-workspace-editor";
+import { RepositoryApp } from "@/components/repository/RepositoryApp";
 
 export default function Home() {
-  return <DocumentWorkspaceEditor launchOnMount />;
+  return <RepositoryApp />;
 }

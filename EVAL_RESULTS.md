@@ -1,9 +1,55 @@
 # Ratiflow evaluation results
 
-Status ledger for the deployed v3 Northstar document runtime. This ledger separates
-local implementation evidence from release evidence. A local test, injected
-`modelContext`, compatibility result, or older production capture never counts as a
-native v3 release pass.
+This ledger separates the v4 local candidate from release evidence. A local test,
+injected `modelContext`, localhost supported-client observation, compatibility result,
+or older production capture never counts as deployed native v4 proof.
+
+## v4 local candidate — versioned issue documents
+
+Observed on 2026-09-02 SGT. The source-complete local checkpoint is the current commit
+after the v4 checkpoint is created; no release SHA is selected or asserted here.
+
+| Field | Current state |
+|---|---|
+| Flagship | Versioned Incident postmortem / Product document workspace with Comment, Review, and Direct task authority |
+| Local source checkpoint | **LOCAL CANDIDATE** — use the current local commit; it is not yet a release identity |
+| Deployed v4 HTTPS URL / exact SHA | **PENDING** — the public URL still serves dated v3 compatibility code |
+| Remote v4 data plane | **PENDING** — additive migration and adapter pass static/local checks; no v4 remote apply or database advisors observed |
+| Supported-client v4 observation | **LOCAL DIAGNOSTIC ONLY** — localhost discovery/read/teardown observed; no deployed native write or authority matrix |
+| Public v4 source repository | **PENDING** |
+| Public narrated v4 video | **PENDING** |
+| Devpost submission | **PENDING** |
+
+## v4 evidence ledger
+
+| Layer | Command / scope | Result | Evidence class | What it establishes |
+|---|---|---|---|---|
+| Fast gate | `.codex/verify.sh` | **PASS: 401/401 Vitest tests across 55 files**, plus TypeScript, ESLint, and v3/v4 protected-reset checks | `AUTOMATED` | The checked local candidate satisfies its deterministic domain, protocol, storage, adapter, route, lifecycle, hero, validator, and compatibility oracles |
+| Production build | `pnpm build` (Next.js webpack path) | **PASS** | `AUTOMATED` | The v4 candidate produces a production build |
+| Ordinary-browser journeys | `RATIFLOW_BASE_URL=<local> pnpm eval:browser:v4` | **PASS: 10/10** | `AUTOMATED` / `ADAPTER_CAPTURED` where agent endpoints are driven | Both exact templates; explicit `/new` versus resume; completed hero; Comment, Review, Direct, history, restore, human save/reload; a named second-human clean-link join with live sync and draft conflict preservation; and 390px reachability, focus containment, Escape restoration, and overflow |
+| Five-run rehearsal | `RATIFLOW_BASE_URL=<local> pnpm eval:rehearse:v4` | **PASS: 50/50** | `ADAPTER_CAPTURED` | The same ten deterministic journeys completed five consecutive times without repair; this is not native WebMCP proof |
+| Domain / hero oracle | v4 service, adversarial, limits, counters, continuity, template-golden, history, wait, range, and reconciliation suites | **PASS** | `AUTOMATED` | Immutable snapshots/digests, provenance, range-scoped authority, replay, atomic counters, stale-base rebase/conflict, bounded discussion/history, and completed r4/av10 behavior are deterministic |
+| Supabase implementation | Additive migration plus strict adapter/migration tests | **LOCAL STATIC PASS; REMOTE PENDING** | `AUTOMATED` | The checked SQL/RPC namespace, grants/RLS/search paths/locks/indexes and adapter shapes pass static checks; this does not replace a remote apply, parity run, or advisors |
+| Local supported-client diagnostic | Codex in-app Browser on localhost | **OBSERVED, INELIGIBLE FOR N01–N10** | local diagnostic only | Exactly six v4 tools were discovered; `inspect_document`, `read_document_history`, and `list_my_tasks` returned structured r4/av10-scoped results; navigation to `/new` removed all six and a stale handle rejected |
+| Deployed native WebMCP | N01–N10 on one exact deployed v4 SHA | **PENDING** | `PENDING` | No eligible native Direct, Review, Comment, wait, authority-attack, fresh-agent, or teardown matrix exists |
+| v4 agent ledger | `pnpm eval:agent:v4` | **PENDING, fail-closed: 0/30 eligible runs** | `AUTOMATED` validator; trajectories `PENDING` | The schema-valid empty ledger exits nonzero until all six scenarios have five eligible native runs and satisfy their accuracy/safety bars |
+| WebMCP ablation | Native v4 versus WebMCP-disabled, matched five-seed runs | **PENDING** | `PENDING` | No eligible native ablation exists |
+| Independent visual review | Configured `design-judge` | **UNAVAILABLE** | `PENDING` | The required role was unavailable on repeated spawn attempts; local driven screenshots and criterion review are not substituted for V01–V04 |
+| Adversarial criterion review | Four fresh read-only local judges | **LOCAL REVIEW COMPLETE; release score withheld** | local diagnostic only | Judges identified clickable lineage, named clean-link identity, mobile focus containment, and a v4-first evidence ledger as the concrete local must-fixes; each was implemented and driven locally |
+| v4 release manifest | `pnpm eval:release:v4` | **PENDING, fail-closed; schema valid** | `AUTOMATED` validator; release `PENDING` | Empty release identity and all unobserved domain/browser/native/agent/ablation/visual/release/judge rows correctly prevent a release pass |
+| Public package and submission | Deployment, public repository/license, public YouTube video, Devpost | **PENDING** | `PENDING` | These are separate external actions requiring authorization and exact-SHA observation |
+
+The localhost supported-client diagnostic demonstrates that the page-native catalog is
+technically discoverable, but it receives zero deployed-native release credit. The v4
+candidate remains **not release-ready** until remote persistence, exact-SHA deployment,
+N01–N10, trajectories, ablation, visual review, public package, video, and submission
+are observed and bound in the manifest.
+
+## v3 compatibility evidence — deployed, not v4 proof
+
+The sections below preserve the prior Northstar evidence. They cannot prove v4
+templates, Direct authority, discussions, immutable full snapshots, or the six-tool
+catalog.
 
 ## v3 release identity
 

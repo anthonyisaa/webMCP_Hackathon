@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "A calm shared document where people assign revision-bound work to paired WebMCP agents and preserve decision memory.",
+  "description": "A versioned issue document where people and their own WebMCP agents collaborate through scoped tasks, discussions, and reviewable provenance.",
   "license": "MIT",
   "packageManager": "pnpm@11.1.1",
   "scripts": {
@@ -15,10 +15,16 @@
     "test": "vitest run",
     "eval:protocol": "vitest run",
     "eval:native:smoke": "playwright test e2e/native.spec.ts",
+    "eval:native:v4": "playwright test e2e/native-repository-v4.spec.ts",
     "eval:reset:v3": "node scripts/reset-document-hero-v3.mjs",
+    "eval:reset:v4": "node scripts/reset-repository-hero-v4.mjs",
     "eval:agent:v3": "node evals/agent/validate.ts",
+    "eval:agent:v4": "node evals/agent/repo-document-v4/validate.ts",
+    "eval:browser:v4": "playwright test e2e/repository-v4.spec.ts",
+    "eval:rehearse:v4": "playwright test e2e/repository-v4.spec.ts --repeat-each=5 --workers=1 --reporter=line",
     "eval:rehearse:adapter": "playwright test e2e/document-rehearsal.spec.ts --repeat-each=5 --workers=1 --reporter=line",
-    "eval:release:v3": "node evals/release/validate.ts"
+    "eval:release:v3": "node evals/release/validate.ts",
+    "eval:release:v4": "node evals/release/repo-document-v4/validate.ts"
   },
   "dependencies": {
     "next": "^16.3.3",
