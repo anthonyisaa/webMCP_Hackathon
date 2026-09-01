@@ -479,7 +479,7 @@ begin
     if not ratiflow_document_private.text_v4(v_entry, 240, false) then return false; end if;
   end loop;
   return true;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.error_v4(
@@ -568,7 +568,7 @@ begin
     );
   end if;
   return ratiflow_document_private.unauthorized_v4();
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.member_json_v4(
@@ -986,7 +986,7 @@ begin
     'before', substring(p_before from v_prefix + 1 for v_end - v_prefix),
     'after', substring(p_after from v_prefix + 1 for v_after_length_splice)
   );
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.request_fingerprint_v4(
@@ -1040,7 +1040,7 @@ begin
     );
   end if;
   return v_entry.result;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.record_v4(
@@ -1068,7 +1068,7 @@ begin
     p_result
   );
   return p_result;
-end
+end;
 $$;
 
 -- Public wrappers pass every authenticated, authorized mutation result through this helper.
@@ -1114,7 +1114,7 @@ begin
     p_result
   ) on conflict (document_id, request_id) do nothing;
   return p_result;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.stale_document_v4(
@@ -1166,7 +1166,7 @@ begin
     set request_count = ratiflow_document_private.rate_windows.request_count + 1
   returning request_count into v_count;
   return v_count <= p_limit;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.rebase_selection_v4(
@@ -1236,7 +1236,7 @@ begin
   end if;
   return jsonb_build_object('start', v_start, 'end', v_end, 'text', p_selected,
     'revision', p_next_revision, 'state', 'ACTIVE');
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.rebase_anchors_v4(
@@ -1363,7 +1363,7 @@ begin
       where task.task_id = p_own_task_id and t.task_id = task.task_id;
     end if;
   end if;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.bump_activity_v4(
@@ -1401,7 +1401,7 @@ begin
     p_thread_id, p_comment_id, p_at
   );
   return v_activity;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.append_revision_v4(
@@ -1529,7 +1529,7 @@ begin
     v_origin, v_revision, v_revision_id, p_task_id, p_at
   );
   return ratiflow_document_private.revision_json_v4(p_document_id, v_revision, true);
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.issue_tokens_v4(
@@ -1555,7 +1555,7 @@ begin
   return jsonb_build_object(
     'humanToken', v_human, 'agentToken', v_agent, 'sessionInstanceId', v_session
   );
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.bootstrap_path_v4(
@@ -1990,7 +1990,7 @@ List unresolved questions and their owners.$product$;
     'nadiaTokens', v_nadia_tokens, 'leoMemberId', v_leo,
     'leoTokens', v_leo_tokens, 'samMemberId', v_sam, 'samTokens', v_sam_tokens
   );
-end
+end;
 $$;
 
 create or replace function public.ratiflow_launch_issue_v4(
@@ -2038,7 +2038,7 @@ begin
       (v_seed->>'expiresAt')::timestamptz
     )
   );
-end
+end;
 $$;
 
 create or replace function public.ratiflow_join_issue_v4(
@@ -2090,7 +2090,7 @@ begin
       (v_tokens->>'sessionInstanceId')::uuid, v_member_id, v_document.expires_at
     )
   );
-end
+end;
 $$;
 
 create or replace function public.ratiflow_inspect_issue_v4(p_handle text)
@@ -2105,7 +2105,7 @@ begin
   if not found then return ratiflow_document_private.auth_failure_v4(p_handle); end if;
   return jsonb_build_object('ok', true, 'data',
     ratiflow_document_private.surface_v4(v_session.document_id));
-end
+end;
 $$;
 
 create or replace function public.ratiflow_read_issue_history_v4(
@@ -2153,7 +2153,7 @@ begin
     'currentRevision', v_document.revision,
     'currentActivityVersion', v_document.activity_version
   ));
-end
+end;
 $$;
 
 create or replace function public.ratiflow_read_issue_revision_v4(
@@ -2179,7 +2179,7 @@ begin
   v_result := ratiflow_document_private.revision_json_v4(v_session.document_id, v_revision, true);
   if v_result is null then return ratiflow_document_private.error_v4('NOT_FOUND', 'The revision was not found.', false); end if;
   return jsonb_build_object('ok', true, 'data', v_result);
-end
+end;
 $$;
 
 create or replace function public.ratiflow_list_my_issue_tasks_v4(
@@ -2223,7 +2223,7 @@ begin
     'tasks', v_tasks, 'revision', v_document.revision,
     'activityVersion', v_document.activity_version
   ));
-end
+end;
 $$;
 
 create or replace function public.ratiflow_reset_postmortem_hero_v4()
@@ -2283,7 +2283,7 @@ begin
     'samBootstrapPath', ratiflow_document_private.bootstrap_path_v4(v_share, v_sam_bundle),
     'expiresAt', v_expiry, 'revision', 1, 'activityVersion', 4
   ));
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.anchor_from_input_v4(
@@ -2324,7 +2324,7 @@ begin
     'SELECTION', p_input->>'field', v_start, v_end,
     substring(v_value from v_start::integer + 1 for (v_end - v_start)::integer),
     v_document.revision, v_document.revision, 'ACTIVE');
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.evidence_array_v4(p_value jsonb)
@@ -2774,7 +2774,7 @@ begin
   return ratiflow_document_private.record_v4(
     v_document.id, v_request_id, p_operation, v_session.member_id,
     'HUMAN', p_input, v_result);
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.agent_mutation_v4(
@@ -3036,7 +3036,7 @@ begin
   return ratiflow_document_private.record_v4(
     v_document.id, v_request_id, p_operation, v_session.member_id,
     'AGENT', p_input, v_result);
-end
+end;
 $$;
 
 create or replace function public.ratiflow_save_issue_revision_v4(p_handle text, p_input jsonb)
@@ -3137,7 +3137,7 @@ set search_path = pg_catalog, ratiflow_document_private, extensions
 as $$
 begin
   raise exception 'issue revisions are immutable' using errcode = '23514';
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.immutable_comment_v4()
@@ -3148,7 +3148,7 @@ set search_path = pg_catalog, ratiflow_document_private, extensions
 as $$
 begin
   raise exception 'issue comments are append-only' using errcode = '23514';
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.immutable_activity_v4()
@@ -3159,7 +3159,7 @@ set search_path = pg_catalog, ratiflow_document_private, extensions
 as $$
 begin
   raise exception 'issue activity is immutable' using errcode = '23514';
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.immutable_task_identity_v4()
@@ -3194,7 +3194,7 @@ begin
     raise exception 'issue task authority and identity are immutable' using errcode = '23514';
   end if;
   return new;
-end
+end;
 $$;
 
 create or replace function ratiflow_document_private.immutable_thread_identity_v4()
@@ -3215,7 +3215,7 @@ begin
     raise exception 'issue thread identity is immutable' using errcode = '23514';
   end if;
   return new;
-end
+end;
 $$;
 
 create trigger ratiflow_issue_revisions_immutable_v4

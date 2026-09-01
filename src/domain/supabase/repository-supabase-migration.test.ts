@@ -74,6 +74,18 @@ describe("repository-v4 additive migration", () => {
     }
   });
 
+  it("terminates every PL/pgSQL body with a complete END statement", () => {
+    const declarations = migration.match(/language plpgsql/g) ?? [];
+    const bodies = [...migration.matchAll(
+      /language plpgsql[\s\S]*?as \$\$([\s\S]*?)\n\$\$;/g,
+    )];
+
+    expect(bodies).toHaveLength(declarations.length);
+    for (const [, body] of bodies) {
+      expect(body?.trimEnd()).toMatch(/end;$/);
+    }
+  });
+
   it("stores only credential digests and makes issuance deliberately non-replayable", () => {
     expect(migration).toContain("extensions.digest(v_share_token, 'sha256')");
     expect(migration).toContain("extensions.digest(v_human, 'sha256')");
