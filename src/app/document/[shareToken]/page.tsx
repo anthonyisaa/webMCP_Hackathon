@@ -1,4 +1,4 @@
-import { DocumentEditor } from "@/components/document/document-editor";
+import { DocumentWorkspaceEditor } from "@/components/document/document-workspace-editor";
 
 interface SharedDocumentPageProps {
   params: Promise<{ shareToken: string }>;
@@ -6,5 +6,5 @@ interface SharedDocumentPageProps {
 
 export default async function SharedDocumentPage({ params }: SharedDocumentPageProps) {
   const { shareToken } = await params;
-  return <DocumentEditor shareToken={shareToken} />;
+  return <DocumentWorkspaceEditor shareToken={shareToken} />;
 }

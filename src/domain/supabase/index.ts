@@ -16,3 +16,11 @@ export {
   normalizeDocumentSurfaceResult,
   type SupabaseDocumentServiceOptions,
 } from "./document-supabase-service";
+
+export {
+  RATIFLOW_SUPABASE_SERVICE_ROLE_KEY_ENV,
+  SupabaseDocumentWorkspaceService,
+  isDocumentWorkspaceSurface,
+  normalizeDocumentV3Result,
+  type SupabaseDocumentWorkspaceServiceOptions,
+} from "./document-workspace-supabase-service";

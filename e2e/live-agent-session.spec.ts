@@ -137,7 +137,7 @@ test.describe("live human-agent loop", () => {
   }) => {
     test.setTimeout(60_000);
     await installWebMCPHarness(page);
-    await page.goto("/");
+    await page.goto("/decision-demo");
     await page
       .getByRole("button", { name: "Launch deterministic workspace" })
       .click();
@@ -359,7 +359,7 @@ test.describe("live human-agent loop", () => {
   }) => {
     test.setTimeout(30_000);
     await installWebMCPHarness(page);
-    await page.goto("/");
+    await page.goto("/decision-demo");
     await page
       .getByRole("button", { name: "Launch deterministic workspace" })
       .click();
@@ -425,7 +425,7 @@ test.describe("live human-agent loop", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
+    await page.goto("/decision-demo");
     await page
       .getByRole("button", { name: "Launch deterministic workspace" })
       .click();

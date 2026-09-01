@@ -1,111 +1,141 @@
-# Demo and submission ledger
+# Ratiflow submission ledger
 
-This folder is the source of truth for recording and submission evidence. Check a box
-only after the live behavior or public artifact has actually been observed. The
-flagship judging flow is the live decision room at `/`; `/decision-demo` is an alias,
-and the pageless shared note is preserved separately at `/document`.
+This folder tracks the v3 recording and release evidence. Check an item only after the
+exact build has produced the named artifact. The flagship is the shared document; the
+preserved `/decision-demo` route is compatibility context, not v3 proof.
 
 ## Canonical demo promise
 
-A supported browser agent can join the Northstar decision room as **Ratiflow Agent**,
-catch up from an opaque activity cursor, wait for addressed work, atomically claim one
-task, comment under its own identity, ask a person a blocking question, resume after
-the answer, resolve the task, and leave. The person sees the same authoritative inbox,
-questions, comments, activity, and presence throughout.
+**People direct. Agents propose. Decisions remember.**
 
-The page does not pretend that adding a task starts or wakes an external model. A real
-agent turn must discover the page and call `join_session` or `catch_up`. The optional
-in-page runner is visibly unavailable until model authorization, spend controls, and
-the native execution loop pass their release gate. Only Maya can ratify through the
-ordinary UI; no WebMCP tool can ratify, commit, or finalize the decision.
+Two people share one clean decision memo, with one paired agent per person. Maya's agent
+is already active on the page: it inspects the memo and waits through WebMCP. Jordan
+selects the October 15 recommendation, uses the pointer-origin right-click **Rewrite**
+action, and assigns the exact range and instruction to Maya.
 
-## Recording script
+The assignment resolves the pending wait. Maya's agent reads document Memory, lists
+only its own assigned work, and submits the frozen beta/GA proposal. The memo remains
+unchanged until Jordan—the work creator—accepts it in the ordinary UI with rationale.
+Acceptance changes both human sessions atomically and records the diff, proposer,
+accepter, and reason. A fresh agent then recovers the rejected eight-export-day fact
+from Memory even though that fact is absent from the final memo.
 
-Use the [2:40 narrated shot script](shot-script.md). Start with a reset workspace and a
-fresh supported WebMCP page so the initial two-tool surface is visible. The complete
-task/question loop is the main story; stale decision recovery is a short correctness
-proof, not a substitute for the teammate loop.
+The demo's native tool lifecycle is exact:
 
-## Required video evidence
+1. `inspect_document`
+2. `wait_for_my_work`
+3. `read_document_memory`
+4. `list_my_work`
+5. conditional `submit_work_proposal`
 
-- [ ] A fresh page advertises exactly `join_session` and `catch_up`.
-- [ ] Native `join_session` makes Ratiflow Agent visibly `LIVE` and expands the
-  coordination plus current decision tools.
-- [ ] A person selects Northstar beta, adds a bounded task, and the UI explicitly says
-  this records work but does not wake or start an external model.
-- [ ] `wait_for_activity` returns the accepted human task and `claim_agent_task`
-  produces one fenced claim.
-- [ ] A duplicate or stale claim cannot create a second active generation or duplicate
-  visible work.
-- [ ] `post_comment` produces an attributed comment that appears in the ordinary UI.
-- [ ] `request_human_input` releases the claim and moves the task to
-  `WAITING_HUMAN`.
-- [ ] A person answers in the ordinary UI; `catch_up` returns the answer and reopened
-  task; the agent takes a fresh claim and resolves it.
-- [ ] Maya ratifies only in the ordinary UI; native discovery never contains a
-  ratify/finalize/commit tool.
-- [ ] `leave_session` moves presence to `AWAY` and collapses discovery to the two
-  fresh-session tools without deleting collaboration history.
-- [ ] Narration is clear, the public video is below 3:00, and playback works without
-  sign-in.
+The page initially exposes the first four definitions. The proposal tool appears only
+for Maya's paired agent while it owns pending work and disappears after the queue
+drains. No WebMCP tool can assign, directly edit, accept, reject, cancel, or choose an
+actor, assignee, or text range.
 
-## Submission gates
+## Recording contract
 
-- [x] Production deployment `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at
-  [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/).
-- [x] Live-session persistence and the three production repair migrations are applied
-  to Supabase project `klhedesewgixoeslxiti`; advisors were reviewed.
-- [x] The hosted browser suite passed 19/19 scenarios, including the complete
-  task/question loop and the stale equal-revision response regression.
-- [x] A supported native client discovered the exact fresh catalog; caught up; joined;
-  woke on an ordinary-UI task; claimed without a model-visible `claimId`; resolved via
-  the retained private claim; left; and saw catalog expansion and collapse.
-- [x] Post-traffic production logs showed no runtime error cluster or 5xx response.
-- [ ] A fresh independent visual grade passes. The configured read-only
-  `design-judge` role was unavailable; mobile and accessibility tests are not
-  relabeled as a design verdict.
-- [ ] The public GitHub repository is reachable without sign-in and contains the
-  intended release source.
-- [ ] A public narrated video below three minutes plays without authentication.
-  Record its URL here: `PENDING — record and upload`.
+Use the [2:40 shot script](shot-script.md). The first native tool invocation must be
+visible by 0:45; the final render must be no longer than 2:40. Use the deterministic
+synthetic Northstar fixture and two genuinely isolated human sessions. A supported
+native client must operate only through page tools after a human opens the authorized
+top-level session paths.
 
-## Exact observed native result
+Required visible beats:
 
-On **2026-09-01 (Singapore time)**, Codex's supported in-app Browser opened the canonical
-production deployment and observed:
+- [ ] Calm memo, quiet **Work | Memory** margin, two attributed humans, and no stage,
+  permanent composer, copied prompt, dashboard, or chat transcript.
+- [ ] Native discovery of exactly the four initial tools, followed by a real
+  `inspect_document` invocation and an active `wait_for_my_work` by 0:45.
+- [ ] Jordan selects the frozen BODY range `[16, 71)`, uses an unmodified pointer
+  right-click, chooses **Rewrite**, assigns Maya, and confirms the exact instruction.
+- [ ] Jordan's assignment resolves Maya's already-pending native wait with
+  `WORK_AVAILABLE` at revision 1/activity 2.
+- [ ] Maya's agent calls Memory and My Work, sees only its assigned order, and discovers
+  the conditional proposal capability.
+- [ ] The agent submits the exact October 15 beta / November 1 GA proposal and summary;
+  both humans see it while the source sentence and revision remain unchanged.
+- [ ] Only Jordan sees enabled decision controls. Jordan enters the complete frozen
+  rationale and accepts; both sessions show revision 2/activity 4 and completed work.
+- [ ] Memory shows one acceptance event with server diff and human rationale—not a
+  separate edit—and the proposal tool is gone after queue drain.
+- [ ] A fresh Maya-paired agent calls `inspect_document` and `read_document_memory`, then
+  cites Jordan's eight-day rejected-GA rationale rather than inventing it from the final
+  text.
+- [ ] Narration clearly distinguishes an already-active external agent from a page that
+  starts or hosts agent turns.
 
-1. Fresh discovery: `join_session`, `catch_up`.
-2. `catch_up`: successful MCP content plus matching `structuredContent`, a valid opaque
-   cursor, bounded activity, and `hasMore: false`.
-3. `join_session`: participant name **Ratiflow Agent**; presence `LIVE`; dynamic
-   expansion added live coordination and workflow-valid decision tools.
-4. A task created in the ordinary UI resolved the pending native
-   `wait_for_activity` with its attributed `TASK_CREATED` event and inbox item.
-5. `claim_agent_task`: `ok: true`, `ownedByCurrentSession: true`, and the complete
-   model-visible result contained no `claimId`.
-6. `resolve_task`: successful through the adapter's retained private claim; task
-   status became `DONE`.
-7. `leave_session`: presence `AWAY`; discovery collapsed to the two fresh tools.
+Required supporting evidence outside the main cut:
 
-The hosted full-loop test adds the claim race, attributed comment, human-question,
-answer, fresh-claim, cancellation, and abort evidence that were not repeated in this
-focused native release check.
+- [ ] Shift/Alt/Ctrl/Meta pointer right-click branches, Context Menu key, `Shift+F10`,
+  empty selection, and non-editor targets preserve the native menu; the real spelling
+  menu is captured manually.
+- [ ] `Cmd/Ctrl+K` opens the same assignment composer with the exact selection.
+- [ ] The editor remains usable at 390px and with WebMCP absent.
+- [ ] Dirty local drafts survive remote saves and expose **Use latest** / **Keep mine**.
+- [ ] Sharing creates a distinct member; expired/invalid links recover safely.
+- [ ] Evaluation fragments are validated, stored, and scrubbed before registration;
+  no bearer path, token, cookie, or browser storage appears in footage or evidence.
+- [ ] Navigation to `/decision-demo` removes every v3 document tool, wait, timer, and
+  listener before the compatibility catalog registers.
+
+## Evidence status — 2026-09-01
+
+| Gate | Current status |
+| --- | --- |
+| `.codex/verify.sh` | **PASS — 3/3 private-reset CLI tests and 273/273 Vitest tests across 32 files**, plus TypeScript and ESLint. |
+| Production build | **PASS locally.** |
+| v3 Playwright | **PASS — 8/8 locally**, covering the local document journey, desktop, collaboration, real-pointer acceptance on desktop and 390px, WebMCP-off interaction, and conflict recovery. This is adapter evidence, not native proof. |
+| Persistence | **Static audit PASS.** `20260901012216_document_workspace_v3.sql` has not been applied remotely. |
+| Preview database/app | **PENDING.** |
+| Exact-SHA deployment/canonical URL | **PENDING.** No v3 deployment or judging URL is claimed. |
+| Supported-client native capture | **PENDING.** |
+| Protected-reset adapter rehearsal | **PASS — 5/5 locally.** Exact fixture, pointer assignment, Jordan tool-layer exclusion, active-wait teardown, and fresh-context memory are covered; native/timing/release proof remains pending. |
+| v3 agent trajectories / ablation | **PENDING.** A01–A07 require five exact-SHA native runs each; the comparison is `native-v3` versus `webmcp-disabled`. Historical v1.2 runs do not count. |
+| v3 agent-ledger validator | **53/53 focused tests PASS; canonical ledger `PENDING`.** Missing, filtered, identity-drifted, unsafe, or failed run matrices exit nonzero. |
+| Exact-SHA release manifest | **PENDING, fail-closed.** The validator's 25/25 focused tests pass; `pnpm eval:release:v3` resolves content-addressed artifacts and cannot exit zero while any required domain, browser, native, rehearsal, visual, judge, or public-package row is missing. |
+| Four independent criterion judges | **RUN; RELEASE FAIL.** Scores: WebMCP 4.0, Execution 4.1, Impact 4.2, Creativity 4.3. Their local findings are closed; exact-SHA deployed native evidence remains the shared must-fix. |
+
+Release-row status is deliberately explicit: N01–N12 are all still `PENDING`; the
+local 5/5 run is only an `ADAPTER_CAPTURED` preflight for R01. R01 release completion
+and R02 timing, R03 SHA-bound claim manifest, and R04 public package remain pending.
+The exact row definitions live in [the evaluation contract](../EVALS.md), and current
+evidence classes live in [the results ledger](../EVAL_RESULTS.md).
+
+## Authorized release steps
+
+The owner authorized the full release path; every action remains unchecked until its
+remote result is observed and bound to the one release SHA:
+
+- [ ] Approve one clean release commit and record its exact SHA.
+- [ ] Apply and smoke the v3 migration on preview, including v2 compatibility,
+  authorization, grants/revokes/RLS, and advisor review.
+- [ ] Deploy and promote that exact SHA; record the deployment identity and accessible
+  judging URL only after observation.
+- [ ] Capture native discovery and invocation on the exact deployed top-level page.
+- [ ] Run five clean native 2:40 rehearsals on the exact release.
+- [ ] Run and validate five exact-SHA native trajectories for each v3 A01–A07 scenario,
+  plus the controlled `native-v3` versus `webmcp-disabled` ablation.
+- [ ] Rerun four fresh official-criterion judges against the complete release package.
+- [ ] Make the source repository public with the MIT license and sanitized evidence.
+- [ ] Record, upload to YouTube, and verify the public narrated video without sign-in.
+- [ ] Submit on Devpost and record the observed submission link/status.
+- [ ] Populate the one exact-SHA v3 release manifest and require
+  `pnpm eval:release:v3` to return `PASS` before claiming release readiness.
 
 ## Evidence boundaries
 
-- WebMCP gives an active agent a page-local tool surface; this product does not claim
-  page-to-agent push, model wakeup, service-worker execution, or background work after
-  the page closes.
-- Presence is lease-derived, not a reliable unload event. Claims are server-fenced and
-  expire independently.
-- Decision revision and collaboration activity cursor are different clocks.
-- The anonymous launch handle is the demo access boundary. Do not describe it as
-  account-authenticated or private customer storage.
-- The optional page runner is unavailable, not simulated.
-- Do not commit handles, cookies, environment values, raw browser storage, private
-  content, or unsanitized agent transcripts.
+- Browser automation or an injected `modelContext` validates lifecycle behavior but is
+  never labeled native discovery.
+- The v3 migration's static audit is not a remote apply, database smoke, or production
+  persistence claim.
+- Presence is bounded viewing/editing awareness, not character-level CRDT co-editing.
+- Possession of a temporary share link grants access; the note is not marketed as
+  private authenticated storage.
+- All Northstar names and facts are deterministic synthetic demo data.
+- Historical `/decision-demo` artifacts remain scoped to that route and must never be
+  relabeled as v3 shared-document evidence.
 
-## Recording assets
-
-Add sanitized screenshots, native captures, the final transcript, release metadata,
-and public links here. Public source and video release remain owner-authorized steps.
+Store only sanitized screenshots, transcripts, native captures, release metadata, and
+final public links in this folder. Never commit session bundles, share tokens, cookies,
+API keys, private note content, or raw unsanitized agent transcripts.

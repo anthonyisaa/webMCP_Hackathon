@@ -1,46 +1,43 @@
 # Progress — Ratiflow
-_Updated: 2026-09-01T07:41:10+08:00_
+_Updated: 2026-09-01T16:04:33+08:00_
 
 ## Next action
-Make the GitHub repository publicly reachable, then verify the unauthenticated release
-URL returns the intended `main` source.
+Freeze the reconciled v3 snapshot as one clean commit atop `origin/main`, then apply
+and verify the preview migration chain before deploying that exact SHA.
 
 ## In flight
-- Production `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at
-  `https://ratiflow-webmcp.vercel.app/`.
-- Runtime source commit `8be25fb` is pushed to `origin/main`; unauthenticated GitHub
-  requests currently return 404, so public submission reachability is not claimed.
+- Full release authorization was granted. Northstar v3 is locally complete on a dirty
+  `main@65aadb7`; a temporary index reconciles the candidate atop `origin/main@5957bb4`.
+- Scores: WebMCP 4.0, Execution 4.1, Impact 4.2, Creativity 4.3. Every local finding is
+  closed; all retain the exact-SHA deployed native must-fix.
+- Production still serves historical v1.2 `/decision-demo`; no v3 release claim exists.
 
 ## Verified
-- `.codex/verify.sh` — TypeScript, ESLint, 161/161 tests across 25 files.
-- `pnpm build` — Next.js 16.3.3 webpack production build passed.
-- `RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app pnpm exec playwright test
-  e2e/live-agent-session.spec.ts` — 3/3 on the current production deployment; the
-  earlier complete release suite passed 19/19.
-- Supported production-native Browser — fresh two-tool discovery; catch-up; join;
-  ordinary-UI task woke `wait_for_activity`; claim returned `ok: true`,
-  `ownedByCurrentSession: true`, `claimIdVisible: false`; task-linked resolve returned
-  `DONE`; leave returned `AWAY` and collapsed discovery to two tools.
-- Vercel — canonical alias resolves to the current `READY` deployment; no post-cutover
-  runtime error cluster or deployment 5xx response.
-- `git push origin HEAD:main` — `65aadb7..8be25fb`.
+- `.codex/verify.sh`: TypeScript, ESLint, reset CLI 3/3, and Vitest 273/273 across
+  32 files passed after the final edits.
+- Next.js 16.3.3 webpack production build passed.
+- Final built-surface Playwright passed 8/8; post-contrast desktop/390px coverage passed
+  6/6. Preserved compatibility/live-session coverage remains 10/10.
+- Protected adapter rehearsal passed 5/5 with Jordan tool exclusion and active-wait
+  teardown; it remains preflight, not native proof.
+- Agent validator tests passed 53/53 and release-manifest tests 25/25; their CLIs
+  correctly exit nonzero as structured `PENDING` without native/public artifacts.
 
 ## Done this block
-- Shipped the single-registry live/catch-up teammate loop, leases, opaque activity,
-  fenced tasks, human questions/answers, attribution, and human-only ratification.
-- Redacted the private claim generation from every model-visible result while retaining
-  it inside the trusted page adapter for task-linked writes.
-- Updated release evidence to require an observed native human-event trajectory.
-
-## Files touched
-- `src/domain/`, `src/app/api/workspace/`, `supabase/migrations/` — authoritative live
-  collaboration persistence and routes.
-- `src/webmcp/`, `src/components/system/WebMCPBridge.tsx` — one registry, lifecycle,
-  private claim retention/redaction.
-- `README.md`, `.codex/PLAN.md`, `demo/README.md` — current deployment and native proof.
+- Built exact-range assign → paired wait/read → proposal → creator decision, with
+  right-click/keyboard entry points and durable rejection memory.
+- Closed all four judge findings: pain-first opening, AA-oriented rail legibility,
+  truthful dynamic Page capability state, and tool-layer privacy/teardown coverage.
+- Added the frozen anti-loop branch, strict native/disabled trajectories, versioned
+  evidence commands, protected rehearsal, and content-addressed release validator.
 
 ## Open decisions / risks
-- Auto pickup stays visibly unavailable; no page wakeup, background, or autonomous
-  runner claim is made.
-- `design-judge` was unavailable; no independent visual verdict is claimed.
-- Public narrated video is still pending.
+- Commit/push, migration, deploy, native capture, video, and submission are authorized
+  but remain unclaimed until each remote action is observed and evidence-bound.
+- The configured `design-judge` role was unavailable on five attempts; no visual PASS
+  is claimed.
+
+## Git bearings
+- Branch `main@65aadb7`; origin/main `5957bb4`; working tree intentionally dirty.
+- Touched: contracts/docs, domain/WebMCP/UI/APIs, v3 migration, E2E, validators, demo.
+- `/private/tmp/ratiflow-ablation-1c47d88` modifies `src/app/page.tsx`; avoid overlap.

@@ -1,4 +1,8 @@
-# WebMCP ablation result ledger
+# Superseded v1.2 static-superset ablation ledger
+
+This folder is historical evidence for the named v1.2 SHA only. It does not satisfy the
+v3 ablation contract, which compares `native-v3` with `webmcp-disabled` on the exact
+shared-document release and remains `PENDING`.
 
 Completed A01–A03 ablation for release commit
 `1c47d88f37688b065d910798f3be35b865ab1091` and fixture `hero-v1.2`. The

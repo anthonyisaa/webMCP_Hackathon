@@ -1,106 +1,91 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
-import { DOCUMENT_AGENT_REQUEST } from "../src/document/contracts";
+test.setTimeout(90_000);
 
-test.setTimeout(60_000);
+const HERO_TITLE = "Northstar CSV launch memo";
+const HERO_BODY = `Recommendation
 
-type DocumentToolResult = {
+Launch CSV export as generally available on October 15.
+
+Context
+
+Northstar Health's $180,000 renewal needs usable CSV export by November 1. The team has 14 engineer-days after the incident rotation: reliability needs 10, leaving 4 for export.
+
+Open question
+
+Can a single-tenant beta meet Northstar's need while general availability moves to November 1?`;
+const HERO_SELECTION = "Launch CSV export as generally available on October 15.";
+const HERO_INSTRUCTION =
+  "Rewrite this recommendation to fit the 14-day capacity and protect the Northstar renewal. Keep both launch dates explicit.";
+const HERO_REPLACEMENT =
+  "Launch an invite-only, single-tenant Northstar beta on October 15, then make CSV export generally available on November 1.";
+const HERO_SUMMARY =
+  "Replace October 15 GA with a single-tenant beta, then move general availability to November 1.";
+const HERO_RATIONALE =
+  "Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.";
+const FINAL_BODY = HERO_BODY.replace(HERO_SELECTION, HERO_REPLACEMENT);
+
+const PERMANENT_TOOLS = [
+  "inspect_document",
+  "read_document_memory",
+  "list_my_work",
+  "wait_for_my_work",
+];
+
+type InspectResult = {
   ok: boolean;
   code?: string;
   document?: {
+    id: string;
+    title: string;
     body: string;
-    stage: string;
     revision: number;
+    activityVersion: number;
   };
-  annotation?: {
-    annotationId: string;
-    status: string;
-  };
-  change?: {
-    fromRevision: number;
-    toRevision: number;
-    annotationId: string;
-  };
-  undoAvailable?: boolean;
 };
 
-type AgentAnnotation = {
-  annotationId: string;
+type PendingWork = {
+  workOrderId: string;
+  status: "PENDING";
   instruction: string;
-  targetField: string;
-  targetKind: string;
-  selectedText: string;
-  anchorRevision: number;
-  status: string;
+  anchor: { selectedText: string; rangeStart: number; rangeEnd: number };
+  assignedToMemberId: string;
 };
 
-type AnnotationListResult = {
+type WorkResult = {
   ok: boolean;
-  code?: string;
-  annotations?: AgentAnnotation[];
+  outcome?: "WORK_AVAILABLE" | "DOCUMENT_CHANGED" | "TIMEOUT";
+  workOrders?: PendingWork[];
+  revision?: number;
+  activityVersion?: number;
 };
 
-async function registeredToolNames(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const harness = (window as unknown as {
-      __ratiflowDocumentWebMCPTest: { names: () => string[] };
-    }).__ratiflowDocumentWebMCPTest;
-    return harness.names();
-  });
-}
+type MemoryResult = {
+  ok: boolean;
+  events?: Array<{
+    kind: string;
+    activityVersion: number;
+    rationale: string | null;
+    changeSummary: string | null;
+    diffs: Array<{ beforeExcerpt: string; afterExcerpt: string }>;
+  }>;
+  hasMoreOlder?: boolean;
+  latestActivityVersion?: number;
+  revision?: number;
+};
 
-async function toolRegistrationCount(page: Page, name: string): Promise<number> {
-  return page.evaluate((toolName) => {
-    const harness = (window as unknown as {
-      __ratiflowDocumentWebMCPTest: { registrationCount: (name: string) => number };
-    }).__ratiflowDocumentWebMCPTest;
-    return harness.registrationCount(toolName);
-  }, name);
-}
-
-async function invokeTool<T>(page: Page, name: string, input: unknown): Promise<T> {
-  return page.evaluate(
-    async ({ toolName, toolInput }) => {
-      const harness = (window as unknown as {
-        __ratiflowDocumentWebMCPTest: {
-          invoke: (name: string, input: unknown) => Promise<unknown>;
-        };
-      }).__ratiflowDocumentWebMCPTest;
-      return harness.invoke(toolName, toolInput);
-    },
-    { toolName: name, toolInput: input },
-  ) as Promise<T>;
-}
-
-async function selectBodyRange(
-  page: Page,
-  start: number,
-  end: number,
-): Promise<void> {
-  await page.getByLabel("Note body").evaluate(
-    (element: HTMLTextAreaElement, range) => {
-      element.focus();
-      element.setSelectionRange(range.start, range.end);
-      element.dispatchEvent(new Event("select", { bubbles: true }));
-    },
-    { start, end },
-  );
-}
-
-async function addCustomAnnotation(
-  page: Page,
-  start: number,
-  end: number,
-  instruction: string,
-): Promise<void> {
-  await selectBodyRange(page, start, end);
-  await page.getByLabel("Note body").press("Control+K");
-  const composer = page.getByLabel("Custom instruction");
-  await expect(composer).toBeFocused();
-  await composer.fill(instruction);
-  await page.getByRole("button", { name: "Add to queue" }).click();
-  await expect(composer).toHaveValue("");
-}
+type ProposalResult = {
+  ok: boolean;
+  workOrder?: { workOrderId: string; status: string };
+  document?: { body: string; revision: number; activityVersion: number };
+  event?: { kind: string; changeSummary: string | null };
+};
 
 async function installWebMCPHarness(context: BrowserContext): Promise<void> {
   await context.addInitScript(() => {
@@ -113,375 +98,405 @@ async function installWebMCPHarness(context: BrowserContext): Promise<void> {
         options?: { signal?: AbortSignal },
       ) => Promise<unknown>;
     };
+
     const active = new Map<string, RegisteredTool>();
-    const registrationCounts = new Map<string, number>();
-    let clipboardText = "";
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: async (value: string) => {
-          clipboardText = value;
-        },
-        readText: async () => clipboardText,
-      },
-    });
-    const modelContext = {
-      registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
-        registrationCounts.set(
-          tool.name,
-          (registrationCounts.get(tool.name) ?? 0) + 1,
-        );
-        active.set(tool.name, tool);
-        options?.signal?.addEventListener("abort", () => {
-          if (active.get(tool.name) === tool) active.delete(tool.name);
-        });
-      },
+    const pending = new Map<string, Promise<unknown>>();
+    const unwrap = (value: unknown): unknown => {
+      if (value && typeof value === "object" && "structuredContent" in value) {
+        return (value as { structuredContent: unknown }).structuredContent;
+      }
+      return value;
     };
+    const invoke = async (name: string, input: unknown): Promise<unknown> => {
+      const tool = active.get(name);
+      if (!tool) throw new Error(`Tool ${name} is not registered.`);
+      return unwrap(
+        await tool.execute(input, { signal: new AbortController().signal }),
+      );
+    };
+
     Object.defineProperty(document, "modelContext", {
       configurable: true,
-      value: modelContext,
+      value: {
+        registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
+          active.set(tool.name, tool);
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              if (active.get(tool.name) === tool) active.delete(tool.name);
+            },
+            { once: true },
+          );
+        },
+      },
     });
-    Object.defineProperty(window, "__ratiflowDocumentWebMCPTest", {
+    Object.defineProperty(window, "__ratiflowDocumentV3Harness", {
       configurable: true,
       value: {
         names: () => [...active.keys()],
-        registrationCount: (name: string) => registrationCounts.get(name) ?? 0,
-        clipboard: () => clipboardText,
-        invoke: (name: string, input: unknown) => {
-          const tool = active.get(name);
-          if (!tool) throw new Error(`Tool ${name} is not registered.`);
-          return tool.execute(input, { signal: new AbortController().signal });
+        invoke,
+        start(id: string, name: string, input: unknown) {
+          if (pending.has(id)) throw new Error(`Pending tool ${id} already exists.`);
+          pending.set(id, invoke(name, input));
+        },
+        async finish(id: string) {
+          const operation = pending.get(id);
+          if (!operation) throw new Error(`Pending tool ${id} does not exist.`);
+          try {
+            return await operation;
+          } finally {
+            pending.delete(id);
+          }
         },
       },
     });
   });
 }
 
-test("document WebMCP processes an owned annotation queue and cleans up before decision tools", async ({
-  browser,
-  baseURL,
-}) => {
-  if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
-
-  const context = await browser.newContext({
-    baseURL,
-    permissions: ["clipboard-read", "clipboard-write"],
+async function registeredToolNames(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const harness = (window as unknown as {
+      __ratiflowDocumentV3Harness: { names: () => string[] };
+    }).__ratiflowDocumentV3Harness;
+    return harness.names();
   });
-  await installWebMCPHarness(context);
-  const page = await context.newPage();
-  const pageErrors: string[] = [];
-  page.on("pageerror", (error) => pageErrors.push(error.message));
+}
 
-  try {
-    await page.goto("/document");
-    await expect(page).toHaveURL(/\/document\/[A-Za-z0-9_-]+$/);
-    const body = page.getByLabel("Note body");
-    await expect(body).toHaveValue("");
+async function invokeTool<T>(page: Page, name: string, input: unknown): Promise<T> {
+  return page.evaluate(
+    ({ toolName, toolInput }) => {
+      const harness = (window as unknown as {
+        __ratiflowDocumentV3Harness: {
+          invoke: (name: string, input: unknown) => Promise<unknown>;
+        };
+      }).__ratiflowDocumentV3Harness;
+      return harness.invoke(toolName, toolInput);
+    },
+    { toolName: name, toolInput: input },
+  ) as Promise<T>;
+}
 
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "inspect_document",
-      "list_agent_annotations",
-    ]);
-    const blank = await invokeTool<DocumentToolResult>(page, "inspect_document", {});
-    expect(blank).toMatchObject({
-      ok: true,
-      document: { body: "", stage: "BRAINSTORMING", revision: 0 },
-    });
-    expect(
-      await invokeTool<AnnotationListResult>(page, "list_agent_annotations", {}),
-    ).toEqual({ ok: true, annotations: [] });
+async function startTool(
+  page: Page,
+  id: string,
+  name: string,
+  input: unknown,
+): Promise<void> {
+  await page.evaluate(
+    ({ operationId, toolName, toolInput }) => {
+      const harness = (window as unknown as {
+        __ratiflowDocumentV3Harness: {
+          start: (id: string, name: string, input: unknown) => void;
+        };
+      }).__ratiflowDocumentV3Harness;
+      harness.start(operationId, toolName, toolInput);
+    },
+    { operationId: id, toolName: name, toolInput: input },
+  );
+}
 
-    const originalBody = "Draft launch note for the team.";
-    await body.fill(originalBody);
-    await expect.poll(async () => {
-      const result = await invokeTool<DocumentToolResult>(page, "inspect_document", {});
-      return result.document?.body;
-    }).toBe(originalBody);
+async function finishTool<T>(page: Page, id: string): Promise<T> {
+  return page.evaluate((operationId) => {
+    const harness = (window as unknown as {
+      __ratiflowDocumentV3Harness: {
+        finish: (id: string) => Promise<unknown>;
+      };
+    }).__ratiflowDocumentV3Harness;
+    return harness.finish(operationId);
+  }, id) as Promise<T>;
+}
 
-    const nativeContextMenuPrevented = await body.evaluate((element) => {
-      const defaultAllowed = element.dispatchEvent(
-        new MouseEvent("contextmenu", {
+async function selfMemberId(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const key = Object.keys(sessionStorage).find((candidate) =>
+      candidate.startsWith("ratiflow.document.session.v3:"),
+    );
+    if (!key) throw new Error("The v3 document session was not stored.");
+    const bundle = JSON.parse(sessionStorage.getItem(key) ?? "null") as {
+      selfMemberId?: string;
+    } | null;
+    if (!bundle?.selfMemberId) throw new Error("The self member ID was absent.");
+    return bundle.selfMemberId;
+  });
+}
+
+function waitForDocumentSave(
+  page: Page,
+  expected: { title: string; body: string },
+) {
+  return page.waitForResponse((response) => {
+    if (
+      !response.url().endsWith("/api/document-v3/save") ||
+      response.request().method() !== "POST" ||
+      !response.ok()
+    ) {
+      return false;
+    }
+    try {
+      const payload = response.request().postDataJSON() as {
+        title?: unknown;
+        body?: unknown;
+      };
+      return payload.title === expected.title && payload.body === expected.body;
+    } catch {
+      return false;
+    }
+  });
+}
+
+async function openRewriteMenu(page: Page): Promise<void> {
+  const prevented = await page.getByLabel("Note body").evaluate(
+    (element: HTMLTextAreaElement) => {
+      element.focus();
+      element.setSelectionRange(16, 71);
+      element.dispatchEvent(new Event("select", { bubbles: true }));
+      element.dispatchEvent(
+        new PointerEvent("pointerdown", {
           bubbles: true,
           cancelable: true,
           button: 2,
+          pointerId: 73,
         }),
       );
-      return !defaultAllowed;
-    });
-    expect(nativeContextMenuPrevented).toBe(false);
-    await expect(page.getByRole("menu", { name: "Agent actions" })).toHaveCount(0);
+      const event = new PointerEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        pointerId: 73,
+        clientX: 280,
+        clientY: 260,
+      });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    },
+  );
+  expect(prevented).toBe(true);
+  await page.getByRole("menuitem", { name: /Rewrite/ }).click();
+}
 
-    await addCustomAnnotation(
-      page,
-      6,
-      17,
-      "Rewrite this phrase as a concise release-planning phrase.",
-    );
-    await addCustomAnnotation(
-      page,
-      26,
-      30,
-      "Replace this noun with a warmer collective term.",
-    );
-    await expect(page.getByTestId("pending-annotation-list").getByTestId("annotation-card"))
-      .toHaveCount(2);
+async function clickWithRealPointer(page: Page, target: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded();
+  const box = await target.boundingBox();
+  if (!box) throw new Error("The pointer target did not have a rendered box.");
+  const point = {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  };
+  const targetOwnsPoint = await target.evaluate(
+    (element, clickPoint) => {
+      const hit = document.elementFromPoint(clickPoint.x, clickPoint.y);
+      return hit === element || element.contains(hit);
+    },
+    point,
+  );
+  expect(targetOwnsPoint).toBe(true);
+  await page.mouse.click(point.x, point.y);
+}
 
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "inspect_document",
-      "list_agent_annotations",
-      "apply_agent_annotation",
-    ]);
-    const listed = await invokeTool<AnnotationListResult>(
-      page,
-      "list_agent_annotations",
-      {},
-    );
-    expect(listed.ok).toBe(true);
-    expect(listed.annotations).toHaveLength(2);
-    const [first, second] = listed.annotations ?? [];
-    if (!first || !second) throw new Error("Both queued annotations were not returned.");
-    expect(first).toMatchObject({
-      targetField: "BODY",
-      targetKind: "SELECTION",
-      selectedText: "launch note",
-      status: "PENDING",
-    });
-    expect(second).toMatchObject({
-      targetField: "BODY",
-      targetKind: "SELECTION",
-      selectedText: "team",
-      anchorRevision: first.anchorRevision,
-      status: "PENDING",
-    });
-
-    const invalidStageAttempt = await invokeTool<DocumentToolResult>(
-      page,
-      "apply_agent_annotation",
-      {
-        annotationId: first.annotationId,
-        expectedRevision: first.anchorRevision,
-        requestId: "523e4567-e89b-42d3-a456-426614174000",
-        replacementText: "release plan",
-        changeSummary: "Clarified the selected phrase.",
-        stage: "READY_TO_SHIP",
-      },
-    );
-    expect(invalidStageAttempt).toMatchObject({ ok: false, code: "INVALID_INPUT" });
-
-    const appliedFirst = await invokeTool<DocumentToolResult>(
-      page,
-      "apply_agent_annotation",
-      {
-        annotationId: first.annotationId,
-        expectedRevision: first.anchorRevision,
-        requestId: "623e4567-e89b-42d3-a456-426614174000",
-        replacementText: "release plan",
-        changeSummary: "Clarified the selected phrase.",
-      },
-    );
-    expect(appliedFirst).toMatchObject({
-      ok: true,
-      document: {
-        body: "Draft release plan for the team.",
-        stage: "BRAINSTORMING",
-        revision: first.anchorRevision + 1,
-      },
-      annotation: { annotationId: first.annotationId, status: "COMPLETED" },
-      change: {
-        fromRevision: first.anchorRevision,
-        toRevision: first.anchorRevision + 1,
-        annotationId: first.annotationId,
-      },
-      undoAvailable: true,
-    });
-    await expect(body).toHaveValue("Draft release plan for the team.");
-    await expect.poll(() => registeredToolNames(page)).toContain("apply_agent_annotation");
-
-    const afterFirst = await invokeTool<AnnotationListResult>(
-      page,
-      "list_agent_annotations",
-      {},
-    );
-    expect(afterFirst.annotations).toHaveLength(1);
-    const rebasedSecond = afterFirst.annotations?.[0];
-    if (!rebasedSecond) throw new Error("The second annotation was not safely rebased.");
-    expect(rebasedSecond).toMatchObject({
-      annotationId: second.annotationId,
-      selectedText: "team",
-      anchorRevision: first.anchorRevision + 1,
-    });
-
-    const appliedSecond = await invokeTool<DocumentToolResult>(
-      page,
-      "apply_agent_annotation",
-      {
-        annotationId: rebasedSecond.annotationId,
-        expectedRevision: rebasedSecond.anchorRevision,
-        requestId: "723e4567-e89b-42d3-a456-426614174000",
-        replacementText: "crew",
-        changeSummary: "Used a warmer collective term.",
-      },
-    );
-    expect(appliedSecond).toMatchObject({
-      ok: true,
-      document: {
-        body: "Draft release plan for the crew.",
-        revision: rebasedSecond.anchorRevision + 1,
-      },
-      annotation: { annotationId: second.annotationId, status: "COMPLETED" },
-      undoAvailable: true,
-    });
-    await expect(body).toHaveValue("Draft release plan for the crew.");
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "inspect_document",
-      "list_agent_annotations",
-    ]);
-    expect(
-      await invokeTool<AnnotationListResult>(page, "list_agent_annotations", {}),
-    ).toEqual({ ok: true, annotations: [] });
-    await expect(page.getByTestId("annotation-history-list").getByTestId("annotation-card"))
-      .toHaveCount(2);
-
-    await page.getByRole("button", { name: "Ask ChatGPT" }).click();
-    await expect(page.getByText("Prompt copied — paste/send in ChatGPT")).toBeVisible();
-    expect(
-      await page.evaluate(() => {
-        const harness = (window as unknown as {
-          __ratiflowDocumentWebMCPTest: { clipboard: () => string };
-        }).__ratiflowDocumentWebMCPTest;
-        return harness.clipboard();
-      }),
-    ).toBe(DOCUMENT_AGENT_REQUEST);
-
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
-    await expect(body).toHaveValue("Draft release plan for the team.");
-    const undone = await invokeTool<DocumentToolResult>(page, "inspect_document", {});
-    expect(undone).toMatchObject({
-      ok: true,
-      document: {
-        body: "Draft release plan for the team.",
-        revision: (appliedSecond.document?.revision ?? 0) + 1,
-      },
-    });
-
-    await page.goto("/decision-demo");
-    await expect.poll(() => registeredToolNames(page)).toEqual([]);
-    await page.getByRole("button", { name: "Launch deterministic workspace" }).click();
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "join_session",
-      "catch_up",
-    ]);
-    expect(await registeredToolNames(page)).not.toEqual(
-      expect.arrayContaining([
-        "inspect_document",
-        "list_agent_annotations",
-        "apply_agent_annotation",
-      ]),
-    );
-    expect(pageErrors).toEqual([]);
-  } finally {
-    await context.close();
+async function openMemoryRail(page: Page): Promise<void> {
+  const memoryTab = page.getByRole("tab", { name: "Memory" });
+  if (!(await memoryTab.isVisible())) {
+    await page.getByRole("button", { name: /Work and memory/ }).click();
   }
-});
+  await memoryTab.click();
+}
 
-test("a delayed equal-revision presence response cannot resurrect cancelled work", async ({
-  browser,
-  baseURL,
-}) => {
+for (const pointerViewport of [
+  { name: "desktop", width: 1280, height: 720 },
+  { name: "390px", width: 390, height: 844 },
+] as const) {
+  test(`paired WebMCP proposes without mutation; creator decides with a real pointer (${pointerViewport.name})`, async ({
+    browser,
+    baseURL,
+  }) => {
   if (!baseURL) throw new Error("RATIFLOW_BASE_URL is required.");
-
-  const context = await browser.newContext({ baseURL });
-  await installWebMCPHarness(context);
-  const page = await context.newPage();
-  let releaseOldResponse: (() => void) | undefined;
+  const viewport = { width: pointerViewport.width, height: pointerViewport.height };
+  const mayaContext = await browser.newContext({ baseURL, viewport });
+  const jordanContext = await browser.newContext({ baseURL, viewport });
+  await installWebMCPHarness(mayaContext);
+  const maya = await mayaContext.newPage();
+  const jordan = await jordanContext.newPage();
+  const pageErrors: string[] = [];
+  maya.on("pageerror", (error) => pageErrors.push(error.message));
+  jordan.on("pageerror", (error) => pageErrors.push(error.message));
 
   try {
-    await page.goto("/document");
-    await expect(page).toHaveURL(/\/document\/[A-Za-z0-9_-]+$/);
-    const body = page.getByLabel("Note body");
-    await body.fill("Pending annotation race.");
-    await expect.poll(async () => {
-      const result = await invokeTool<DocumentToolResult>(page, "inspect_document", {});
-      return result.document?.body;
-    }).toBe("Pending annotation race.");
-
-    await addCustomAnnotation(
-      page,
-      0,
-      7,
-      "Replace this phrase without changing the document revision.",
+    await maya.goto("/");
+    await expect(maya).toHaveURL(/\/document\/[A-Za-z0-9_-]+$/);
+    expect(new URL(maya.url()).hash).toBe("");
+    const mayaId = await selfMemberId(maya);
+    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
+    await expect(maya.getByTestId("page-capability-state")).toContainText(
+      /Page capability ·\s*Read-only tools/,
     );
-    await expect.poll(() => registeredToolNames(page)).toContain(
-      "apply_agent_annotation",
-    );
-    const initialApplyRegistrations = await toolRegistrationCount(
-      page,
-      "apply_agent_annotation",
+    await jordan.goto(maya.url());
+    await expect(jordan.getByLabel(/other (person|people) here/)).toHaveAttribute(
+      "aria-label",
+      "1 other person here",
+      { timeout: 8_000 },
     );
 
-    let markOldResponseCaptured: (() => void) | undefined;
-    const oldResponseCaptured = new Promise<void>((resolve) => {
-      markOldResponseCaptured = resolve;
+    const heroSave = waitForDocumentSave(jordan, {
+      title: HERO_TITLE,
+      body: HERO_BODY,
     });
-    let markOldResponseDelivered: (() => void) | undefined;
-    const oldResponseDelivered = new Promise<void>((resolve) => {
-      markOldResponseDelivered = resolve;
+    await jordan.getByLabel("Note title").fill(HERO_TITLE);
+    await jordan.getByLabel("Note body").fill(HERO_BODY);
+    await heroSave;
+    await expect(maya.getByLabel("Note body")).toHaveValue(HERO_BODY, { timeout: 8_000 });
+
+    const initial = await invokeTool<InspectResult>(maya, "inspect_document", {});
+    expect(initial).toMatchObject({
+      ok: true,
+      document: {
+        title: HERO_TITLE,
+        body: HERO_BODY,
+        revision: 1,
+        activityVersion: 1,
+      },
     });
-    const releaseGate = new Promise<void>((resolve) => {
-      releaseOldResponse = resolve;
-    });
-    let intercepted = false;
-    let capturedStatus: string | undefined;
-    await page.route("**/api/document/presence", async (route) => {
-      if (intercepted) {
-        await route.continue();
-        return;
-      }
-      intercepted = true;
-      const response = await route.fetch();
-      const payload = (await response.json()) as {
-        data?: { annotations?: Array<{ status?: string }> };
-      };
-      capturedStatus = payload.data?.annotations?.[0]?.status;
-      markOldResponseCaptured?.();
-      await releaseGate;
-      await route.fulfill({ response });
-      markOldResponseDelivered?.();
+    await startTool(maya, "hero-wait", "wait_for_my_work", {
+      afterActivityVersion: 1,
+      afterRevision: 1,
+      timeoutSeconds: 20,
     });
 
-    await oldResponseCaptured;
-    expect(capturedStatus).toBe("PENDING");
-    await page
-      .getByRole("button", { name: "Cancel Ask agent…", exact: true })
-      .click();
-    await expect(
-      page.getByTestId("pending-annotation-list").getByTestId("annotation-card"),
-    ).toHaveCount(0);
-    await expect(
-      page.getByTestId("annotation-history-list").getByTestId("annotation-card"),
-    ).toContainText("Cancelled");
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "inspect_document",
-      "list_agent_annotations",
+    await openRewriteMenu(jordan);
+    await expect(jordan.getByTestId("work-target-preview")).toContainText(HERO_SELECTION);
+    await jordan.getByLabel("Work instruction").fill(HERO_INSTRUCTION);
+    await expect(jordan.getByLabel("Assignee").locator(`option[value="${mayaId}"]`)).toHaveCount(1);
+    await jordan.getByLabel("Assignee").selectOption(mayaId);
+    await jordan.getByRole("button", { name: "Assign work" }).click();
+
+    const waited = await finishTool<WorkResult>(maya, "hero-wait");
+    expect(waited).toMatchObject({
+      ok: true,
+      outcome: "WORK_AVAILABLE",
+      revision: 1,
+      activityVersion: 2,
+      workOrders: [
+        {
+          status: "PENDING",
+          instruction: HERO_INSTRUCTION,
+          assignedToMemberId: mayaId,
+          anchor: { selectedText: HERO_SELECTION, rangeStart: 16, rangeEnd: 71 },
+        },
+      ],
+    });
+    const workOrder = waited.workOrders?.[0];
+    if (!workOrder) throw new Error("The assigned work did not resolve the pending wait.");
+    await expect.poll(() => registeredToolNames(maya)).toEqual([
+      ...PERMANENT_TOOLS,
+      "submit_work_proposal",
+    ]);
+    await expect(maya.getByTestId("page-capability-state")).toContainText(
+      /Page capability ·\s*Proposal tool available for .+’s paired agent/,
+    );
+
+    const memoryBeforeProposal = await invokeTool<MemoryResult>(
+      maya,
+      "read_document_memory",
+      { limit: 20 },
+    );
+    expect(memoryBeforeProposal.events?.map((event) => event.kind)).toEqual([
+      "DOCUMENT_EDITED",
+      "WORK_CREATED",
+    ]);
+    const listed = await invokeTool<WorkResult>(maya, "list_my_work", {});
+    expect(listed.workOrders?.map((order) => order.workOrderId)).toEqual([
+      workOrder.workOrderId,
     ]);
 
-    releaseOldResponse?.();
-    await oldResponseDelivered;
+    const proposal = await invokeTool<ProposalResult>(maya, "submit_work_proposal", {
+      workOrderId: workOrder.workOrderId,
+      expectedRevision: 1,
+      replacementText: HERO_REPLACEMENT,
+      changeSummary: HERO_SUMMARY,
+    });
+    expect(proposal).toMatchObject({
+      ok: true,
+      workOrder: { workOrderId: workOrder.workOrderId, status: "PROPOSED" },
+      document: { body: HERO_BODY, revision: 1, activityVersion: 3 },
+      event: { kind: "PROPOSAL_SUBMITTED", changeSummary: HERO_SUMMARY },
+    });
+    await expect(maya.getByLabel("Note body")).toHaveValue(HERO_BODY);
+    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
+    await expect(maya.getByTestId("page-capability-state")).toContainText(
+      /Page capability ·\s*Read-only tools/,
+    );
+
+    const jordanCard = jordan.getByTestId("work-order-card");
+    await expect(jordanCard).toContainText(HERO_REPLACEMENT, { timeout: 8_000 });
+    await expect(jordanCard).toContainText("Document unchanged");
+    await expect(jordan.getByLabel("Note body")).toHaveValue(HERO_BODY);
+    await expect(maya.getByTestId("work-order-card").getByRole("button", { name: "Accept" }))
+      .toHaveCount(0);
+    await expect(jordanCard.getByRole("button", { name: "Accept" })).toBeDisabled();
+    await jordanCard.getByLabel("Your rationale").fill(HERO_RATIONALE);
     await expect(
-      page.getByTestId("pending-annotation-list").getByTestId("annotation-card"),
-    ).toHaveCount(0);
-    await expect(
-      page.getByTestId("annotation-history-list").getByTestId("annotation-card"),
-    ).toContainText("Cancelled");
-    await expect.poll(() => registeredToolNames(page)).toEqual([
-      "inspect_document",
-      "list_agent_annotations",
+      jordan.getByRole("status").filter({ hasText: "Work assigned" }),
+    ).toBeVisible();
+    await clickWithRealPointer(
+      jordan,
+      jordanCard.getByRole("button", { name: "Accept" }),
+    );
+
+    await expect(jordan.getByLabel("Note body")).toHaveValue(FINAL_BODY);
+    await expect(maya.getByLabel("Note body")).toHaveValue(FINAL_BODY, { timeout: 8_000 });
+    await openMemoryRail(jordan);
+    await expect(jordan.getByTestId("memory-list")).toContainText(HERO_RATIONALE);
+    await openMemoryRail(maya);
+    await expect(maya.getByTestId("memory-list")).toContainText(HERO_RATIONALE, {
+      timeout: 8_000,
+    });
+    const accepted = await invokeTool<InspectResult>(maya, "inspect_document", {});
+    expect(accepted).toMatchObject({
+      ok: true,
+      document: { body: FINAL_BODY, revision: 2, activityVersion: 4 },
+    });
+
+    await maya.reload();
+    expect(new URL(maya.url()).hash).toBe("");
+    await expect.poll(() => registeredToolNames(maya)).toEqual(PERMANENT_TOOLS);
+    const freshMemory = await invokeTool<MemoryResult>(maya, "read_document_memory", {
+      limit: 20,
+    });
+    expect(freshMemory).toMatchObject({
+      ok: true,
+      hasMoreOlder: false,
+      latestActivityVersion: 4,
+      revision: 2,
+    });
+    expect(freshMemory.events?.map((event) => event.kind)).toEqual([
+      "DOCUMENT_EDITED",
+      "WORK_CREATED",
+      "PROPOSAL_SUBMITTED",
+      "PROPOSAL_ACCEPTED",
     ]);
-    await expect
-      .poll(() => toolRegistrationCount(page, "apply_agent_annotation"))
-      .toBe(initialApplyRegistrations);
+    const acceptedEvent = freshMemory.events?.find(
+      (event) => event.kind === "PROPOSAL_ACCEPTED",
+    );
+    expect(acceptedEvent).toMatchObject({
+      activityVersion: 4,
+      rationale: HERO_RATIONALE,
+      changeSummary: HERO_SUMMARY,
+      diffs: [{ beforeExcerpt: HERO_SELECTION, afterExcerpt: HERO_REPLACEMENT }],
+    });
+    expect(FINAL_BODY).not.toContain("eight export days");
+    expect(acceptedEvent?.rationale).toContain("eight export days");
+    expect(await invokeTool<WorkResult>(maya, "list_my_work", {})).toMatchObject({
+      ok: true,
+      workOrders: [],
+      revision: 2,
+      activityVersion: 4,
+    });
+
+    await maya.goto("/decision-demo");
+    await expect.poll(() => registeredToolNames(maya)).toEqual([]);
+    expect(pageErrors).toEqual([]);
   } finally {
-    releaseOldResponse?.();
-    await context.close();
+    await mayaContext.close();
+    await jordanContext.close();
   }
-});
+  });
+}

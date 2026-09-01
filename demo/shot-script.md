@@ -1,37 +1,90 @@
-# Ratiflow narrated demo — 2:40 target
+# Ratiflow narrated demo — 2:40 maximum
 
-**Status:** recording plan, not evidence. Use a reset workspace and a fresh supported
-WebMCP page. Keep membership handles, storage, cookies, private content, and deployment
-credentials out of frame.
+**Status:** recording plan, not release evidence. Use the deterministic synthetic
+Northstar fixture, two isolated human browser sessions, and one supported WebMCP client
+for Maya's already-active paired agent. Do not show DevTools, session fragments,
+tokens, browser storage, cookies, or credentials.
 
 | Time | Screen action | Narration |
 | --- | --- | --- |
-| 0:00–0:15 | Open the production root, launch/reset Northstar, and show a fresh supported client advertising exactly `join_session` and `catch_up`. | “Ratiflow is a shared decision room. A fresh browser agent gets two honest first moves: join live, or catch up without pretending to be present.” |
-| 0:15–0:30 | Invoke `join_session`. Frame **Ratiflow Agent · LIVE** in the participant row, then show the expanded coordination and current decision tools. | “Joining creates a renewable server lease and makes the agent a visible teammate. The page now reveals live coordination and only the decision actions valid in this context.” |
-| 0:30–0:48 | Select **Northstar beta**. Add a bounded task in **Ask Ratiflow Agent**, keeping the no-wakeup notice visible. | “Maya assigns a scoped task to the selected option. This records work; it does not wake or start an external model. A real active turn must discover the page and wait or catch up.” |
-| 0:48–1:05 | Invoke `wait_for_activity`, show the addressed event and inbox item, then invoke `claim_agent_task`. Briefly show a duplicate/stale claim rejection. | “The wait resolves on accepted teammate activity. Claims are atomic, expiring generations, so another caller cannot quietly work the same task.” |
-| 1:05–1:20 | Invoke `post_comment`. Show the attributed comment and matching activity in the ordinary UI. | “Agent work stays visible and attributable. The human UI and native tools read the same authoritative state.” |
-| 1:20–1:38 | Invoke `request_human_input`. Show the task move to **Waiting for Maya** and the claim disappear; answer in the ordinary UI. | “When the agent needs judgment, it asks instead of guessing. The question releases its claim and pauses the task. Maya answers in the ordinary interface.” |
-| 1:38–1:55 | Invoke `catch_up`; show the attributed answer and reopened task. Take a fresh claim and invoke `resolve_task`. | “Catch-up returns the answer and reopened work. The agent must take a fresh claim before resolving, preventing stale continuation after a human pause.” |
-| 1:55–2:12 | Show the resolved task, comment/question history, and capability panel. Prepare the decision if needed, then frame Maya's ordinary-UI ratification control beside the absence of any native ratification tool. | “Coordination survives after the task finishes. Agents can prepare evidence and recommendations, but only Maya can ratify. There is no agent commit or finalize tool.” |
-| 2:12–2:27 | Briefly demonstrate the revision guard: use or describe Jordan's capacity change and the stale agent write response, then recover against the current state. | “Decision revisions and activity cursors are separate. A teammate event cannot make stale business work valid, and an older equal-revision refresh cannot erase newer collaboration.” |
-| 2:27–2:36 | Invoke `leave_session`; show **AWAY** and discovery collapsing to `join_session` and `catch_up`. | “Leaving revokes the page lease and contracts the action space. The collaboration history remains.” |
-| 2:36–2:40 | Hold on the canonical production URL and decision room. | “Ratiflow gives agents continuity without taking human authority.” |
+| 0:00–0:10 | Open Maya and Jordan's authorized top-level memo sessions side by side. Frame the calm document, presence, and quiet **Work | Memory** margin. | “Teams lose why recommendations changed across teammate and agent chats. Ratiflow keeps requests, decisions, and rejected facts with the memo, so the next agent does not restart the debate.” |
+| 0:10–0:22 | In the supported client, show the four initial tools. Invoke `inspect_document({})`; frame revision 1 and activity version 1. | “Maya's already-active agent discovers structured context directly from this page—no pasted prompt, workspace ID, DOM scraping, or remote MCP setup.” |
+| 0:22–0:34 | Invoke `wait_for_my_work({afterActivityVersion:1, afterRevision:1, timeoutSeconds:20})` and leave the native call pending. | “It can wait on explicit document cursors. The page is now a live rendezvous, not a static editor API.” |
+| 0:34–0:56 | In Jordan's page, select exactly the October 15 recommendation, unmodified right-click, choose **Rewrite**, select Maya, enter the frozen instruction, and click **Assign work**. | “Jordan assigns one exact range to Maya's agent. The server—not the model—derives Jordan, Maya, the memo, and the selected text.” |
+| 0:56–1:08 | Return to the native call. Show `WORK_AVAILABLE`, revision 1, activity version 2, and the one assigned order. | “The human event resolves the already-pending wait. Activity advanced, but the document revision did not.” |
+| 1:08–1:25 | Invoke `read_document_memory({limit:20})`, then `list_my_work({})`. Show that Maya's agent sees the frozen order and conditional `submit_work_proposal`; briefly frame Maya's quiet **Page capability · Proposal tool available** line. | “The agent reads how the memo evolved and only the work assigned to its paired human. Pending work grants one temporary proposal capability.” |
+| 1:25–1:43 | Invoke `submit_work_proposal` with the frozen replacement and summary. In both human pages, frame the visible proposal beside the unchanged original sentence and revision 1; Maya's line has returned to **Read-only tools**. | “This is deliberately a proposal, not an edit. Both people can review it, and WebMCP has no accept or direct-apply tool.” |
+| 1:43–2:05 | In Jordan's page, paste the full frozen rationale and click **Accept**. Show both sessions synchronize to the beta sentence, completed work, revision 2, and activity version 4. | “Only Jordan, the creator, can decide. Acceptance atomically applies the stored range and records the proposer, accepter, server diff, and Jordan's reason.” |
+| 2:05–2:19 | Open **Memory** in both sessions. Frame the one acceptance event and rationale; show the proposal tool has disappeared. | “The decision becomes shared memory, and the agent's temporary authority disappears when its pending queue drains.” |
+| 2:19–2:35 | Start a fresh Maya-paired agent turn. Invoke `inspect_document({})` and `read_document_memory({limit:20})`; ask why full GA should not return on October 15. Show the answer citing Jordan's eight-day rationale. | “The final memo no longer contains the rejected eight-day fact. A fresh agent recovers it from the human decision instead of repeating the same idea.” |
+| 2:35–2:40 | Hold on the final memo and Memory. | “People direct. Agents propose. Decisions remember.” |
 
-## Capture checklist before uploading
+## Frozen on-screen inputs
 
-- Reset the production workspace and use a new supported page session.
-- Verify fresh discovery is exactly `join_session`, `catch_up`.
-- Confirm native join uses **Ratiflow Agent**, produces `LIVE`, and expands the catalog.
-- Confirm the task arrives through a real accepted human POST and wait response, not a
-  timer or scripted front-end transition.
-- Confirm duplicate/stale claims do not yield a second active generation.
-- Confirm the task-linked question removes the claim, the human answer reopens the
-  task, and resolution requires a fresh claim.
-- Confirm all comments, questions, answers, task effects, and presence are attributed.
-- Confirm the no-wakeup notice and unavailable auto-runner state are legible.
-- Confirm no native tool can ratify, commit, or finalize.
-- Confirm leave produces `AWAY` and contracts discovery without deleting history.
-- Keep the render between 2:30 and 2:50 with intelligible narration.
-- Review every frame for tokens, cookies, environment values, and personal data.
-- Upload publicly and test playback without authentication before marking the ledger.
+Jordan's selection is BODY code-point range `[16, 71)`:
+
+```text
+Launch CSV export as generally available on October 15.
+```
+
+Jordan's assignment instruction:
+
+```text
+Rewrite this recommendation to fit the 14-day capacity and protect the Northstar renewal. Keep both launch dates explicit.
+```
+
+Maya's agent proposal:
+
+```text
+Launch an invite-only, single-tenant Northstar beta on October 15, then make CSV export generally available on November 1.
+```
+
+Change summary:
+
+```text
+Replace October 15 GA with a single-tenant beta, then move general availability to November 1.
+```
+
+Jordan's authoritative rationale:
+
+```text
+Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.
+```
+
+Fresh-agent golden answer:
+
+```text
+Jordan rejected October 15 full GA because it requires eight export days, while only four remain after ten days of reliability work. The accepted beta uses those four days and still meets Northstar's November 1 deadline.
+```
+
+## Preflight before recording
+
+- [ ] Owner has approved one exact release commit and preview/deployment actions.
+- [ ] The v3 migration is applied and smoked on preview; static audit alone is not used
+  as a persistence claim.
+- [ ] The exact deployed build passes `.codex/verify.sh`, production build, 8/8 v3
+  browser tests, preview database checks, visual review, and runtime-health review.
+- [ ] A supported client discovers and invokes the real deployed page tools; an injected
+  adapter is not substituted in the video.
+- [ ] The main cut captures N01–N09 on the exact deployed SHA; separate dated native
+  artifacts cover N10 wait outcomes, N11 abort/teardown, and N12 runtime health.
+- [ ] Reset produces the exact memo at revision 1/activity 1 with no work orders, and
+  the human-opened bootstrap fragments are scrubbed before registration.
+- [ ] Both human sessions are genuinely isolated and show distinct Maya/Jordan identity.
+- [ ] Shift-right-click opens the real spelling menu; all modified/keyboard/native
+  context branches, `Cmd/Ctrl+K`, 390px, conflict recovery, and WebMCP-off editing have
+  separate sanitized evidence.
+- [ ] The full hero rehearses five consecutive times without manual repair.
+- [ ] The first native invocation lands before 0:45 and the final cut is at most 2:40.
+- [ ] R01–R04 are complete: five canonical native rehearsals, timing, an exact-SHA claim
+  manifest, and the verified live/repository/video package. The local adapter preflight
+  does not complete R01.
+- [ ] Four independent criterion judges pass: WebMCP Leverage 5/5, all others at least
+  4.5/5, total at least 19/20, and no must-fix.
+- [ ] The pre-recording manifest binds every available artifact to the exact SHA and
+  leaves only genuinely post-recording/public rows `PENDING`; adapter evidence closes
+  no native or release row. The final validator runs after publication.
+- [ ] Every frame and transcript is checked for share/session tokens, fragments,
+  cookies, credentials, private content, and unrelated browser context.
+- [ ] Owner uploads the narrated cut publicly to YouTube, verifies playback without sign-in, and
+  only then replaces the pending video entry in [the ledger](README.md).

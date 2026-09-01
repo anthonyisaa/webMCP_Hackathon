@@ -1,11 +1,13 @@
-# Native WebMCP validation record
+# Superseded v1.2 native WebMCP validation record
 
-Status: **production native capture recorded; connected Chrome limitation observed**
+Status: **historical v1.2 evidence only — v3 N01–N12 and R01–R04 remain pending**
 
 Started: 2026-08-30 (SGT)
 
-This document records observed behavior. It must never convert an assumption or an
-adapter-only test into a native-browser claim.
+This document records observed behavior for the retired v1.2 decision-workspace
+release. It must never be cited as evidence for the v3 shared-document flagship or
+convert an assumption or adapter-only test into a native-browser claim. Current v3
+status lives in [EVAL_RESULTS.md](EVAL_RESULTS.md).
 
 ## Probe contract
 
@@ -24,7 +26,7 @@ in-page `getTools()` → `executeTool()` check and a cancellable delay tool.
 The earlier lifecycle probe is historical and does not represent the current product
 release. Its Chrome namespace result was a setup gap, not a production product failure.
 
-## Production release evidence — observed 2026-08-30 SGT
+## Superseded v1.2 production release evidence — observed 2026-08-30 SGT
 
 Production URL: <https://ratiflow-webmcp.vercel.app/>
 
@@ -36,9 +38,9 @@ The sanitized capture at
 `evals/results/native/codex-in-app-browser/2026-08-30T141842Z/release.json` covers
 N01–N11 and the complete revision 7→11 sequence. It records browser version `null`.
 
-The Codex desktop in-app Browser run is native release evidence from an OpenAI client.
-Optional raw `getTools`/`executeTool` and cancellation fields were unavailable in this
-wrapper.
+The Codex desktop in-app Browser run was native evidence for that v1.2 SHA from an
+OpenAI client. Optional raw `getTools`/`executeTool` and cancellation fields were
+unavailable in this wrapper.
 
 An exact-production Chrome recheck at `2026-08-30T17:04:05.586Z` loaded the product
 with zero console errors, but that connected client exposed neither
@@ -79,9 +81,11 @@ These observations establish three product rules:
 3. Honor an execution cancellation signal when supplied, but tolerate clients that omit
    the optional callback context.
 
-## Go/no-go rule
+## Current v3 release boundary
 
-The native release trajectory is recorded for one OpenAI client, and the unsupported
-connected Chrome surface is recorded separately without overstating it. Agent
-trajectories and ablation are complete in [EVAL_RESULTS.md](EVAL_RESULTS.md). Public
-repository release and the narrated video remain the submission gates.
+The native trajectory above is valid only for the named v1.2 SHA and route. It does not
+satisfy any v3 N01–N12 row, rehearsal row, criterion score, or release gate. The v3
+candidate remains blocked on one clean release SHA, remote migration and exact-build
+deployment, supported-client capture of all N01–N12 rows, R01–R04 release evidence,
+four passing criterion rejudges, and the owner-authorized public package. See the
+current [v3 evidence ledger](EVAL_RESULTS.md).

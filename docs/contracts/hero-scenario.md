@@ -3,9 +3,8 @@
 Product: **Ratiflow** — “Agents prepare. People ratify. Work moves.”
 
 This is the only seed scenario used by the hero flow, native WebMCP proof, agent
-trajectory eval, and recording at `/` (with `/decision-demo` as a stable alias). Reset
-returns that workspace to revision 7 exactly. The separate shared note at `/document`
-is not seeded by this scenario.
+trajectory eval, and recording at `/decision-demo`. Reset returns that workspace to
+revision 7 exactly. The self-service root editor is not seeded by this scenario.
 
 ## Seed
 
@@ -15,7 +14,7 @@ is not seeded by this scenario.
 | Decision | `dec_csv_oct15` — whether CSV export belongs in the Oct 15, 2026 launch of a B2B analytics product |
 | Maya Chen | `usr_maya_chen`, Product Lead; the sole ratifier in this scenario |
 | Jordan Lee | `usr_jordan_lee`, Engineering Lead; collaborator |
-| Demo agent | `agent_ratiflow_demo`, displayed as `Ratiflow Agent` |
+| Demo agent | `agent_ratiflow_demo`, displayed as `Ratiflow demo agent` |
 | Customer | `cust_northstar_health`, Northstar Health; $180,000 annual renewal; needs usable CSV export by Nov 1, 2026, not necessarily GA on Oct 15 |
 | Option O1 | `opt_csv_ga_oct15` — full CSV export, GA Oct 15, 2026 |
 | Option O2 | `opt_csv_beta_oct15` — invite-only, single-tenant Northstar beta Oct 15, 2026; GA Nov 1, 2026 |
@@ -58,9 +57,9 @@ All six records are authored by `system_seed` (`Seed fixture`) and exist at revi
 | 7 | Seed / reset | O1 is the domain recommendation with 18 days of capacity; page selection starts at the decision root. | `READY`; `prepare_decision` is present; `customer-launch-brief` is `BLOCKED`; epoch 1. |
 | 7 (page-local) | Maya Chen / ordinary UI | Selects O1. | Epoch 1 → 2; `inspect_selected_option` and `challenge_option` are added; workspace revision stays 7. |
 | 8 | Jordan Lee / ordinary UI in a second browser | Changes capacity from 18 to 14 because of a four-day incident rotation. | `READY` → `CONTESTED`; O1 remains the domain and page selection; page-local epoch stays 2; `prepare_decision` is removed while `add_evidence` remains registered. |
-| 8 (rejected) | `Ratiflow Agent` / `add_evidence` WebMCP call with rev-7 input | The still-registered tool reaches page code. | Reject with `STALE_WORK_STATE` and the exact diff below; no new revision. |
-| 9 | `Ratiflow Agent` / WebMCP recovery | Inspects revision 8, compares options, and calls `recommend_option` for O2 using the seeded beta-effort evidence. | The mutation advances workspace revision to 9; `READY`; O2 becomes the domain recommendation; the page follows it and advances epoch to 3; `prepare_decision` returns. |
-| 10 | `Ratiflow Agent` / `prepare_decision` WebMCP call | Prepares O2. | `REVIEW`; prepared decision records revision 10. |
+| 8 (rejected) | `Ratiflow demo agent` / `add_evidence` WebMCP call with rev-7 input | The still-registered tool reaches page code. | Reject with `STALE_WORK_STATE` and the exact diff below; no new revision. |
+| 9 | `Ratiflow demo agent` / WebMCP recovery | Inspects revision 8, compares options, and calls `recommend_option` for O2 using the seeded beta-effort evidence. | The mutation advances workspace revision to 9; `READY`; O2 becomes the domain recommendation; the page follows it and advances epoch to 3; `prepare_decision` returns. |
+| 10 | `Ratiflow demo agent` / `prepare_decision` WebMCP call | Prepares O2. | `REVIEW`; prepared decision records revision 10. |
 | 11 | Maya Chen / ordinary UI | May edit local wording fields, then submits those edits with ratification as one transaction. | `COMMITTED`; no WebMCP tool can ratify. `customer-launch-brief` becomes `READY`. |
 
 Exact stale-work response at revision 8:

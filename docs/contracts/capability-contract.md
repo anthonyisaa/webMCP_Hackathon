@@ -1,11 +1,10 @@
 # Ratiflow capability and wire contract
 
-Version 1.1 · Frozen for product implementation · 2026-08-31
+Version 1.0 · Frozen for product implementation · 2026-08-30
 
-Route scope: this frozen decision-workspace contract applies to the flagship `/` route
-and its `/decision-demo` alias. The shared-document surface has a separate,
-non-overlapping contract in [`editor-contract.md`](editor-contract.md) and remains
-available at `/document/[shareToken]`.
+Route scope: this frozen decision-workspace contract applies to `/decision-demo`.
+The self-service root editor has a separate, non-overlapping contract in
+[`editor-contract.md`](editor-contract.md).
 
 This document owns the names and shapes shared by the domain service, capability
 compiler, WebMCP bridge, UI, and evals. TypeScript mirrors it in
@@ -19,7 +18,7 @@ without a coordinated contract revision.
 DecisionState = OPTIONS | CONTESTED | READY | REVIEW | COMMITTED
 SelectionKind = DECISION | OPTION | FOLLOWUP
 ActorType = HUMAN | AGENT | SYSTEM
-EventOrigin = ORDINARY_UI | WEBMCP | AUTO_PICKUP | SYNTHETIC_DEMO | SYSTEM
+EventOrigin = ORDINARY_UI | WEBMCP | SYNTHETIC_DEMO | SYSTEM
 ReviewStatus = NOT_APPLICABLE | PROPOSED | EDITED | RATIFIED | REJECTED
 ```
 
@@ -340,11 +339,8 @@ refetch; ordering of Realtime and WebMCP lifecycle events is never a correctness
 
 - Signed membership determines workspace and actor. API clients cannot submit
   `workspaceId`, actor, role, or origin as trusted mutation fields.
-- The browser-agent adapter assigns origin `WEBMCP`; the page auto-runner adapter
-  assigns `AUTO_PICKUP`; human UI routes assign `ORDINARY_UI`; the labeled
-  deterministic fallback assigns `SYNTHETIC_DEMO` and Jordan's fixed demo member.
-  Caller and origin are fixed transport context, never request-body or tool-input
-  fields.
+- The WebMCP route assigns origin `WEBMCP`; human UI routes assign `ORDINARY_UI`; the
+  labeled deterministic fallback assigns `SYNTHETIC_DEMO` and Jordan's fixed demo member.
 - Jordan's capacity control is the internal, non-WebMCP action
   `SET_LAUNCH_CAPACITY`. Its input is
   `{ expectedWorkspaceRevision, requestId, payload: { launchCapacityEngineerDays,
@@ -375,26 +371,3 @@ refetch; ordering of Realtime and WebMCP lifecycle events is never a correctness
 5. Human/agent-authored text is returned as data with untrusted-content annotation and
    never interpolated into tool instructions.
 6. The complete hero flow uses only catalog tools plus ordinary human UI actions.
-
-## 8. Live collaboration composition
-
-[`live-agent-session-contract.md`](live-agent-session-contract.md) adds the session,
-activity, inbox, comment, question, and optional page-runner layer. The two contracts
-compose as follows:
-
-- The capability compiler continues to return decision tools only. It does not know
-  about engagement mode, agent leases, or transport.
-- The single page registry prepends the coordination tools allowed by `FRESH`,
-  `INVOKED`, or `LIVE`, then appends the compiler's available decision tools in their
-  existing canonical order.
-- `WorkspaceView.collaboration` is required on the live decision surface. It does not
-  affect readiness predicates or workspace revision.
-- A decision mutation receives `AgentExecutionContext` outside model input. Browser
-  execution records `WEBMCP`; page-runner execution records `AUTO_PICKUP`. Both append
-  one collaboration activity event in the same transaction as the existing provenance
-  event.
-- Target-scoped decision registrations retain the existing context-epoch semantics.
-  Stable session registrations have a separate lifecycle key, so a selection change
-  cannot abort a pending `wait_for_activity`.
-- No collaboration state or tool creates `COMMITTED`. The existing Maya-only
-  ratification invariant remains final.

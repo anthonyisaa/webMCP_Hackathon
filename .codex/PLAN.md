@@ -1,264 +1,238 @@
-# Plan — Make the agent a live decision-room teammate
-_Updated: 2026-09-01T01:59:59+08:00_
+# Plan — Shared decision memory in one live document
+_Updated: 2026-09-01T08:44:40+08:00_
 
 ## Goal and ambition mode
 
-Replace Ratiflow's one-shot agent demo with one observable human-agent collaboration
-loop on the decision workspace: a browser agent can join, catch up from an opaque
-cursor, wait for teammate activity, claim addressed work, act under its own identity,
-ask a person a question, resume after the answer, resolve the task, and leave. The
-optional in-page runner remains visibly unavailable because its model authorization,
-native-loop, and spend gate did not pass; no fallback path simulates autonomy.
+Ship one award-caliber WebMCP Challenge vertical slice before September 4, 2026
+04:00 SGT: Maya and Jordan co-edit one calm decision memo; Jordan selects exact text
+and assigns a work order to Maya; Maya's already-active paired agent waits on the page,
+reads current content and durable memory, and submits a revision-bound proposal without
+mutating the document; Jordan accepts or rejects it with human rationale; a fresh later
+agent retrieves that rationale and avoids repeating a rejected idea.
 
-Ambition mode is **brownfield product correction under the challenge deadline**. The
-decision workspace becomes the flagship `/` surface and remains available at
-`/decision-demo`; the shared-document route is preserved as a secondary artifact but
-is not the submission's human-agent-loop claim. Existing revision checks, dynamic
-capability compilation, provenance, and human-only ratification remain non-negotiable.
-There is still no headless/background agent, no service-worker execution, no promise
-that a page can wake ChatGPT, and no agent tool that ratifies, commits, or finalizes a
-decision.
+This is a brownfield deadline correction, not a general word processor, CRDT, autonomous
+agent host, chat product, account system, rich-text editor, or workflow engine. Preserve
+the proven share/join, presence, autosave/conflict, Unicode anchoring/rebasing,
+paired-token authorization, idempotency, cancellation, ordinary-browser fallback, and
+the live activity/wait infrastructure already on `origin/main`. Remove the visible
+stage machine, permanent annotation composer, creator-only queue, direct agent mutation,
+and copied-prompt hero from the submission path. `/decision-demo` remains compatibility
+evidence, not the document story.
 
-The current 26 Aug WebMCP draft, not the feedback's stale API notes, is authoritative:
-`getTools`/`executeTool` are now specified for in-page agents; normative annotations are
-`readOnlyHint` and `untrustedContentHint` (not `destructiveHint`);
-`document.modelContext` remains primary with the observed `navigator` fallback.
+## R0 — Reconcile the release baseline — blocking
 
-## Chokepoint — freeze first
+Release authority is `origin/main@5957bb4`, which already tracks the shared document
+and a production-proven live registry, activity hub, cursor contract, migrations, tests,
+and native evidence. The current root is two commits behind and intentionally dirty.
+Preserve every file byte while classifying each delta as **port**, **supersede**, or
+**retain as compatibility**. Reuse, do not duplicate, the live activity/wait kernel.
+Never edit an applied migration or `next-env.d.ts`.
 
-Freeze `docs/contracts/live-agent-session-contract.md`, the collaboration additions in
-`docs/contracts/capability-contract.md`, their checked mirror in
-`src/contracts/index.ts`, the additions to `RatiflowServicePort`, the
-`AgentToolRegistryPort`, and the collaboration view/fixture types before implementation
-streams start. C0 also owns a deployed native feasibility spike; implementation streams
-do not start until at least one real async wait is observed resolving by event, timeout,
-and cancellation on the supported surface, or the live-wait claim is explicitly
-removed from scope.
+The user's goal explicitly freezes the document-workspace pivot. C0 may run in this
+preserved root only after a content inventory confirms the document implementation
+matches the remote baseline and identifies every remote file the pivot must retain.
+Feature implementation must use isolated ownership after C0. Before publication, branch
+and index identity must be reconciled to an approved clean commit. No reset, merge,
+commit, push, repository-visibility change, production promotion, video upload, or
+Devpost submission is inferred.
 
-The frozen kernel must define:
+## C0 — Atomic contract freeze
 
-- a server-assigned, opaque, monotonically ordered activity cursor independent of
-  workspace revision, plus bounded catch-up semantics and event types;
-- the existing `agent_ratiflow_demo` as a real participant with TTL/lease-derived
-  `LIVE | LIVE_AUTO | IDLE | AWAY` presence and last-seen time;
-- a cryptographically random page-session ID issued on page mount/reset, bound
-  server-side to the workspace and authenticated demo-agent handle, rotated on reset,
-  rejected after revocation or expiry, and never accepted as model tool input. The
-  browser lease is 45 seconds and renewed by waits/reads; `IDLE` begins after lease
-  expiry and `AWAY` after two minutes or explicit leave. Task claim leases are 90
-  seconds and renewed only by the current owner;
-- addressed inbox tasks, `OPEN | CLAIMED | WAITING_HUMAN | DONE | CANCELLED` lifecycle,
-  atomic expiring claims used by **both** browser and auto callers, request replay, and
-  exactly-once visible effects;
-- comments and human-input questions with target, actor, caller attribution, and an
-  ordinary-UI answer path;
-- standing instructions `{ autoPickup, scopes, maxActionsPerHour }`, off by default,
-  enforced server-side rather than only hidden in UI;
-- trusted execution context
-  `{ caller: "BROWSER_AGENT" | "AUTO_RUNNER", pageSessionId, agentSessionToken, signal }`
-  supplied by adapters and never accepted from model tool input;
-- one caller-neutral registry that owns definitions, schemas, availability, validation,
-  and handlers. Native WebMCP registration and the page runner are adapters over that
-  registry, never independent action paths. The registry is page/client-neutral; the
-  page holds its one runtime instance. The server-side model route is a stateless,
-  authenticated **planner only**: it receives a bounded task transcript and tool
-  schemas, returns a proposed tool call, and never imports or executes registry
-  handlers. The page validates and executes proposals through the same registry used by
-  native WebMCP;
-- exact session tools `join_session`, `wait_for_activity`, `catch_up`, and
-  `leave_session`; compact reads `get_state_brief`, `get_thread`, and `get_inbox`;
-  coordination writes `claim_agent_task`, `resolve_task`, `post_comment`, and
-  `request_human_input`; plus the existing phase/selection-gated decision tools;
-- initial discovery that makes `join_session` and `catch_up` the two honest first moves;
-  joining unlocks the live surface, catch-up unlocks invoked mode, and leaving/lease
-  expiry closes live-only capabilities without aborting waits for unrelated selection
-  changes;
-- read timeouts as successful empty results, wait timeout default 20 seconds and cap
-  30 seconds until native-client measurements justify a larger value, cancellation via
-  the invocation signal, and no claim that a model response itself is guaranteed within
-  two seconds;
-- no ratification/finalization tool. Maya's ordinary-UI transaction remains the only
-  accepted commitment path.
+C0 supersedes every submission-facing product, native, agent, ablation, release-gate,
+and proof-order section in `product_spec.md` and `EVALS.md`; rewrites
+`docs/contracts/editor-contract.md` and `src/document/contracts.ts`; and freezes
+`docs/contracts/document-hero-scenario.md`. Existing `hero-scenario.md` and
+`live-agent-session-contract.md` remain decision-room compatibility authority. No
+feature stream starts while a displaced file remains labelled **Frozen**.
 
-The frozen service façade owns session issue/renew/leave, bounded catch-up, task CRUD,
-atomic claim/resolve, comments, questions/answers, standing instructions, budget
-authorization, and activity subscription. The registry façade owns tool discovery and
-execution only. The frozen UI fixture exposes the same collaboration view shape as the
-HTTP service—no UI-only state vocabulary.
+The deterministic hero is: Maya's active agent waits; Jordan selects exact body text and
+assigns it to Maya; the agent reads the document and memory, submits a proposal without
+mutating the document; Jordan accepts or rejects it with rationale; a fresh agent later
+recovers a rationale or rejected fact no longer inferable from current text. S5 captures
+this exact fixture; it never invents an optional scenario.
 
-## Outcome and release evidence
+### Human interaction
 
-- Core loop implemented through one registry and one server-authoritative state model.
-- Production deployment `dpl_Eu6yHDLetV2SrceXdEMTins7DVVw` is `READY` at the
-  canonical URL; the current deployment has no post-cutover runtime error clusters or
-  5xx responses.
-- `.codex/verify.sh` passes TypeScript, ESLint, and 161/161 tests across 25 files;
-  `pnpm build` passes the Next.js 16.3.3 webpack production build.
-- Hosted production browser evidence passes 19/19 scenarios; the focused live loop was
-  re-run against the current deployment and passes 3/3.
-- The supported in-app Browser natively discovered the exact fresh two-tool catalog,
-  caught up, joined as the canonical `Ratiflow Agent`, and woke a pending
-  `wait_for_activity` from a task created in the ordinary UI. It claimed the task with
-  no model-visible `claimId`, resolved it through the adapter's retained private claim,
-  left, and observed contraction back to the two fresh tools.
-- The read-only `design-judge` role was unavailable. Mobile and accessibility flows
-  passed, but no independent visual verdict is claimed.
+The default surface is a plain title/body document with a compact top bar, presence, and
+a quiet **Work | Memory** margin. The four-stage control and stage-generated work are
+absent. Stored v2 stage data may remain for rollback but never gates v3 behavior or
+appears in the v3 WebMCP contract.
 
-## Streams
+A non-empty title/body selection exposes one compact **Ask agent** affordance. Only an
+unmodified pointer-origin right-click on that selection calls `preventDefault` and
+opens **Rewrite**, **Research**, and **Assign…**. Track the preceding secondary-button
+pointer event instead of guessing keyboard origin from coordinates. Shift+pointer-right-
+click, the Context Menu key, Shift+F10, empty selection, and non-editor targets stay
+native; `spellCheck` remains enabled and the UI says “Hold Shift for spelling menu.”
+Cmd/Ctrl+K is the keyboard-equivalent app action. Rewrite and Research prefill the same
+composer; no work order exists until the human confirms instruction and assignee.
 
-### C0 — Live-session contract and spike harness — completed
-- Owner / checkout: coordinating task in the current preserved dirty worktree.
-- Scope and key files: this plan, `product_spec.md`, `EVALS.md`,
-  `docs/contracts/live-agent-session-contract.md`, capability contract, checked types,
-  service/registry/view façades, and a minimal deployed native wait spike fixture.
-- Must not touch: implementation until the contract receives fresh adversarial review.
-- Verification: `rg -n "implemented|measurement|deliberately rejected" EVALS.md` maps
-  every feedback claim; contract tests typecheck; a dated native probe records event,
-  timeout, cancellation, maximum consecutive waits, confirmation behavior, and exposed
-  namespace. A fresh reviewer finds no cursor/revision conflation, untrusted caller
-  field, presence-without-TTL, hidden duplicate path, or agent ratification. Claim-race
-  safety remains an S1 executable gate, not a paper-review claim.
+### Work and authority
 
-### S1 — Activity, session, inbox, and claim domain — completed
-- Owner / files: worker owns `src/domain/ratiflow-*`, `src/domain/supabase/ratiflow-*`,
-  `src/app/api/workspace/` collaboration/session endpoints,
-  `src/components/product/http-service.ts`, one additive CLI-named migration, and
-  focused domain/route/migration tests.
-- Scope: cursor-addressed activity, agent presence leases, tasks/comments/questions,
-  standing instructions, atomic claim/release/resolve, action budgets, caller
-  attribution, replay safety, and long-poll reads. Existing decision mutations append
-  matching activity without weakening revision or ratification rules.
-- Must not touch: React UI other than the owned HTTP adapter, WebMCP registry, root
-  pages, fixture service, or frozen contracts.
-- Verification: `pnpm test -- src/domain/ratiflow-live-session.test.ts
-  src/app/api/workspace/live-session-routes.test.ts` passes timeout/event/cancellation/
-  cursor tests; browser-vs-auto and
-  auto-vs-auto claim races; lease expiry; toggle off/on; hourly budget; question/answer;
-  every accepted agent effect has exactly one attributed activity event.
+A work order stores exact title/body range anchors; immutable `creatorMemberId` and
+`assignedToMemberId`; display-name snapshots; instruction/intent; creation and live
+anchor revisions; proposal fields; and timestamps. Human creation explicitly supplies
+`assignedToMemberId`. The server validates current workspace membership and non-expired
+presence when assigning. Presence remains an advisory UI projection; later inactivity
+does not revoke existing work before session expiry.
 
-### S2 — Single registry and native lifecycle — completed
-- Owner / files: worker owns `src/webmcp/`, `src/components/system/WebMCPBridge.tsx`, and
-  focused registry/registration tests.
-- Scope: caller-neutral registry, session/inbox tools, existing decision tools through
-  the same handlers, fresh/invoked/live registration modes, stable wait lifetimes,
-  dynamic phase/selection writes, browser claim enforcement, and AbortSignal cleanup.
-- Must not touch: persistence, API routes, visual UI, planner route, or frozen
-  contracts. `WebMCPBridge.tsx` and the registry are exclusively S2-owned until this
-  stream lands; the coordinator integrates only afterward.
-- Verification: `pnpm test -- src/webmcp/live-registry.test.ts
-  src/webmcp/live-registration.test.ts` passes exact schemas/order, initial two-tool
-  surface, join/catch-up expansion,
-  phase diffs, wait unaffected by selection, leave/expiry contraction, stale context,
-  cancellation, JSON serializability, and direct-registry/native-handler equivalence.
+All members may view work. Only the creator may cancel, accept, or reject it. Only the
+paired agent whose member identity is derived server-side from authenticated execution
+context may list or submit it. WebMCP never creates, reassigns, accepts, or rejects work.
 
-### S3 — Page-triggered auto runner and AI boundary — deferred at release gate
-- Owner / files: worker owns `src/agent/`, the runner route under `src/app/api/agent/`,
-  package dependency changes, and focused tests.
-- Entry gate: S1 + S2 + S4 must first pass the local two-browser live-loop spec and C0
-  must retain the native wait claim. If Gateway auth/cost control is not safe, this
-  stream is deferred and the UI reports auto pickup unavailable without weakening the
-  browser-agent loop.
-- Scope: visible-page-only, opt-in, debounced runner; claim before inference; bounded
-  step loop; current AI Gateway model discovered from the live catalog; prompt-injection
-  boundary; registry schemas supplied to the stateless planner; proposed calls returned
-  to the page and executed through its registry instance; no registry-handler imports in
-  the route; no session/destructive/human-only tool use; release/retry on model failure;
-  abort on hidden/unmounted page.
-- Must not touch: registry definitions, domain internals, decision UI, or contracts.
-- Verification: `pnpm test -- src/agent/auto-runner.test.ts
-  src/app/api/agent/plan/route.test.ts` proves the route cannot execute a handler and
-  fake-planner tests cover on/off, live-session suppression, claim loss,
-  max steps/actions, hidden-page cancellation, gateway 402/429/unavailable degradation,
-  and browser/runner use of the same registry callback.
+Lifecycle is:
 
-### S4 — Live decision-room UI and primary route — completed
-- Owner / files: worker owns `src/components/product/`, `src/app/page.tsx`, narrowly
-  scoped `src/app/globals.css`, and live-session Playwright coverage.
-- Scope: agent participant/presence chip, waiting badge and inbox, Ask-agent task entry,
-  attributed comments/activity, inline question cards, standing-instruction control,
-  runner state, and an agent-capabilities panel driven by actually registered tools.
-  Promote the decision workspace to `/` without deleting `/document/[shareToken]`.
-- Must not touch: domain, migration, registry, frozen types,
-  `src/components/product/http-service.ts`, or `WebMCPBridge.tsx`.
-  `decision-workspace.tsx`, `fixture-service.ts`, `types.ts`, `globals.css`, root route,
-  and UI specs are exclusively S4-owned until this stream lands.
-- Verification: `pnpm exec playwright test e2e/live-agent-session.spec.ts` passes
-  two-browser task arrival, join/wait/activity with p95 under two seconds from accepted
-  human POST to wait result receipt (model latency excluded),
-  model latency, answer round trip, capabilities changing with decision state, auto
-  pickup off/on, no double-visible result, keyboard/mobile behavior, and the complete
-  human ratification path.
+- `PENDING -> PROPOSED | CANCELLED | STALE`
+- `PROPOSED -> COMPLETED | REJECTED | STALE`
 
-### I0 — Integration, release evidence, and handoff — completed with recorded limits
-- Owner: coordinating task after S1-S4.
-- Scope: resolve seams, install/migrate only after local gates, run the real AI path,
-  deploy, measure the supported ChatGPT surface, update submission material, and record
-  residual client limits honestly.
-- Verification: focused suites, `.codex/verify.sh`, `pnpm build`,
-  `pnpm exec playwright test e2e/live-agent-session.spec.ts e2e/hero.spec.ts
-  e2e/accessibility.spec.ts`, driven browser flow,
-  fresh `$dev-visual-review`, production logs, database advisors, and dated native
-  evidence for loop count, timeout, read confirmations, background-tab behavior,
-  document-vs-navigator namespace, return shape, and a real teammate event.
+`submit_work_proposal` stores a bounded candidate replacement and untrusted model
+summary; it never mutates document content. Accept/reject requires
+`{ workOrderId, expectedRevision, requestId, rationale }`. Acceptance atomically
+revalidates the stored anchor, applies the stored proposal, completes the work, and
+attributes proposer plus accepter. Human rationale is authoritative. Every transition
+locks the document first and is idempotent. Freeze exact request/result schemas, bounds,
+errors, replay behavior, revision races, and `ASSIGNEE_UNAVAILABLE`. Non-overlapping
+anchors rebase; overlapping ones become stale.
 
-## Checkpoints
+### Activity and decision memory
 
-- A wait call is cancelled by ordinary selection/context-epoch changes -> split stable
-  session registrations from target-scoped registrations before continuing.
-- Browser and auto callers can infer against the same task without one holding a claim
-  lease -> block runner work and fix the server contract.
-- A tool input can select actor, caller, origin, workspace, or claim owner -> block.
-- Auto pickup runs while off, hidden, over budget, or while a live browser session owns
-  the room -> block.
-- Gateway auth/cost controls cannot be exercised safely on the deployed anonymous demo
-  -> ship live session and catch-up, but keep auto pickup visibly unavailable rather
-  than simulating success.
-- Native ChatGPT allows too few wait iterations for a useful turn -> shorten waits to
-  the measured safe value and present live mode honestly; never fake page-to-agent push.
-- Read-only live-loop calls trigger repeated confirmations -> record the client limit
-  and rescope the demo rather than mislabeling mutating tools.
-- Any path lets an agent ratify/commit/finalize -> block release.
+Every successful content/work transaction locks the document first, increments server-
+owned `activityVersion` exactly once, and appends exactly one event. Content-changing
+transactions also increment document `revision` exactly once. Acceptance changes the
+document and work status in the same transaction/event. Reads, presence, timeout, abort,
+no-op, and idempotent replay advance neither counter. Higher `activityVersion` is
+authoritative for work/memory; presence merges independently.
 
-## Integration order
+Event kinds are `DOCUMENT_EDITED`, `WORK_CREATED`, `PROPOSAL_SUBMITTED`,
+`PROPOSAL_ACCEPTED`, `PROPOSAL_REJECTED`, `WORK_CANCELLED`, and `WORK_STALE`.
+Events contain server-derived actor/origin, base/result revision, linked work IDs,
+changed fields, bounded shared-document/instruction/proposal excerpts, server-computed
+diff, human rationale where applicable, and timestamp. They never contain external
+browser context, credentials, bearer or membership handles, or unrelated private data.
+P0 memory is this server-derived projection; there is no arbitrary memory writer.
 
-1. Freeze C0, run the minimal deployed native wait go/no-go, and obtain fresh
-   adversarial review.
-2. Land S1 while S2 builds against the frozen service façade and S4 builds against
-   frozen view/fixture types; their file ownership is disjoint and the coordinator does
-   not edit their seams concurrently.
-3. Integrate registry + UI locally; prove server claim races and the two-browser loop.
-   Only then admit S3, which builds a planner boundary and page adapter against the
-   landed registry façade.
-4. Integrate the optional runner, then run the repository gate, build, accessibility,
-   full hero regression, and independent
-   visual review.
-5. Apply the additive migration, deploy, verify Gateway and production health, then run
-   the native day-one spikes before updating any submission claim.
-6. Refresh `.codex/PROGRESS.md` with exact evidence, unsupported client behavior, and
-   the one next action.
+### Exact WebMCP surface
 
-Conflict hotspots are `src/contracts/index.ts`, the service port, bridge props,
-`decision-workspace.tsx`, and root routing. The coordinator owns those seams and no
-worker may revert the preserved document-editor changes.
+- `inspect_document({})`: current content, revision, activity version, collaborators.
+- `read_document_memory({ beforeActivityVersion?, limit? })`: bounded ascending window
+  with `hasMoreOlder`, `nextBeforeActivityVersion`, and `latestActivityVersion`.
+- `list_my_work({})`: oldest pending work assigned to this paired human's agent.
+- `wait_for_my_work({ afterActivityVersion, afterRevision, timeoutSeconds? })`: default
+  and hard cap 20 seconds. Authoritative fetch, subscribe, then refetch closes lost wake.
+  Return immediately as `WORK_AVAILABLE`; return `DOCUMENT_CHANGED` only when revision
+  advanced; ignore unrelated activity while advancing the internal cursor; otherwise
+  return `TIMEOUT` with current counters. Every wake refetches. Execution/registration/
+  route/session abort throws `AbortError` and removes timers/listeners; selection
+  changes do not cancel. Duplicate waits return `WAIT_ALREADY_ACTIVE`.
+- Conditional `submit_work_proposal({ workOrderId, expectedRevision, replacementText,
+  changeSummary })`: stores a proposal only while the paired agent owns pending work;
+  request IDs are callback-generated.
 
-## Risks and open decisions
+All tool inputs reject additional properties and never accept document, member, actor,
+origin, assignee, range, stage, acceptance, or decision fields. Freeze exact descriptions,
+bounds, result envelopes, errors, annotations, and service methods. All results are
+JSON-serializable and mark human/agent-authored content untrusted. A cancelled remote
+write may already have committed, so the agent must re-inspect.
 
-- The feedback's “reacts within two seconds” is decomposed into a measurable page/tool
-  delivery latency and separately reported model/write latency; the latter depends on
-  the client and confirmation policy.
-- `leave_session` is best-effort. TTL leases, not a final tool call, determine safety.
-- Browser-agent claims must be explicit or atomically bundled with inbox pickup; an
-  internal-only runner claim cannot prevent duplicate inference.
-- The anonymous public runner creates a real spend boundary. Server-side action budgets,
-  Vercel Gateway limits, visible consent, and graceful unavailability are release gates.
-- Native browser behavior remains empirical. Current spec support for in-page
-  `getTools`/`executeTool` does not prove ChatGPT exposes those methods to page script;
-  the runner therefore keeps its own registry reference.
-- Existing source is uncommitted and deployed. Preserve it; commit/push remains a
-  separate owner-authorized action.
+## Streams and ownership
+
+### S1 — Local domain and API behavior
+- Owner: one implementation worker after C0.
+- Files: `src/domain/document-service.ts`, focused tests, every frozen v3 document API
+  route, and
+  `src/document/surface-reconciliation*`.
+- Scope: assignment, proposal/decision authority, event projection, counters, rebasing,
+  races, replay, and human-only acceptance.
+- Gate: cross-pair denial; proposal without mutation; creator-only accept/reject;
+  accept/reject races; equal-revision activity; pagination; nearby/overlap anchors.
+
+### S2 — Additive Supabase v3 persistence
+- Owner: a separate worker after S1's frozen façade.
+- Files: one CLI-created additive migration, `src/domain/supabase/document-*`, tests.
+- Scope: start from the complete `origin/main` migration chain. Existing rows default
+  to protocol v2; new document-workspace rows use v3. Legacy apply RPCs reject v3; new
+  proposal RPCs reject v2. Apply and smoke v2, deploy/verify v3 preview, promote the same
+  SHA, then consider privilege cleanup while preserving scoped v2 rollback.
+- Gate: both protocol paths, grants/revokes/RLS, document-first locks, migration identity,
+  isolated smoke, security and performance advisors.
+
+### S3 — WebMCP live-work lifecycle
+- Owner: a separate worker after S1's frozen façade.
+- Files: `src/webmcp/document-*`, `DocumentWebMCPBridge.tsx`, focused tests.
+- Scope: reuse the remote activity hub/registration pattern; exact five-tool catalog,
+  authoritative refresh, assignee filtering, conditional proposal capability, internal
+  IDs, lost-wake closure, stable cancellation, route cleanup.
+- Gate: immediate work, event wait, timeout, abort, duplicate wait, unrelated activity,
+  document change, selection stability, teardown, stale session, JSON, navigation.
+
+### S4 — Contextual editor and memory margin
+- Owner: coordinating task after S1/S3 contracts compile.
+- Files: document editor/CSS, work-memory/context components, HTTP adapter, exact v3
+  route consumers, and document e2e specs. S4 does not own or reopen route handlers.
+- Gate: two isolated humans complete assign -> proposal -> accept/reject; exact context-
+  menu branches; keyboard and 390px flows; WebMCP-off editing; no overflow; fresh
+  `$dev-visual-review` returns no BLOCK.
+
+### S5a — Fixture, story, and rehearsal
+- Owner: coordinator after S1–S4.
+- Scope: deterministic Northstar memo, reset seam if safe, submission copy, script, and
+  evidence manifest. First native action <=45 seconds; rehearsal <=2:40.
+- Gate: five clean local/preview adapter rehearsals as preflight; every planned claim
+  names exact evidence. Adapter runs never close R01, which requires five canonical
+  native rehearsals on the exact release.
+
+### S5b — Post-deploy native capture
+- Owner: coordinator after exact-SHA preview and release identity pass.
+- Gate: native discovery and invocation of all document tools; wait resolves from a
+  human event; another human sees proposal without content mutation; acceptance changes
+  both sessions; fresh agent recovers human rationale from memory; navigation removes
+  tools. Adapter Playwright does not satisfy this proof.
+
+## Integration and release gates
+
+Order: `R0 -> C0 -> S1 -> (S2 || S3) -> S4 -> S5a -> preview -> S5b -> judges`.
+
+1. Run the supported-client wait spike immediately after C0; kill only the wait tool and
+   listening claim if native behavior fails.
+2. Run focused tests and `.codex/verify.sh`, production build, preview DB/app rollout,
+   driven browser flow, and `dev-visual-review`.
+3. Reconcile to an approved clean commit; deployment, canonical alias, public repository,
+   evidence manifest, and license must name the same SHA.
+4. Promote that exact SHA, capture native evidence, then run one independent judge for
+   each official criterion. Every judge returns 0–5, evidence, strongest gap, and one
+   must-fix. Release requires WebMCP Leverage 5/5, every criterion >=4.5, total >=19/20.
+5. Repository visibility, video upload, and Devpost submission remain explicit
+   user-owned actions.
+
+EVALS must cover cross-assignment; no-mutation proposal; creator authority; decision
+races; equal-revision reconciliation; server diff plus human rationale; pagination;
+lost-wake/timeout/abort/teardown; every context-menu branch; WebMCP-off fallback; and
+fresh-agent recovery of a rationale absent from current text.
+
+Hard cut lines (SGT):
+
+- R0 + C0: September 2 04:00
+- S1: September 2 22:00
+- S2/S3/S4 preview: September 3 10:00
+- Code freeze: September 3 16:00
+- Deploy/native capture: September 3 20:00
+- User-owned public repo, video, submission: September 4 00:00
+
+If R0/C0 misses its gate, retain the proven decision-room release. Any failure of paired
+identity, human-only acceptance, activity ordering, memory truth, native wait, exact-SHA
+identity, public accessibility, or the score threshold blocks the document release.
+
+## Residual risks
+
+- Plain textarea ranges limit rich inline decoration; the contextual palette and margin
+  carry collaboration while preserving the proven anchor model.
+- A cancelled Supabase request may commit; idempotency and re-inspection make the result
+  safe, not transactional cancellation.
+- The database must retain scoped v2 rollback behavior until the v3 release is proven.
+- The canonical URL currently serves the old decision launch; never change it before
+  exact-SHA preview, migration compatibility, and user authorization.
 
 ---
-
 # Archived prior plan — Make annotation-to-agent work obvious
 _Updated: 2026-08-31T22:13:57+08:00_
 

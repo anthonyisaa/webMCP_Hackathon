@@ -8,7 +8,10 @@
 - Typecheck: `pnpm typecheck`
 - Lint: `pnpm lint`
 - Unit/protocol tests: `pnpm test`
-- Native browser evals: `RATIFLOW_BASE_URL=<https-url> pnpm eval:native`
+- Native surface smoke (not release proof): `RATIFLOW_BASE_URL=<https-url> pnpm eval:native:smoke`
+- Protected-reset adapter preflight: `RATIFLOW_BASE_URL=<https-url> RATIFLOW_EVAL_RESET_TOKEN=<secret> pnpm eval:rehearse:adapter`
+- v3 agent-ledger validation: `pnpm eval:agent:v3`
+- v3 release-manifest gate: `pnpm eval:release:v3`
 - Production build: `pnpm build`
 
 `pnpm build` deliberately uses Next.js's webpack path. Turbopack's CSS worker may try

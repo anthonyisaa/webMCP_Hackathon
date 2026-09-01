@@ -429,3 +429,465 @@ export const DOCUMENT_CHANGE_SUMMARY_MAX_LENGTH = 240;
 export const DOCUMENT_PENDING_ANNOTATION_LIMIT = 100;
 export const DOCUMENT_MEMBER_PENDING_ANNOTATION_LIMIT = 50;
 export const DOCUMENT_RESOLVED_ANNOTATION_HISTORY_LIMIT = 20;
+
+// v3: shared decision memory. The v2 annotation contract above remains exported only
+// while the deployed v2 document path is kept available for rollback.
+export const DOCUMENT_WORKSPACE_PROTOCOL_VERSION = 3 as const;
+export type DocumentProtocolVersion = 2 | 3;
+export type DocumentWorkspaceProtocolVersion = typeof DOCUMENT_WORKSPACE_PROTOCOL_VERSION;
+
+export const DOCUMENT_WORKSPACE_TOOL_NAMES = [
+  "inspect_document",
+  "read_document_memory",
+  "list_my_work",
+  "wait_for_my_work",
+  "submit_work_proposal",
+] as const;
+
+export type DocumentWorkspaceToolName = (typeof DOCUMENT_WORKSPACE_TOOL_NAMES)[number];
+export type DocumentWorkspaceActorType = "HUMAN" | "AGENT" | "SYSTEM";
+export type DocumentWorkspaceOrigin = "ORDINARY_UI" | "WEBMCP" | "SYSTEM";
+export type DocumentWorkIntent = "REWRITE" | "RESEARCH" | "CUSTOM";
+export type DocumentWorkSource =
+  | "SELECTION_AFFORDANCE"
+  | "CONTEXT_MENU"
+  | "KEYBOARD";
+export type DocumentWorkOrderStatus =
+  | "PENDING"
+  | "PROPOSED"
+  | "COMPLETED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "STALE";
+
+export const DOCUMENT_MEMORY_EVENT_KINDS = [
+  "DOCUMENT_EDITED",
+  "WORK_CREATED",
+  "PROPOSAL_SUBMITTED",
+  "PROPOSAL_ACCEPTED",
+  "PROPOSAL_REJECTED",
+  "WORK_CANCELLED",
+  "WORK_STALE",
+] as const;
+
+export type DocumentMemoryEventKind = (typeof DOCUMENT_MEMORY_EVENT_KINDS)[number];
+
+export interface SharedDocumentV3 {
+  id: string;
+  protocolVersion: DocumentWorkspaceProtocolVersion;
+  title: string;
+  body: string;
+  revision: number;
+  activityVersion: number;
+  updatedAt: string;
+  lastEditor: {
+    displayName: string;
+    actorType: "HUMAN" | "AGENT";
+    origin: "ORDINARY_UI" | "WEBMCP";
+  } | null;
+}
+
+export interface DocumentMemberSnapshot {
+  memberId: string;
+  displayName: string;
+}
+
+export interface DocumentWorkAnchor {
+  field: DocumentField;
+  rangeStart: number;
+  rangeEnd: number;
+  selectedText: string;
+  createdRevision: number;
+  anchorRevision: number;
+}
+
+export interface DocumentWorkProposal {
+  replacementText: string;
+  changeSummary: string;
+  basedOnRevision: number;
+  proposedBy: {
+    displayName: string;
+    actorType: "AGENT";
+  };
+  proposedAt: string;
+}
+
+export interface DocumentWorkDecision {
+  kind: "ACCEPTED" | "REJECTED";
+  rationale: string;
+  decidedBy: DocumentMemberSnapshot;
+  decidedAt: string;
+  decisionRevision: number;
+  resultRevision: number;
+}
+
+interface DocumentWorkOrderBase {
+  workOrderId: string;
+  intent: DocumentWorkIntent;
+  source: DocumentWorkSource;
+  instruction: string;
+  anchor: DocumentWorkAnchor;
+  creatorMemberId: string;
+  creatorDisplayName: string;
+  assignedToMemberId: string;
+  assignedToDisplayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DocumentWorkOrder = DocumentWorkOrderBase & (
+  | {
+      status: "PENDING";
+      proposal: null;
+      decision: null;
+      resolvedAt: null;
+    }
+  | {
+      status: "PROPOSED";
+      proposal: DocumentWorkProposal;
+      decision: null;
+      resolvedAt: null;
+    }
+  | {
+      status: "COMPLETED";
+      proposal: DocumentWorkProposal;
+      decision: DocumentWorkDecision & { kind: "ACCEPTED" };
+      resolvedAt: string;
+    }
+  | {
+      status: "REJECTED";
+      proposal: DocumentWorkProposal;
+      decision: DocumentWorkDecision & { kind: "REJECTED" };
+      resolvedAt: string;
+    }
+  | {
+      status: "CANCELLED";
+      proposal: null;
+      decision: null;
+      resolvedAt: string;
+    }
+  | {
+      status: "STALE";
+      proposal: DocumentWorkProposal | null;
+      decision: null;
+      resolvedAt: string;
+    }
+);
+
+export type PendingDocumentWorkOrder = DocumentWorkOrder & { status: "PENDING" };
+export type ProposedDocumentWorkOrder = DocumentWorkOrder & { status: "PROPOSED" };
+export type WorkOrder = DocumentWorkOrder;
+export type PendingWorkOrder = PendingDocumentWorkOrder;
+
+export interface DocumentDiff {
+  field: DocumentField;
+  rangeStart: number;
+  rangeEnd: number;
+  beforeExcerpt: string;
+  afterExcerpt: string;
+}
+
+export interface DocumentMemoryEvent {
+  eventId: string;
+  activityVersion: number;
+  kind: DocumentMemoryEventKind;
+  actor: {
+    displayName: string;
+    actorType: DocumentWorkspaceActorType;
+  };
+  origin: DocumentWorkspaceOrigin;
+  baseRevision: number;
+  resultRevision: number;
+  workOrderId: string | null;
+  linkedWorkOrderIds: string[];
+  changedFields: DocumentField[];
+  targetExcerpt: string | null;
+  instructionExcerpt: string | null;
+  proposalExcerpt: string | null;
+  changeSummary: string | null;
+  diffs: DocumentDiff[];
+  rationale: string | null;
+  createdAt: string;
+}
+
+export interface ReadDocumentMemoryOutcome {
+  events: DocumentMemoryEvent[];
+  hasMoreOlder: boolean;
+  nextBeforeActivityVersion: number | null;
+  latestActivityVersion: number;
+  revision: number;
+}
+
+export interface DocumentSurfaceV3 {
+  document: SharedDocumentV3;
+  presence: DocumentPresence[];
+  workOrders: DocumentWorkOrder[];
+  memory: DocumentMemoryEvent[];
+}
+
+export interface DocumentSessionBundleV3 {
+  shareToken: string;
+  humanSessionToken: string;
+  agentSessionToken: string;
+  sessionInstanceId: string;
+  selfMemberId: string;
+  expiresAt: string;
+  protocolVersion: DocumentWorkspaceProtocolVersion;
+  surface: DocumentSurfaceV3;
+}
+
+export const DOCUMENT_V3_ERROR_CODES = [
+  "INVALID_INPUT",
+  "UNAUTHORIZED",
+  "NOT_FOUND",
+  "STALE_WORK_STATE",
+  "STALE_WORK_CONTEXT",
+  "REQUEST_REPLAY_MISMATCH",
+  "STALE_PAGE_CONTEXT",
+  "ASSIGNEE_UNAVAILABLE",
+  "WAIT_ALREADY_ACTIVE",
+  "RATE_LIMITED",
+  "PROTOCOL_MISMATCH",
+] as const;
+
+export type DocumentV3ErrorCode = (typeof DOCUMENT_V3_ERROR_CODES)[number];
+
+export interface DocumentV3Failure {
+  ok: false;
+  code: DocumentV3ErrorCode;
+  message: string;
+  retryable: boolean;
+  currentRevision?: number;
+  currentActivityVersion?: number;
+  currentWorkOrder?: DocumentWorkOrder;
+  nextAction?: string;
+}
+
+export interface StaleDocumentV3Failure extends DocumentV3Failure {
+  code: "STALE_WORK_STATE";
+  retryable: true;
+  expectedRevision: number;
+  currentRevision: number;
+  currentActivityVersion: number;
+  currentDocument: SharedDocumentV3;
+  nextAction:
+    "Re-inspect the document and work, then retry against the current revision.";
+}
+
+export type DocumentV3Result<T> =
+  | { ok: true; data: T }
+  | DocumentV3Failure
+  | StaleDocumentV3Failure;
+
+export interface LaunchDocumentV3Input {
+  displayName?: string;
+}
+
+export interface JoinDocumentV3Input {
+  shareToken: string;
+  displayName?: string;
+}
+
+export interface CreateDocumentWorkOrderInput {
+  expectedRevision: number;
+  requestId: string;
+  source: DocumentWorkSource;
+  intent: DocumentWorkIntent;
+  instruction: string;
+  assignedToMemberId: string;
+  targetField: DocumentField;
+  rangeStart: number;
+  rangeEnd: number;
+}
+
+export interface CancelDocumentWorkOrderInput {
+  workOrderId: string;
+  requestId: string;
+}
+
+export type CreateWorkOrderInput = CreateDocumentWorkOrderInput;
+export type CancelWorkOrderInput = CancelDocumentWorkOrderInput;
+
+export interface SubmitWorkProposalToolInput {
+  workOrderId: string;
+  expectedRevision: number;
+  replacementText: string;
+  changeSummary: string;
+}
+
+export interface SubmitWorkProposalServiceInput extends SubmitWorkProposalToolInput {
+  requestId: string;
+}
+
+export interface DecideWorkProposalInput {
+  workOrderId: string;
+  expectedRevision: number;
+  requestId: string;
+  rationale: string;
+}
+
+export interface ReadDocumentMemoryInput {
+  beforeActivityVersion?: number;
+  limit?: number;
+}
+
+export interface WaitForMyWorkInput {
+  afterActivityVersion: number;
+  afterRevision: number;
+  timeoutSeconds?: number;
+}
+
+export type WaitForMyWorkOutcome =
+  | {
+      outcome: "WORK_AVAILABLE";
+      workOrders: PendingDocumentWorkOrder[];
+      revision: number;
+      activityVersion: number;
+    }
+  | {
+      outcome: "DOCUMENT_CHANGED" | "TIMEOUT";
+      workOrders: [];
+      revision: number;
+      activityVersion: number;
+    };
+
+export interface ListMyWorkOutcome {
+  workOrders: PendingDocumentWorkOrder[];
+  revision: number;
+  activityVersion: number;
+}
+
+export interface ResetDocumentHeroOutcome {
+  shareToken: string;
+  mayaBootstrapPath: string;
+  jordanBootstrapPath: string;
+  expiresAt: string;
+  revision: 1;
+  activityVersion: 1;
+}
+
+export interface SubmitWorkProposalOutcome {
+  workOrder: ProposedDocumentWorkOrder;
+  document: SharedDocumentV3;
+  event: DocumentMemoryEvent & { kind: "PROPOSAL_SUBMITTED" };
+}
+
+export type InspectDocumentV3ToolResult =
+  | {
+      ok: true;
+      document: SharedDocumentV3;
+      collaborators: DocumentPresence[];
+    }
+  | DocumentV3Failure;
+
+export type ReadDocumentMemoryToolResult =
+  | ({ ok: true } & ReadDocumentMemoryOutcome)
+  | DocumentV3Failure;
+
+export type ListMyWorkToolResult =
+  | ({ ok: true } & ListMyWorkOutcome)
+  | DocumentV3Failure;
+
+export type WaitForMyWorkToolResult =
+  | ({ ok: true } & WaitForMyWorkOutcome)
+  | DocumentV3Failure;
+
+export type SubmitWorkProposalToolResult =
+  | ({ ok: true } & SubmitWorkProposalOutcome)
+  | DocumentV3Failure;
+
+export interface DocumentV3ServicePort {
+  resetHeroForEvaluation(
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<ResetDocumentHeroOutcome>>;
+  launchV3(
+    input?: LaunchDocumentV3Input,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSessionBundleV3>>;
+  joinV3(
+    input: JoinDocumentV3Input,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSessionBundleV3>>;
+  inspect(
+    sessionToken: string,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  saveHuman(
+    sessionToken: string,
+    input: SaveDocumentInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  createWorkOrder(
+    sessionToken: string,
+    input: CreateDocumentWorkOrderInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  cancelWorkOrder(
+    sessionToken: string,
+    input: CancelDocumentWorkOrderInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  acceptWorkProposal(
+    sessionToken: string,
+    input: DecideWorkProposalInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  rejectWorkProposal(
+    sessionToken: string,
+    input: DecideWorkProposalInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+  listMyWork(
+    agentSessionToken: string,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<ListMyWorkOutcome>>;
+  readMemory(
+    sessionToken: string,
+    input: ReadDocumentMemoryInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<ReadDocumentMemoryOutcome>>;
+  waitForMyWork(
+    agentSessionToken: string,
+    input: WaitForMyWorkInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<WaitForMyWorkOutcome>>;
+  submitWorkProposal(
+    agentSessionToken: string,
+    input: SubmitWorkProposalServiceInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<SubmitWorkProposalOutcome>>;
+  touchPresence(
+    sessionToken: string,
+    input: TouchDocumentPresenceInput,
+    signal?: AbortSignal,
+  ): Promise<DocumentV3Result<DocumentSurfaceV3>>;
+}
+
+export interface DocumentActivitySignalPort {
+  observe(activityVersion: number): void;
+  waitForChange(
+    afterActivityVersion: number,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<number | null>;
+  close(reason?: string): void;
+}
+
+export const DOCUMENT_WORKSPACE_SESSION_STORAGE_PREFIX =
+  "ratiflow.document.session.v3:";
+export const DOCUMENT_WORK_INSTRUCTION_MAX_LENGTH = 500;
+export const DOCUMENT_WORK_REPLACEMENT_MAX_LENGTH = 50_000;
+export const DOCUMENT_HUMAN_RATIONALE_MAX_LENGTH = 500;
+export const DOCUMENT_MEMORY_EXCERPT_MAX_LENGTH = 320;
+export const DOCUMENT_MEMORY_DEFAULT_LIMIT = 20;
+export const DOCUMENT_MEMORY_MAX_LIMIT = 50;
+export const DOCUMENT_WORKSPACE_ACTIVE_WORK_LIMIT = 100;
+export const DOCUMENT_MEMBER_ACTIVE_WORK_LIMIT = 50;
+export const DOCUMENT_WAIT_DEFAULT_SECONDS = 20;
+export const DOCUMENT_WAIT_MAX_SECONDS = 20;
+export const DOCUMENT_WORKSPACE_TERMINAL_HISTORY_LIMIT = 20;
+export const DOCUMENT_WORKSPACE_AGENT_REQUEST =
+  "Use this page's WebMCP tools. Inspect the document and decision memory, then wait for or list work assigned to my paired agent. Submit proposals only; never claim to have changed the document until a person accepts one.";

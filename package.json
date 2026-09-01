@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "A clean shared document with human-defined stages and contextual WebMCP agent actions.",
+  "description": "A calm shared document where people assign revision-bound work to paired WebMCP agents and preserve decision memory.",
   "license": "MIT",
   "packageManager": "pnpm@11.1.1",
   "scripts": {
@@ -14,9 +14,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "eval:protocol": "vitest run",
-    "eval:native": "playwright test e2e/native.spec.ts",
-    "eval:agent": "node evals/agent/validate.ts",
-    "eval:rehearse": "playwright test e2e/hero.spec.ts --repeat-each=5 --workers=1 --reporter=line"
+    "eval:native:smoke": "playwright test e2e/native.spec.ts",
+    "eval:reset:v3": "node scripts/reset-document-hero-v3.mjs",
+    "eval:agent:v3": "node evals/agent/validate.ts",
+    "eval:rehearse:adapter": "playwright test e2e/document-rehearsal.spec.ts --repeat-each=5 --workers=1 --reporter=line",
+    "eval:release:v3": "node evals/release/validate.ts"
   },
   "dependencies": {
     "next": "^16.3.3",

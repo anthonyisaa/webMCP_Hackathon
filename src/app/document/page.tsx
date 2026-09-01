@@ -1,6 +1,6 @@
-import { DocumentEditor } from "@/components/document/document-editor";
+import { DocumentWorkspaceEditor } from "@/components/document/document-workspace-editor";
 
-/** Starts a new secondary shared note, then replaces this URL with its share route. */
+/** Starts a new v3 shared note, then replaces this URL with its share route. */
 export default function NewDocumentPage() {
-  return <DocumentEditor launchOnMount />;
+  return <DocumentWorkspaceEditor launchOnMount />;
 }

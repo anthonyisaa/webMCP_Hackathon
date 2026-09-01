@@ -1,395 +1,416 @@
 # Ratiflow product specification
 
-Version 1.5 · Frozen for the live agent-session correction · Owner: Ant · 2026-08-31
+Version 3.0 · Frozen for the shared-document flagship · Owner: Ant · 2026-09-01
 
-This file is the product source of truth. Exact seed facts live in
-[`docs/contracts/hero-scenario.md`](docs/contracts/hero-scenario.md); exact WebMCP and
-wire contracts live in [`docs/contracts/capability-contract.md`](docs/contracts/capability-contract.md)
-and [`docs/contracts/live-agent-session-contract.md`](docs/contracts/live-agent-session-contract.md)
-for the decision workspace, and [`docs/contracts/editor-contract.md`](docs/contracts/editor-contract.md)
-for the shared-document surface.
-Implementation may simplify presentation, but it may not invent a state, tool, actor,
-authority, seed fact, or error outside those contracts.
+## 0. Authority and supersession
 
-## 0. Product surfaces
+This file is the submission-facing product source of truth. It supersedes every earlier
+shared-note, annotation-queue, stage-machine, native-proof, agent-trajectory, ablation,
+release-gate, and proof-order claim for the flagship route.
 
-Ratiflow has two deliberately separate products:
+The v3 document contract is jointly frozen by:
 
-- `/` is the flagship seeded decision room described in Sections 1–13. The same product
-  remains at `/decision-demo` as a stable alias.
-- `/document/[shareToken]` preserves the pageless shared note, four-stage harness,
-  presence/edit awareness, and collaborative annotation queue. A direct document URL or
-  its own New-note action creates a note; it no longer owns the flagship root.
+- this specification;
+- [`docs/contracts/editor-contract.md`](docs/contracts/editor-contract.md) for exact
+  service, schema, authority, transition, error, and browser behavior;
+- [`src/document/contracts.ts`](src/document/contracts.ts) for the checked wire types;
+- [`docs/contracts/document-hero-scenario.md`](docs/contracts/document-hero-scenario.md)
+  for the deterministic Northstar fixture; and
+- [`EVALS.md`](EVALS.md) for evidence and release gates.
 
-The shared note is pageless: borderless title/body dominate a continuous writing
-surface; a compact toolbar contains New note, current stage, presence, and share; a
-quiet 340px right rail contains target preview, annotation composer, ordered queue, and
-manual agent handoff. The rail becomes an accessible drawer on small screens. No launch
-card, paper sheet, dashboard, Capability Field, or permanent chat transcript appears.
+The existing [`docs/contracts/capability-contract.md`](docs/contracts/capability-contract.md),
+[`docs/contracts/hero-scenario.md`](docs/contracts/hero-scenario.md), and
+`live-agent-session-contract.md` remain authority only for `/decision-demo`. That route
+and its prior native captures are compatibility evidence; they are not the submission
+story and do not satisfy a v3 document release gate.
 
-The note's stages are exactly `BRAINSTORMING`, `RESEARCHING`, `REFINE`, and
-`READY_TO_SHIP`. A human may choose any stage; agents can read but never change it. A
-forward human stage move atomically appends one target-stage preparation annotation for
-that human's paired agent. Backward/no-op moves append none. Stage-specific presets and
-custom instructions append multiple revision-anchored annotations instead of replacing
-one global request.
+Implementation may simplify presentation, but it may not invent or weaken a v3 actor,
+authority boundary, lifecycle state, tool, fixture fact, schema, error, or proof class.
 
-Humans see all collaborators' annotations, while the server lets each paired agent list
-and apply only its human's pending items. Non-overlapping anchors safely rebase after
-edits; overlapping exact ranges become visibly stale. `Cmd/Ctrl+K` focuses the rail
-composer. Native mouse/keyboard context menus are never intercepted, preserving browser
-dictionary and spelling support.
+## 1. Product promise
 
-**Ask ChatGPT** copies a precise “process my queue” prompt and explicitly says it was not
-sent. WebMCP exposes page tools during an agent turn but provides no normative idle-agent
-wake-up API, so the product never claims an external model was notified or started.
+**Ratiflow is one shared decision memo where people assign exact text to a teammate's
+agent, agents return reviewable proposals through the live page, and the next agent can
+recover why the document evolved.**
 
-Shared notes are server-backed, account-free, temporary, and link-accessible. Participants
-see who is present and whether someone is editing the title/body. Whole-note autosaves
-use compare-and-swap revisions; a dirty client preserves its draft on remote change and
-requires an explicit conflict choice. This is collaboration awareness, not CRDT merging,
-remote cursors, or keystroke streaming. Exact behavior, DTOs, annotation mappings, errors,
-and release criteria live in the editor contract and `src/document/contracts.ts`.
+The page is the coordination boundary. A supported agent discovers current document,
+memory, assignment, waiting, and proposal tools directly from the open top-level page
+through `document.modelContext`; it does not need an MCP server configuration, copied
+workspace ID, API key, DOM scraping, or pasted prompt. Humans retain the consequential
+actions: they create and route work, then accept or reject proposals with rationale.
 
-Shared-note secondary acceptance is:
-
-1. a direct New-note action becomes an empty editable note at a high-entropy
-   `/document/[shareToken]` URL without a launch gate;
-2. canonical reload reuses or safely rejoins the share route, and invalid/expired links
-   offer New note;
-3. autosave, human-only stages, atomic forward-stage preparation, sharing, presence/edit
-   awareness, safe conflicts, and revision-safe agent undo work without WebMCP;
-4. the right rail can append and retain multiple authored annotations, presents exact
-   target excerpts, and works as a drawer at 390px;
-5. native context menus remain available and `Cmd/Ctrl+K` focuses the rail composer;
-6. the copy/send handoff never claims an agent was started, while a real native paired
-   agent can list only its human's queue and apply exact captured targets in sequence;
-7. note and decision routes never expose each other's WebMCP tools.
-
-## 1. Decision-room product promise
-
-**Ratiflow is a WebMCP collaboration workspace where agents prepare, people ratify, and
-work moves.** The flagship decision room is a consequential launch-scope decision shared
-by a product lead, an engineering lead, and an agent that appears as a real participant.
-
-The primary experience is not one request followed by one response. A browser agent can
-join with a renewable lease, catch up from an activity cursor, wait for addressed
-teammate activity, claim work, contribute under its own identity, ask for human input,
-and leave. If a browser turn ends, a person may explicitly enable a visible in-page
-runner to pick up queued work through the same registry while the page remains open.
-The page never claims it can wake ChatGPT or continue after it closes.
-
-The technical idea is **capability compilation**:
-
-```text
-effective WebMCP tools = f(agent engagement, workflow state, page selection, member session, revision)
-```
-
-One registry combines engagement tools with the compiler's one decision-capability
-value; the page's visible Capability Field and native WebMCP registrations consume that
-same registry snapshot. When engagement, decision state, or selection changes, the
-agent's actual discoverable action space changes. This is not a skinned MCP server or a
-REST API catalog: the live page, with the user's current session and selection, is the
-authority that exposes the tools.
-
-Lineage line for the README and video:
-
-> React made the interface a function of state. WebMCP lets the agent's action space be
-> a function of state.
-
-Public name for the hackathon: **Ratiflow — WebMCP collaboration workspace**. The
-qualifier keeps the brand distinct from similarly spelled products. Tagline:
-**Agents prepare. People ratify. Work moves.**
+This is a hackathon POC, not a general word processor, CRDT, autonomous agent host, chat
+product, account system, rich-text editor, or workflow engine. The submission proves one
+small interaction unusually well: an already-active paired agent reacts to another
+human's anchored assignment, proposes without silently editing, and leaves durable
+decision memory for a later agent.
 
 ## 2. Competition alignment
 
-| Judging criterion | What judges can verify |
+| Official criterion | Judge-visible v3 proof |
 |---|---|
-| WebMCP leverage | Native join/catch-up/live-wait loop; state-dependent decision registration; page-selection context; stale-handle behavior; one registry shared by native and page callers |
-| Execution | A deployed, resettable, two-person flow from addressed live work through agent recovery, human ratification, downstream propagation, and provenance |
-| Potential impact | Teams lose decisions in chat and stale documents; Ratiflow makes the current authority, constraints, and consequences legible to both humans and agents |
-| Creativity and ambition | Capability compilation turns WebMCP into a dynamic coordination primitive rather than a static menu of API wrappers |
+| WebMCP Leverage | The page-native tool surface exposes authoritative content and memory, waits on a live cross-human assignment, conditionally gains a proposal tool for the paired assignee, and cleans up on navigation. Removing WebMCP removes the structured agent collaboration loop. |
+| Execution | Two isolated human sessions complete select → assign → wait → inspect → propose → human accept → synchronized content and memory, with ordinary editing still usable when WebMCP is absent. |
+| Potential Impact | Teams lose the rationale behind document edits in detached chats. Ratiflow keeps exact work, proposer/accepter provenance, server diff, and human rationale beside the evolving artifact. |
+| Creativity and Ambition | WebMCP turns the live document into a rendezvous and capability plane for one agent per collaborator, while revision-bound proposals and append-only memory prevent silent edits and repetitive idea loops. |
 
-WebMCP leverage is the first tie-break and must remain the most visible part of the
-product and video. If WebMCP is removed, the ordinary human UI still works, but the
-agent loses zero-setup discovery, current page selection, dynamic authority, and native
-capability invalidation. That loss is the ablation proof.
+WebMCP Leverage is the first tie-breaker and must be the clearest beat in the product and
+video. A static API wrapper, injected adapter, copied prompt, or agent-themed animation
+does not prove the promise.
 
-## 3. Canonical hero journey
+## 3. Flagship surface
 
-The one scenario is a B2B analytics team's decision about CSV export in an October 15
-launch. Northstar Health's $180,000 renewal needs usable export by November 1. Maya
-Chen is the Product Lead and sole ratifier; Jordan Lee is the Engineering Lead and the
-second collaborator.
+`/` creates a blank v3 note and opens its temporary high-entropy
+`/document/[shareToken]` workspace. The
+ordinary surface is a plain title/body document with a compact top bar, lightweight
+presence, and a quiet **Work | Memory** margin. The writing surface dominates desktop
+and 390px layouts. Shared documents remain account-free and expire with their 24-hour
+session; possession of the link grants temporary access and is not described as private
+authenticated storage.
 
-The seeded workspace is READY at revision 7: launch capacity is 18 engineer-days and
-the domain recommendation, full GA, consumes all 18. The page initially selects the
-decision root. A browser agent calls `join_session`; Ratiflow Agent becomes `LIVE` and
-waits at the returned activity cursor. Maya creates an option-scoped task asking for a
-risk check. The wait resolves from the task event, the agent atomically claims it, and
-its attributed comment appears in the shared thread.
+On supported pages, one quiet Work-panel line mirrors the registered capability set:
+read-only page tools normally, and a temporary proposal tool only for the member whose
+paired agent owns pending work. Unsupported pages omit the line; it never claims an
+agent is connected or running.
 
-Maya selects O1 and the actual native surface adds its two option-scoped decision tools
-without changing workspace revision. While the agent is preparing a revision-7
-contribution from that context, Jordan changes capacity to 14 because of incident rotation. Supabase
-Realtime updates Maya's page, the workspace becomes CONTESTED at revision 8, and
-`prepare_decision` disappears from native discovery. `add_evidence` remains registered,
-so the agent's revision-7 write reaches page code and is rejected with the exact
-collaborator-authored diff.
+The v3 flagship has no visible four-stage control, stage-generated work, permanent
+annotation composer, creator-only agent queue, direct agent mutation, copied **Ask
+ChatGPT** prompt, Capability Field, launch dashboard, or permanent chat transcript.
+Stored v2 stage and annotation data may remain for rollback, but it never gates v3
+behavior or appears in the v3 WebMCP contract.
 
-The agent inspects revision 8, compares the options, and calls `recommend_option` for the
-invite-only Northstar beta. At revision 9 the decision is READY, the page follows the new
-recommendation, and `prepare_decision` returns. The agent prepares a review card at
-revision 10. Maya may edit its local draft fields, then submits those edits and
-ratification in one ordinary-UI transaction at revision 11. The customer launch brief
-changes from BLOCKED to READY and inherits the decision.
+Participants see attributed collaborators and advisory editing presence. Whole-document
+autosave uses compare-and-swap revision checks; a remote update never overwrites a dirty
+local draft. This is collaboration awareness rather than character-level merging.
 
-The submission video and release rehearsal use a real second browser session for Jordan.
-That session may be operated by a person/judge or a clearly labeled deterministic
-synthetic driver. A synthetic driver must use the same UI/service path; a timer,
-single-window mock, bypassed domain mutation, or fabricated UI state is not eligible.
+The deterministic Northstar seed is separate from ordinary blank launch. The protected
+HTTP harness at `/api/document-v3/eval/reset` exists only in preview/eval and is disabled
+on the canonical deployment. Before canonical native capture, a private release CLI may
+invoke the service-role-only `ratiflow_reset_document_hero_v3` RPC directly. That RPC is
+revoked from `public`, `anon`, and `authenticated` and returns exactly:
 
-## 4. Critical user stories
+```ts
+interface ResetDocumentHeroOutcome {
+  shareToken: string;
+  mayaBootstrapPath: string;
+  jordanBootstrapPath: string;
+  expiresAt: string;
+  revision: 1;
+  activityVersion: 1;
+}
+```
 
-### People
+Each bootstrap path is a top-level document path whose URL fragment contains a
+base64url-encoded v3 session bundle. The fragment is a bearer credential. The page
+validates it against the path, share, protocol, and expiry; stores the bundle in
+`sessionStorage`; and clears the fragment before any WebMCP registration. Bootstrap
+paths and fragments are never logged, committed, screenshotted, or retained in capture
+artifacts. A human operator may open the Maya and Jordan top-level bootstrap paths during
+native setup; after that, the agent interacts only through WebMCP.
 
-1. A judge launches an isolated copy of the seeded workspace in one click.
-2. Maya and Jordan act through distinct attributed sessions and see the same revision in
-   realtime.
-3. A user can see the tools available to the agent now, unavailable actions with exact
-   reasons, the selected target, and every capability diff without opening DevTools.
-4. Jordan's capacity update changes the actual WebMCP tool set on Maya's live page.
-5. Agent contributions appear as attributed, editable, reviewable objects, never as
-   silent accepted decisions.
-6. Maya alone can ratify a prepared decision in the UI and immediately see its
-   downstream consequence.
-7. Any participant can trace the decision through actor, origin, tool, base revision,
-   resulting revision, rationale, review status, and changed entities.
-8. A person can address the agent, see its live/idle/away state, answer its question,
-   and control standing instructions without using an agent sidebar.
+Reset creates the seed event and **no work orders**; Jordan creates the canonical work
+during the observed hero.
 
-### Agents
+### Contextual human interaction
 
-1. A new agent first discovers only `join_session` and `catch_up`, with no MCP server
-   configuration, API key, OAuth flow, or copied workspace identifier.
-2. The agent catches up from an opaque activity cursor and reads compact structured
-   state instead of loading everything or scraping the DOM.
-3. Page selection scopes selected-option and follow-up tools to the object the human is
-   viewing.
-4. A stale write returns `STALE_WORK_STATE`, the exact changes since its base revision,
-   and a usable next action; the agent can recover without human repair.
-5. `why_not` exposes the same unmet predicates used by the compiler.
-6. The agent may prepare a decision but no WebMCP tool or agent route can ratify it.
-7. A fresh session can answer what was decided, why, what changed, what remains open,
-   and who ratified from the page's structured state and provenance.
-8. A live agent can wait without busy polling, react to an addressed task, claim it
-   before work, post under its own identity, and ask a persisted question.
-9. Browser and optional auto callers cannot work the same task concurrently, and every
-   accepted effect records which path acted.
+A non-empty title/body selection exposes one compact **Ask agent** affordance. Only an
+unmodified pointer-origin right-click on that selection suppresses the browser menu and
+opens **Rewrite**, **Research**, and **Assign…**. The implementation tracks the preceding
+secondary-button pointer event instead of guessing keyboard origin from coordinates.
 
-## 5. Workflow contract
+Any modified pointer right-click remains native: Shift, Alt, Ctrl, or Meta individually
+or in combination. The Context Menu key, Shift+F10, empty selection, and non-editor
+targets also remain native. `spellCheck` stays enabled and the UI says **Hold Shift for
+spelling menu**. `Cmd/Ctrl+K` is the keyboard-equivalent app action.
 
-| State | Meaning | Transition out |
+Rewrite and Research prefill the same compact composer as Assign. No work order exists
+until the human confirms the instruction and a currently available assignee. Selection
+anchors are zero-based, end-exclusive Unicode code-point ranges captured from
+authoritative title or body content.
+
+## 4. Deterministic Northstar hero
+
+Every release rehearsal uses this fixture; S5 does not invent an optional scenario.
+The seeded v3 document is revision `1`, activity version `1`, titled:
+
+```text
+Northstar CSV launch memo
+```
+
+Its body is exactly:
+
+```text
+Recommendation
+
+Launch CSV export as generally available on October 15.
+
+Context
+
+Northstar Health's $180,000 renewal needs usable CSV export by November 1. The team has 14 engineer-days after the incident rotation: reliability needs 10, leaving 4 for export.
+
+Open question
+
+Can a single-tenant beta meet Northstar's need while general availability moves to November 1?
+```
+
+The hero is deterministic:
+
+1. Maya Chen's already-active paired agent calls `inspect_document({})`, observes
+   revision `1` and activity version `1`, then calls
+   `wait_for_my_work({afterActivityVersion: 1, afterRevision: 1, timeoutSeconds: 20})`.
+2. Jordan Lee selects BODY code-point range `[16, 71)`, exactly
+   `Launch CSV export as generally available on October 15.`, opens pointer-origin
+   **Rewrite**, chooses Maya, and confirms:
+   `Rewrite this recommendation to fit the 14-day capacity and protect the Northstar renewal. Keep both launch dates explicit.`
+3. Work creation leaves revision `1`, advances activity version to `2`, and wakes Maya's
+   agent with `WORK_AVAILABLE`.
+4. The agent calls `read_document_memory` and `list_my_work`, then submits this proposal
+   without changing the document:
+   `Launch an invite-only, single-tenant Northstar beta on October 15, then make CSV export generally available on November 1.`
+   Its change summary is:
+   `Replace October 15 GA with a single-tenant beta, then move general availability to November 1.`
+5. Proposal submission leaves revision `1`, advances activity version to `3`, and makes
+   the proposal visible to both humans while the original sentence remains intact.
+6. Jordan accepts with the authoritative rationale:
+   `Accepted because the beta uses the four export days left after reliability and still meets Northstar's November 1 deadline. Full GA on October 15 was rejected because it requires eight export days.`
+7. Acceptance atomically applies the stored proposal, completes the work, advances the
+   document to revision `2`, and advances activity version to `4` with one event.
+8. A fresh Maya-paired agent calls `read_document_memory` and explains the rejected
+   eight-export-day fact, which cannot be inferred from the final document text.
+
+The demo may visibly exercise rejection in a secondary branch, but it may not replace
+or alter this release fixture.
+
+## 5. Identity, work, and human authority
+
+One anonymous human member has one server-derived paired-agent identity. Human and agent
+tokens are separate. Model input never supplies document, member, actor, origin,
+assignee, range, acceptance, decision, or stage authority.
+
+A work order stores exact title/body anchors; immutable `creatorMemberId` and
+`assignedToMemberId`; display-name snapshots; instruction and intent; creation and live
+anchor revisions; proposal fields; and lifecycle timestamps.
+Human creation explicitly supplies the assignee. The server validates current workspace
+membership and presence no older than 15 seconds; otherwise it returns
+`ASSIGNEE_UNAVAILABLE`. Later inactivity does not revoke already-created work before the
+session expires. Presence remains advisory UI state.
+
+Checked v3 code exports and uses the exact names `DocumentWorkOrder`,
+`PendingDocumentWorkOrder`, `CreateDocumentWorkOrderInput`, and
+`CancelDocumentWorkOrderInput`. Prose shorthand such as “work order” refers to these
+types and does not create alternate interfaces.
+
+All members may view work. Only its creator may cancel, accept, or reject it. Only the
+paired agent whose member identity is derived from authenticated execution context may
+list or submit it. WebMCP never creates, reassigns, accepts, rejects, or cancels work.
+
+Lifecycle is exact:
+
+- `PENDING -> PROPOSED | CANCELLED | STALE`
+- `PROPOSED -> COMPLETED | REJECTED | STALE`
+
+`submit_work_proposal` stores a bounded candidate replacement and an untrusted model
+summary; it never mutates content. A replacement identical to the current authoritative
+target is an invalid no-op and is rejected without a proposal, event, or counter change.
+Human accept/reject requires exactly
+`{ workOrderId, expectedRevision, requestId, rationale }`. Acceptance atomically
+revalidates the stored anchor, applies the stored proposal, completes the work, and
+attributes proposer plus accepter. Rejection leaves content unchanged. Human rationale
+is authoritative. The first locked decision wins; later conflicting decisions fail
+without mutation.
+
+Every accepted/rejected `WorkDecision` records `decisionRevision` as the authoritative
+pre-decision revision and `resultRevision` as the post-decision revision. Hero acceptance
+therefore records `1 -> 2`; rejection records equal values because it changes no
+document content.
+
+Active-work caps count `PENDING` plus `PROPOSED`: 100 per document and 50 per assignee.
+The member key is immutable `assignedToMemberId`, never creator or mere workspace
+membership.
+Instructions and human rationales are 1–500 nonblank Unicode code points; change
+summaries are 1–240; title is at most 160 and body at most 50,000. A generic proposal is
+at most 50,000 code points, but its resulting field must still meet the title/body bound.
+
+## 6. Revision, activity, anchors, and memory
+
+Every successful content/work transaction locks the document first, increments
+server-owned `activityVersion` exactly once, and appends exactly one event. A transaction
+that changes content also increments document `revision` exactly once. Acceptance
+changes content and work state in the same transaction and event. Reads, presence,
+timeouts, aborts, no-ops, failed writes, and idempotent replays advance neither counter.
+
+Higher `activityVersion` is authoritative for work and memory even when document
+revision is equal; presence merges independently by heartbeat. Each accepted mutation
+uses a request ID for exact replay: identical canonical input returns the original
+result, and changed input returns `REQUEST_REPLAY_MISMATCH`.
+
+Non-overlapping Unicode anchors deterministically rebase. An edit before an anchor
+shifts it, an edit after it leaves it fixed, and an overlap or ambiguity marks work
+`STALE`. Acceptance revalidates the current stored anchor and proposal inside the same
+document-first lock. When one document edit or acceptance makes other anchors stale,
+those transitions are part of the same compound transaction and primary event, which
+lists every staled work-order ID. They do not add another event or counter increment.
+
+Event kinds are exact:
+
+- `DOCUMENT_EDITED`
+- `WORK_CREATED`
+- `PROPOSAL_SUBMITTED`
+- `PROPOSAL_ACCEPTED`
+- `PROPOSAL_REJECTED`
+- `WORK_CANCELLED`
+- `WORK_STALE`
+
+Events contain server-derived actor and origin, base/result revision, linked work IDs,
+changed fields, and timestamp. Only target, instruction, proposal, and server-computed
+diff excerpts are truncated to 320 Unicode code points. Change summary retains its
+240-code-point bound, while human rationale is preserved exactly up to its 500-code-point
+bound. Events never contain external browser context, credentials, bearer or member
+handles, or unrelated private data. There is no arbitrary memory writer.
+
+Memory pagination defaults to 20 events and allows 1–50. It selects the newest `limit`
+events with `activityVersion < beforeActivityVersion` when that cursor is supplied, or
+from the latest event when omitted, then returns the window in ascending order. The
+success envelope is exactly
+`{ ok: true, events, hasMoreOlder, nextBeforeActivityVersion, latestActivityVersion, revision }`;
+`nextBeforeActivityVersion` is the first returned version when older events remain and
+otherwise `null`.
+
+## 7. Exact WebMCP surface
+
+The v3 document page registers exactly five tool definitions. The proposal tool is
+conditional, so a page without owned pending work exposes four.
+
+| Tool | Exact input | Contract |
 |---|---|---|
-| `OPTIONS` | Seeded options exist; evidence or a recommendation is incomplete | A material challenge or conflicting evidence makes the comparison contested |
-| `CONTESTED` | The selected recommendation violates a live constraint or has a blocking challenge | Evidence supports a feasible selected option and all blocking challenges are resolved |
-| `READY` | At least two options exist; customer deadline and capacity evidence exist; selected option fits capacity; zero blocking challenges | Agent prepares a decision for human review |
-| `REVIEW` | An agent-prepared decision card awaits a person | Maya edits or ratifies in the UI; edits remain REVIEW |
-| `COMMITTED` | A human ratified the decision | Terminal for the hero decision; downstream work may proceed |
+| `inspect_document` | `{}` | Returns authoritative current content, revision, activity version, and collaborators. |
+| `read_document_memory` | `{ beforeActivityVersion?, limit? }` | Returns the bounded ascending memory window in Section 6. |
+| `list_my_work` | `{}` | Atomically returns `{ ok: true, workOrders, revision, activityVersion }`, with at most 50 oldest pending orders assigned to this paired human's agent. |
+| `wait_for_my_work` | `{ afterActivityVersion, afterRevision, timeoutSeconds? }` | Waits from explicit cursors; timeout is integer seconds, minimum 1, default 20, hard maximum 20. |
+| `submit_work_proposal` | `{ workOrderId, expectedRevision, replacementText, changeSummary }` | Conditionally registered only while this paired agent owns pending work; stores a proposal and never edits the document. |
 
-The state is derived from persisted facts and events, not set directly by a client.
-Workspace revision is monotonic. Realtime is notification only; every page refetches
-authoritative state before recompiling.
+Every schema rejects additional properties. `afterRevision`, `afterActivityVersion`, and
+`expectedRevision` accept safe integers from 0 through `Number.MAX_SAFE_INTEGER`;
+`beforeActivityVersion` starts at 1. Callback code generates write request IDs; the model
+never supplies one. Results are JSON-serializable and mark human/agent-authored content
+untrusted. Read tools are annotated read-only; proposal is not.
 
-## 6. Exact WebMCP catalog
+Wait performs authoritative fetch, subscribes, then refetches to close the lost-wake
+window. It returns with this precedence:
 
-There are ten stable decision-tool definitions:
+1. `{ ok: true, outcome: "WORK_AVAILABLE", workOrders, revision, activityVersion }`
+   when owned pending work exists;
+2. the same envelope with `outcome: "DOCUMENT_CHANGED"` and exact `workOrders: []`
+   only when revision advanced; or
+3. the same envelope with `outcome: "TIMEOUT"` and exact `workOrders: []`.
 
-1. `inspect_decision`
-2. `inspect_selected_option`
-3. `recommend_option`
-4. `challenge_option`
-5. `add_evidence`
-6. `compare_options`
-7. `prepare_decision`
-8. `trace_decision`
-9. `inspect_followup`
-10. `why_not`
+Unrelated activity advances the wait's internal activity cursor but does not wake the
+model. The timeout uses one absolute deadline established on entry; signals, unrelated
+activity, and authoritative refetches never extend it. A supplied `afterRevision` or
+`afterActivityVersion` greater than the current authoritative counter returns
+`INVALID_INPUT` before installing a listener or timer. Every valid signal refetches
+authoritative state. Execution abort, registration abort, route teardown, and session
+teardown throw `AbortError` and remove all timers and listeners; a selection change does
+not cancel. A concurrent duplicate returns `WAIT_ALREADY_ACTIVE`. A remotely dispatched
+write may commit after client cancellation, so the agent must re-inspect rather than
+assume rollback.
 
-State matrix before selection augmentation:
+Frozen error codes are `INVALID_INPUT`, `UNAUTHORIZED`, `NOT_FOUND`,
+`STALE_WORK_STATE`, `STALE_WORK_CONTEXT`, `REQUEST_REPLAY_MISMATCH`,
+`STALE_PAGE_CONTEXT`, `ASSIGNEE_UNAVAILABLE`, `WAIT_ALREADY_ACTIVE`, `RATE_LIMITED`, and
+`PROTOCOL_MISMATCH`.
 
-| State | Registered tools |
-|---|---|
-| `OPTIONS` | `inspect_decision`, `recommend_option`, `add_evidence`, `why_not` |
-| `CONTESTED` | `inspect_decision`, `recommend_option`, `add_evidence`, `compare_options`, `why_not` |
-| `READY` | `inspect_decision`, `recommend_option`, `add_evidence`, `compare_options`, `prepare_decision`, `why_not` |
-| `REVIEW` | `inspect_decision`, `trace_decision`, `why_not` |
-| `COMMITTED` | `inspect_decision`, `trace_decision`, `why_not` |
+## 8. Architecture and rollout
 
-Selection augmentation is exact:
+- Next.js App Router, React, TypeScript, pnpm, Vercel, and Supabase Postgres remain the
+  implementation stack.
+- The established `origin/main` live activity hub, registration lifecycle, cursor,
+  abort, and refetch pattern is reused rather than duplicated.
+- Realtime or a page-local signal is notification only; every wake refetches
+  authoritative state.
+- Server validation derives identity and authority independently of tool schemas.
+- All transactions lock the document before work rows to keep lock order deterministic.
+- V3 HTTP routes are frozen to:
+  `/api/document-v3/launch`, `/api/document-v3/join`,
+  `/api/document-v3/surface`, `/api/document-v3/save`,
+  `/api/document-v3/presence`, `/api/document-v3/work/create`,
+  `/api/document-v3/work/cancel`, `/api/document-v3/work/accept`,
+  `/api/document-v3/work/reject`, `/api/document-v3/memory`,
+  `/api/document-v3/agent/work`, and `/api/document-v3/agent/proposal`.
+  `/api/document-v3/eval/reset` is the authenticated preview/eval-only release harness.
+- V3 persistence adds exactly `ratiflow_document_work_orders` and
+  `ratiflow_document_events`. Its RPC names are exactly
+  `ratiflow_launch_document_v3`, `ratiflow_join_document_v3`,
+  `ratiflow_inspect_document_v3`, `ratiflow_save_document_v3`,
+  `ratiflow_touch_document_presence_v3`, `ratiflow_create_document_work_v3`,
+  `ratiflow_cancel_document_work_v3`, `ratiflow_accept_document_proposal_v3`,
+  `ratiflow_reject_document_proposal_v3`, `ratiflow_read_document_memory_v3`,
+  `ratiflow_list_agent_work_v3`, and `ratiflow_submit_document_proposal_v3`.
+  The service-role-only fixture RPC is `ratiflow_reset_document_hero_v3`.
+- Persistence is additive. Existing documents default to protocol v2 and retain scoped
+  rollback behavior; new document-workspace rows use v3. Legacy direct-apply RPCs reject
+  v3, and new proposal/decision RPCs reject v2. Applied migrations are never edited.
+- `document.modelContext` is normative. Any observed `navigator.modelContext` support is
+  compatibility only and never the public contract.
 
-- Selecting an option in `OPTIONS`, `CONTESTED`, or `READY` adds
-  `inspect_selected_option` and `challenge_option`. Their registered callbacks capture
-  that option and the current `contextEpoch`. `recommend_option` accepts an explicit
-  option ID so the agent can recover autonomously after comparing options.
-- Selecting `customer-launch-brief` in `COMMITTED` adds `inspect_followup`.
-- Changing a selected target invalidates previously fetched handles even when the tool
-  names stay the same; the client must refresh.
+The ordinary human UI remains usable when WebMCP is absent. It can edit, share, assign,
+review, accept/reject, and read memory; it cannot supply an external agent with the
+native zero-configuration structured collaboration loop.
 
-`add_evidence` intentionally remains registered across the READY → CONTESTED hero
-transition so the stale request reaches the callback and can return the domain diff.
-The demo does not misuse a removed tool to manufacture an app error: the observed native
-client may reject a removed handle before dispatch.
+## 9. P0 acceptance criteria
 
-`ratify_decision` and `commit_decision` do not exist. Tool presence guides the agent;
-server-side authorization and state validation enforce the boundary.
+1. The document, not a launch dashboard, is the flagship and remains calm and usable on
+   desktop and at 390px with or without WebMCP.
+2. Two isolated people join as distinct members, see presence and authoritative saves,
+   preserve dirty drafts across remote edits, and never leak bearer/member handles.
+3. Every selection and context-menu branch in Section 3 behaves exactly, including a
+   real native spelling-menu capture.
+4. Jordan can assign the exact hero range to Maya; unavailable, forged, cross-workspace,
+   expired, and model-supplied identities fail server-side.
+5. Maya's already-active paired agent wakes from the human event, reads current content
+   and memory, sees only its assigned work, and submits the exact proposal.
+6. Submission changes activity but not content/revision. Both humans see the proposal
+   while the original sentence remains; a replacement identical to its target is
+   rejected as a no-op.
+7. Only Jordan, as creator, can accept/reject. Acceptance atomically changes content and
+   work state with the exact rationale, revision, activity version, server diff, and
+   provenance. Decision races cannot double-apply.
+8. Equal-revision activity, pagination, nearby anchor rebasing, overlaps, replay,
+   timeout, abort, duplicate wait, navigation, and session teardown pass their frozen
+   gates.
+9. A fresh agent discovers and invokes memory, then recovers the eight-day rejected-GA
+   fact absent from current text.
+10. `/decision-demo` retains only its compatibility catalog; navigation removes every
+    document tool and listener.
+11. The exact Northstar flow passes five consecutive rehearsals, the first native action
+    occurs within 45 seconds, and the narrated release run stays within 2:40.
+12. The code, public repository, license, deployment, evidence manifest, native capture,
+    and submission all identify one approved clean commit SHA.
 
-The single registry also owns eleven collaboration tools in this exact order:
-`join_session`, `wait_for_activity`, `catch_up`, `leave_session`, `get_state_brief`,
-`get_thread`, `get_inbox`, `claim_agent_task`, `resolve_task`, `post_comment`, and
-`request_human_input`. A fresh page advertises only `join_session` and `catch_up`.
-Catch-up unlocks invoked reads/writes plus current decision capabilities. Join additionally
-unlocks wait/leave and a visible 45-second renewable live lease. Exact schemas, honest
-read-only annotations, cursor behavior, claims, and result shapes live in the live-session
-contract.
+## 10. Scope discipline and compatibility
 
-## 7. Registration and result behavior
+P0 excludes accounts, folders, attachments, rich text, line comments, tracked changes,
+remote cursors, offline sync, export, CRDT merging, idle external-agent hosting,
+agent-to-agent orchestration, arbitrary memory entries, generalized roles, and multiple
+document scenarios. Do not add one while an acceptance or native-proof row is pending.
 
-- The top-level page registers imperative tools through `document.modelContext`.
-- A small feature-detection adapter may observe `navigator.modelContext` for preview
-  compatibility, but it is not the normative contract.
-- Stable names, schemas, and handlers come from one caller-neutral registry. Native
-  WebMCP and the page runner are adapters over it. Capability change aborts only affected
-  target registrations with `AbortController`; a selection change never aborts a live
-  wait.
-- The bridge treats `toolchange`, page-side `getTools`/`executeTool`, and callback context
-  as optional client features. It never relies on event ordering.
-- Every callback revalidates current state, captured target, `contextEpoch`, and expected
-  workspace revision. It honors the execution signal when supplied and tolerates clients
-  that omit it, as recorded in [`VALIDATION.md`](VALIDATION.md).
-- Genuine read tools declare `readOnlyHint: true`. Join, leave, claims, and all visible
-  writes do not pretend to be reads. Results containing human- or agent-authored
-  content declare `untrustedContentHint: true`.
-- Schemas and server validation independently bound every string and array.
-- All callback results use the envelopes in the capability contract and are JSON
-  serializable.
+`/decision-demo` may continue to demonstrate the proven live session, dynamic decision
+catalog, and previous native wait capture. It must not appear as the flagship, share a
+catalog with the document, or be cited as proof that the v3 document tools ran. If the
+v3 identity, authority, memory, native wait, exact-SHA, accessibility, or score gates
+fail, retain that proven release rather than promoting a partial document pivot.
 
-## 8. Human authority and session boundary
+## 11. Submission proof order
 
-Human-only means exactly this: no WebMCP tool and no agent-specific API route can create
-an accepted commitment. The server assigns actor, membership, and origin from the signed
-per-tab demo session; model input cannot choose them. The human ratification route
-requires Maya's member session, a current revision, a REVIEW decision, and an explicit UI
-interaction.
+The video opens on the working document and shows the active native wait in the first 45
+seconds, then Jordan's exact cross-assignment, native inspect/memory/work calls, proposal
+without mutation, Jordan's acceptance, synchronized document change, and a fresh agent
+recovering the hidden eight-day rationale. Judges must see the human/agent boundary and
+the reason WebMCP is indispensable without opening DevTools.
 
-This is not a claim that an arbitrary browser-driving attacker with Maya's active session
-cannot imitate a click. The challenge entry demonstrates product authority separation,
-not hardened enterprise identity.
-
-Each demo launch clones the seed into a new workspace and issues separate high-entropy,
-signed Maya, Jordan, and fixed-agent sessions. A page UUID is bound to the agent handle
-server-side; caller and presence are adapter-derived, never model input. A one-time
-fragment bootstrap can open the Jordan view,
-exchange into `sessionStorage`, scrub the URL, and become non-replayable. No account,
-email, password, public join directory, or memorable bearer code is P0.
-
-## 9. Product experience
-
-Visual direction is a clean **Decision Instrument**, not a chat app or kanban board:
-
-- warm canvas `#F7F7F4`, white panels, ink `#171817`, action blue `#255BFF`;
-- restrained green, amber, and red only for trust/status;
-- Geist Sans with a mono face for revisions, tools, and provenance;
-- 4px spacing rhythm, 12px controls, 16px primary panels;
-- keyboard-visible focus, WCAG AA text contrast, reduced-motion support, and useful
-  loading, disconnected, empty, and error states.
-
-The signature visual is the **Capability Field**. It shows the exact compiled set, plain-
-language unavailable actions, revision, selected target, and animated diffs. During a
-stale rejection it compares the agent's old basis in dashed amber with the current
-collaborator-authored fact in solid blue. Generic assistant chat, gradients, glass,
-cyberpunk motifs, and decorative dashboards are out.
-
-The decision room also shows Ratiflow Agent in the participant strip, a waiting-work
-badge and inbox, target-scoped Ask-agent composer, attributed comment thread, inline
-question cards, and an off-by-default standing-instructions control. Its capability panel
-renders the registry's actually registered names, including engagement changes; it does
-not reconstruct them from labels.
-
-The ordinary UI must complete the full journey when WebMCP is unavailable. That is
-fallback usability, not feature equivalence: only a supported WebMCP client receives the
-native agent action surface.
-
-## 10. Architecture and data
-
-- Next.js App Router, React, TypeScript, Tailwind, pnpm, deployed on Vercel.
-- Supabase Postgres for authoritative state and append-only events; Realtime for
-  collaborator notifications.
-- A cursor-addressed collaboration log is independent of workspace revision. Presence
-  and task ownership use expiring server leases; all visible effects and activity events
-  commit atomically.
-- A pure application module compiles capabilities. Packaging it for reuse is P1.
-- One page-owned tool registry executes both native browser calls and validated proposals
-  from the optional in-page runner. The backend model endpoint plans only and cannot
-  execute tools.
-- One compare-and-swap domain mutation appends an event and advances workspace revision
-  atomically. `requestId` makes retries idempotent.
-- Persisted events include server-assigned actor/member, `actorType`, `origin`, optional
-  `toolName`, base/result revisions, rationale, review status, and changed entities.
-- The exact mutation and result envelopes are frozen in the capability contract and
-  mirrored by [`src/contracts/index.ts`](src/contracts/index.ts).
-
-## 11. P0 acceptance criteria
-
-1. The live HTTPS URL launches an isolated decision room without credentials or setup.
-2. A real Jordan session changes 18 → 14 and Maya's page receives it without reload; the
-   labeled synthetic fallback uses the same service and event shape.
-3. Fresh native discovery contains only join/catch-up; joining makes the agent visible,
-   unlocks the live surface, and an addressed teammate task resolves the wait transport
-   in under two seconds p95 before model latency.
-4. Catch-up returns only bounded cursor-addressed changes plus current inbox; cursor and
-   workspace revision remain independent.
-5. Native discovery after engagement exactly matches the registry and visible Capability
-   Field.
-6. READY → CONTESTED removes `prepare_decision`; selecting/scoping refreshes native
-   handles; no phantom tools remain after refetch.
-7. The revision-7 `add_evidence` request at revision 8 returns the golden structured diff
-   and no mutation.
-8. Browser-vs-auto and auto-vs-auto claim races produce one winner and one visible result;
-   auto pickup is off by default and server-suppressed during a live browser lease.
-9. The agent can persist a human-input question and resume after an ordinary-UI answer.
-10. The agent recovers, prepares O2, and never requires a hidden prompt or manual repair.
-11. Only Maya's UI ratifies; direct agent-origin attempts fail server-side.
-12. Ratification moves `customer-launch-brief` BLOCKED → READY and `inspect_followup`
-   appears when the item is selected.
-13. Provenance/activity and the five golden continuity answers match the contracts.
-14. Reset reproduces revision 7 and the seed exactly; the full release flow passes five
-    consecutive times.
-15. Domain/protocol, native-browser, and agent-trajectory evidence meet
-    [`EVALS.md`](EVALS.md).
-16. The repository is public with MIT license, clear run instructions, committed evidence,
-    a working live URL, four Devpost answers, and a public narrated video under three
-    minutes.
-
-## 12. Decision-demo scope discipline
-
-The decision-room P0 excludes accounts, generic decision-workspace creation, three-word
-join codes, rich text, templates, a workflow engine, multiple decision scenarios,
-generalized roles, billing, agent-to-agent orchestration, a published compiler package,
-headless/background execution, agent ratification, and reliance on built-in Gemini. The
-separate plain shared-note surface in Section 0 is intentional and does not expand the
-decision domain. Do not add another capability while either surface's acceptance
-criteria are incomplete.
-
-P1, only after the hero is reliable: package the compiler, add a prompt-injection beat,
-and broaden domain examples. Mobile must remain usable, but the polished demonstration
-targets desktop and a two-window layout.
-
-## 13. Submission proof order
-
-The video must show working product state in its first 10–15 seconds, then: fresh native
-discovery; agent join and visible presence; a teammate-created task waking the wait;
-attributed claim/comment; dynamic capability change; honest optional auto pickup if it
-passed its gate; catch-up; Maya's UI-only ratification; downstream change and provenance.
-The four written answers use the same evidence. Judges must not need to run the app to
-understand why WebMCP is essential.
+Release order is: focused tests and `.codex/verify.sh`; production build; v2/v3 preview
+database and app rollout; driven browser flow and fresh read-only visual review; approved
+clean commit and public-repository identity; exact-SHA deployment and canonical
+promotion; native capture; four independent official-criterion judges; then the
+user-owned public video and Devpost submission actions. [`EVALS.md`](EVALS.md) is the
+complete evidence contract.

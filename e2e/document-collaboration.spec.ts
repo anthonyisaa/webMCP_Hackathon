@@ -2,132 +2,197 @@ import { expect, test, type Page } from "@playwright/test";
 
 const shortcut = process.platform === "darwin" ? "Meta+K" : "Control+K";
 
-async function addCustomAnnotation(
-  page: Page,
-  instruction: string,
-  start: number,
-  end: number,
-): Promise<void> {
+async function selectBodyRange(page: Page, start: number, end: number): Promise<void> {
   const body = page.getByLabel("Note body");
   await body.evaluate(
     (element: HTMLTextAreaElement, range) => {
       element.focus();
-      element.setSelectionRange(range.start, range.end);
-      element.dispatchEvent(new Event("select", { bubbles: true }));
+      element.setSelectionRange(range.start, Math.max(range.start, range.end - 1));
     },
     { start, end },
   );
-  await body.press(shortcut);
-  await page.getByLabel("Custom instruction").fill(instruction);
-  await page.getByRole("button", { name: "Add to queue" }).click();
+  if (end > start) await page.keyboard.press("Shift+ArrowRight");
 }
 
-test("collaborators share the ordered queue but can cancel only their own annotations", async ({
+async function selfMemberId(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const key = Object.keys(sessionStorage).find((candidate) =>
+      candidate.startsWith("ratiflow.document.session.v3:"),
+    );
+    if (!key) throw new Error("The v3 document session was not stored.");
+    const bundle = JSON.parse(sessionStorage.getItem(key) ?? "null") as {
+      selfMemberId?: string;
+    } | null;
+    if (!bundle?.selfMemberId) throw new Error("The v3 member identity was absent.");
+    return bundle.selfMemberId;
+  });
+}
+
+function waitForDocumentSave(
+  page: Page,
+  expected: { title: string; body: string },
+) {
+  return page.waitForResponse((response) => {
+    if (
+      !response.url().endsWith("/api/document-v3/save") ||
+      response.request().method() !== "POST" ||
+      !response.ok()
+    ) {
+      return false;
+    }
+    try {
+      const payload = response.request().postDataJSON() as {
+        title?: unknown;
+        body?: unknown;
+      };
+      return payload.title === expected.title && payload.body === expected.body;
+    } catch {
+      return false;
+    }
+  });
+}
+
+test("two isolated humans edit, see presence, and retain creator-only work control", async ({
   browser,
+  baseURL,
 }) => {
-  const firstContext = await browser.newContext();
-  const secondContext = await browser.newContext();
+  const firstContext = await browser.newContext({ baseURL });
+  const secondContext = await browser.newContext({ baseURL });
   const first = await firstContext.newPage();
   const second = await secondContext.newPage();
 
   try {
-    await first.goto("/document");
+    await first.goto("/");
     await expect(first).toHaveURL(/\/document\//);
     const sharedUrl = first.url();
+    expect(new URL(sharedUrl).hash).toBe("");
     await second.goto(sharedUrl);
+    await expect(second.getByLabel("Note body")).toBeEditable();
+    const secondId = await selfMemberId(second);
 
-    await expect(first.getByLabel(/other people here/)).toHaveAttribute(
+    await expect(first.getByLabel(/other (person|people) here/)).toHaveAttribute(
       "aria-label",
-      "1 other people here",
+      "1 other person here",
+      { timeout: 8_000 },
     );
-    await first.getByLabel("Note body").fill("One shared sentence with two useful targets.");
-    await expect(first.getByText("Saved", { exact: true })).toBeVisible();
-    await expect(second.getByLabel("Note body")).toHaveValue(
-      "One shared sentence with two useful targets.",
+    await expect(second.getByLabel(/other (person|people) here/)).toHaveAttribute(
+      "aria-label",
+      "1 other person here",
+      { timeout: 8_000 },
     );
 
-    await addCustomAnnotation(first, "First collaborator request", 4, 19);
-    const firstRequestOnFirst = first.getByTestId("annotation-card").filter({
-      hasText: "First collaborator request",
-    });
-    const firstRequestOnSecond = second.getByTestId("annotation-card").filter({
-      hasText: "First collaborator request",
-    });
-    await expect(firstRequestOnFirst).toBeVisible();
-    await expect(firstRequestOnSecond).toBeVisible({ timeout: 6_000 });
-    await expect(firstRequestOnFirst.getByRole("button", { name: /Cancel/ })).toHaveCount(1);
-    await expect(firstRequestOnSecond.getByRole("button", { name: /Cancel/ })).toHaveCount(0);
+    const bodyText = "One shared recommendation with an exact decision target.";
+    const sharedSave = waitForDocumentSave(first, { title: "", body: bodyText });
+    await first.getByLabel("Note body").fill(bodyText);
+    await sharedSave;
+    await expect(second.getByLabel("Note body")).toHaveValue(bodyText, { timeout: 8_000 });
 
-    await addCustomAnnotation(second, "Second collaborator request", 29, 35);
-    const secondRequestOnFirst = first.getByTestId("annotation-card").filter({
-      hasText: "Second collaborator request",
-    });
-    const secondRequestOnSecond = second.getByTestId("annotation-card").filter({
-      hasText: "Second collaborator request",
-    });
-    await expect(secondRequestOnSecond).toBeVisible();
-    await expect(secondRequestOnFirst).toBeVisible({ timeout: 6_000 });
-    await expect(secondRequestOnSecond.getByRole("button", { name: /Cancel/ })).toHaveCount(1);
-    await expect(secondRequestOnFirst.getByRole("button", { name: /Cancel/ })).toHaveCount(0);
+    await selectBodyRange(first, 4, 25);
+    await first.keyboard.press(shortcut);
+    await first.getByLabel("Work instruction").fill(
+      "Turn this into a concrete recommendation without changing the underlying constraint.",
+    );
+    await expect(first.getByLabel("Assignee").locator(`option[value="${secondId}"]`)).toHaveCount(1);
+    await first.getByLabel("Assignee").selectOption(secondId);
+    await first.getByRole("button", { name: "Assign work" }).click();
 
-    await firstRequestOnFirst.getByRole("button", { name: /Cancel/ }).click();
-    await expect(first.getByTestId("annotation-history-list")).toContainText(
-      "First collaborator request",
-    );
-    await expect(first.getByTestId("pending-annotation-list")).toContainText(
-      "Second collaborator request",
-    );
-    await expect(second.getByTestId("annotation-history-list")).toContainText(
-      "First collaborator request",
-      { timeout: 6_000 },
-    );
+    const firstCard = first.getByTestId("work-order-card");
+    const secondCard = second.getByTestId("work-order-card");
+    await expect(firstCard).toContainText("Turn this into a concrete recommendation");
+    await expect(secondCard).toContainText("Turn this into a concrete recommendation", {
+      timeout: 8_000,
+    });
+    await expect(firstCard.getByRole("button", { name: "Cancel work" })).toHaveCount(1);
+    await expect(secondCard.getByRole("button", { name: "Cancel work" })).toHaveCount(0);
+    await expect(secondCard.getByRole("button", { name: "Accept" })).toHaveCount(0);
+    await expect(first.getByLabel("Note body")).toHaveValue(bodyText);
+
+    await firstCard.getByRole("button", { name: "Cancel work" }).click();
+    await expect(firstCard).toContainText("Cancelled");
+    await expect(secondCard).toContainText("Cancelled", { timeout: 8_000 });
   } finally {
     await firstContext.close();
     await secondContext.close();
   }
 });
 
-test("a dirty collaborator gets explicit conflict choices instead of a silent overwrite", async ({
+test("a delayed local save preserves the dirty draft and offers explicit conflict choices", async ({
   browser,
+  baseURL,
 }) => {
-  const firstContext = await browser.newContext();
-  const secondContext = await browser.newContext();
+  test.setTimeout(45_000);
+  const firstContext = await browser.newContext({ baseURL });
+  const secondContext = await browser.newContext({ baseURL });
   const first = await firstContext.newPage();
   const second = await secondContext.newPage();
+  let releaseSave: (() => void) | undefined;
 
   try {
-    await first.goto("/document");
+    await first.goto("/");
     await expect(first).toHaveURL(/\/document\//);
     await second.goto(first.url());
-    await first.getByLabel("Note body").fill("Shared baseline.");
-    await expect(first.getByText("Saved", { exact: true })).toBeVisible();
-    await expect(second.getByLabel("Note body")).toHaveValue("Shared baseline.");
+    await expect(first.getByLabel(/other (person|people) here/)).toHaveAttribute(
+      "aria-label",
+      "1 other person here",
+      { timeout: 8_000 },
+    );
 
-    let releaseSave: (() => void) | undefined;
+    const baselineSave = waitForDocumentSave(first, {
+      title: "",
+      body: "Shared baseline.",
+    });
+    await first.getByLabel("Note body").fill("Shared baseline.");
+    await baselineSave;
+    await expect(second.getByLabel("Note body")).toHaveValue("Shared baseline.", {
+      timeout: 8_000,
+    });
+
+    let markSaveStarted: (() => void) | undefined;
+    const saveStarted = new Promise<void>((resolve) => {
+      markSaveStarted = resolve;
+    });
+    let markSaveFinished: (() => void) | undefined;
+    const saveFinished = new Promise<void>((resolve) => {
+      markSaveFinished = resolve;
+    });
     const saveGate = new Promise<void>((resolve) => {
       releaseSave = resolve;
     });
     let intercepted = false;
-    await first.route("**/api/document", async (route) => {
-      if (route.request().method() !== "PUT" || intercepted) {
+    await first.route("**/api/document-v3/save", async (route) => {
+      if (intercepted) {
         await route.continue();
         return;
       }
       intercepted = true;
+      markSaveStarted?.();
       await saveGate;
-      await route.continue();
+      const response = await route.fetch();
+      await route.fulfill({ response });
+      markSaveFinished?.();
     });
 
     await first.getByLabel("Note body").fill("My unsaved version.");
+    await saveStarted;
+    const collaboratorSave = waitForDocumentSave(second, {
+      title: "",
+      body: "The collaborator version.",
+    });
     await second.getByLabel("Note body").fill("The collaborator version.");
-    await expect(second.getByText("Saved", { exact: true })).toBeVisible();
-    await expect(first.getByText("A newer version is available")).toBeVisible({ timeout: 6_000 });
-    releaseSave?.();
+    await collaboratorSave;
+    await expect(first.getByRole("complementary", { name: "Work and memory" })).toBeVisible();
+    await expect(first.getByText("A newer version is available")).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(first.getByLabel("Note body")).toHaveValue("My unsaved version.");
 
+    releaseSave?.();
+    await saveFinished;
     await first.getByRole("button", { name: "Use latest" }).click();
     await expect(first.getByLabel("Note body")).toHaveValue("The collaborator version.");
     await expect(first.getByText("Using the latest shared version.")).toBeVisible();
   } finally {
+    releaseSave?.();
     await firstContext.close();
     await secondContext.close();
   }
