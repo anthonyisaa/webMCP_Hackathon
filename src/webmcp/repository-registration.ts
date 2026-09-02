@@ -108,6 +108,8 @@ export class RepositoryWebMCPRegistrationManager {
   #contextKey: string | null = null;
   #requestedGeneration = 0;
   #disposed = false;
+  #suspended = false;
+  readonly #inFlight = new Set<Promise<void>>();
 
   constructor(
     context: RepositoryWebMCPModelContext,
@@ -121,6 +123,10 @@ export class RepositoryWebMCPRegistrationManager {
     return catalogOrder(this.#registrations.keys());
   }
 
+  get suspended(): boolean {
+    return this.#suspended;
+  }
+
   getRegisteredCallback(
     name: RepositoryToolName,
   ): WebMCPToolLike["execute"] | undefined {
@@ -132,6 +138,9 @@ export class RepositoryWebMCPRegistrationManager {
     selfMemberId: string,
     contextKey: string,
   ): Promise<RepositoryWebMCPRegistrationDiff> {
+    if (this.#suspended || this.#disposed) {
+      return Promise.resolve(emptyRepositoryRegistrationDiff());
+    }
     if (this.#contextKey !== null && this.#contextKey !== contextKey) {
       this.#dependencies.connection.current = null;
       this.#dependencies.onAgentConnectionChange?.(null);
@@ -250,6 +259,11 @@ export class RepositoryWebMCPRegistrationManager {
     registrationSignal: AbortSignal,
   ): Promise<unknown> {
     const linked = linkSignals(registrationSignal, options?.signal);
+    let settleExecution!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      settleExecution = resolve;
+    });
+    this.#inFlight.add(settled);
     try {
       if (linked.signal.aborted) throw repositoryAbortError(linked.signal);
       const result = await callback(input, { signal: linked.signal });
@@ -258,7 +272,25 @@ export class RepositoryWebMCPRegistrationManager {
       return wrapNativeResult(result);
     } finally {
       linked.cleanup();
+      settleExecution();
+      this.#inFlight.delete(settled);
     }
+  }
+
+  /** Withdraw the complete idle/BYOA surface before a managed Relay catalog is exposed. */
+  async suspend(reason = "Managed Relay mode entered"): Promise<RepositoryWebMCPRegistrationDiff> {
+    if (this.#disposed) return emptyRepositoryRegistrationDiff();
+    this.#suspended = true;
+    this.#requestedGeneration += 1;
+    const removed = this.registeredTools;
+    for (const name of removed) this.#abortRegistration(name, reason);
+    await Promise.allSettled([...this.#inFlight]);
+    return { added: [], removed, retained: [], reRegistered: [] };
+  }
+
+  /** Allow the bridge to reconcile the exact eight-tool idle catalog again. */
+  resume(): void {
+    if (!this.#disposed) this.#suspended = false;
   }
 
   #abortRegistration(name: RepositoryToolName, reason: string): void {
@@ -271,6 +303,7 @@ export class RepositoryWebMCPRegistrationManager {
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
+    this.#suspended = true;
     this.#dependencies.connection.current = null;
     this.#dependencies.onAgentConnectionChange?.(null);
     this.#requestedGeneration += 1;

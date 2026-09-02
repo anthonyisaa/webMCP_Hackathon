@@ -1,10 +1,15 @@
 import { expect, test } from "@playwright/test";
 
 type ProbeEvidence = {
+  schemaVersion: 2;
   overall: "PASSED" | "FAILED";
   evidenceClass: "UNCLASSIFIED_PAGE_OBSERVATION";
   namespace: string;
-  standardInputEncoding: string;
+  observedInputEncoding: "NOT_OBSERVED" | "OBJECT" | "JSON_STRING_COMPAT";
+  cancellationTransport:
+    | "NATIVE_CALLBACK_SIGNAL"
+    | "APPLICATION_PROPAGATED"
+    | "UNAVAILABLE";
   initialCatalog: string[];
   relayCatalog: string[];
   relayPhysicalName: string;
@@ -118,16 +123,20 @@ test("bound supported browser is eligible for native idle → Relay → idle cap
   if (!rawEvidence) throw new Error("The native probe did not render evidence.");
   const evidence = JSON.parse(rawEvidence) as ProbeEvidence;
   expect(evidence).toMatchObject({
+    schemaVersion: 2,
     overall: "PASSED",
     evidenceClass: "UNCLASSIFIED_PAGE_OBSERVATION",
     namespace: "document.modelContext",
-    standardInputEncoding: "OBJECT",
     initialCatalog: ["ratiflow_probe_idle"],
     relayCatalog: [evidence.relayPhysicalName],
     finalCatalog: ["ratiflow_probe_idle"],
     authorizedEchoes: 1,
     cancellationObservedByCallback: 1,
   });
+  expect(["OBJECT", "JSON_STRING_COMPAT"]).toContain(evidence.observedInputEncoding);
+  expect(["NATIVE_CALLBACK_SIGNAL", "APPLICATION_PROPAGATED"]).toContain(
+    evidence.cancellationTransport,
+  );
   expect(evidence.relayPhysicalName).toMatch(/^ratiflow_probe_relay_g_[a-f0-9]{32}$/u);
   expect(evidence.callbackDispatches).toBe(4);
   expect(evidence.checks).toHaveLength(11);

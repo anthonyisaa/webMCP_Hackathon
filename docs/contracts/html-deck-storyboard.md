@@ -36,8 +36,10 @@ Sources:
 - Format is a responsive 16:9 HTML presentation with a 1920 x 1080 design canvas.
 - Use the Ratiflow product palette: paper `#f3f5f1`, ink `#20221f`, green `#29685b`,
   violet `#7356a1`, and white paper surfaces. Use the product's Geist type family.
-- Product screenshots are the primary visual language. Do not use stock photography,
-  generic robot art, third-party logos, or invented interface mockups.
+- Product-derived rendered visuals and exact-SHA product screenshots are the primary
+  visual language. Every rendered visual must be visibly labeled `PRODUCT FLOW VISUAL`;
+  it may explain checked UI, golden facts, or architecture but is never execution proof.
+  Do not use stock photography, generic robot art, third-party logos, or invented behavior.
 - Each slide makes one claim. Keep the title to one line at the design canvas and visible
   explanatory copy to one short statement unless exact evidence labels require more.
 - Use at least 54 px for the cover title, 38 px for slide titles, 25 px for major callouts,
@@ -68,6 +70,7 @@ broader or more flattering claims.
 | Code fixture or result | `SYNTHETIC DEMO CODE` |
 | Data fixture, result, or chart | `SYNTHETIC DEMO DATA` |
 | Luna architecture boundary | `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS` |
+| Rendered HTML/CSS product visualization | `PRODUCT FLOW VISUAL` |
 | Capture provenance | `VERIFIED ON {surface} · {YYYY-MM-DD} · {short SHA}` |
 
 `LIVE LUNA` is allowed only after the named task is observed using the server-held key and
@@ -79,50 +82,49 @@ must say `COMPATIBILITY` and cannot substitute for either label.
 Never describe Luna as natively supporting OpenAI Site Tools. The approved claim is:
 
 > Ratiflow's application-owned in-page relay lets Luna discover the page's live WebMCP
-> tools and routes every selected action through `document.modelContext.executeTool()`.
+> tools; the server pins each required next function, Luna composes its strict arguments,
+> and the page routes the returned call through `document.modelContext.executeTool()`.
 
-## 4. Screenshot and evidence provenance
+## 4. Visual and evidence provenance
 
-All deck evidence lives under `demo/v4.2-relay/deck/`. Every core screenshot must be
-recaptured from the final deployed release; visual similarity to an earlier local build
-is insufficient.
+The deck supports two deliberately separate visual classes:
 
-Create `demo/v4.2-relay/deck/evidence-manifest.json` beside the assets. Each entry records:
+1. `PRODUCT FLOW VISUAL` is rendered HTML/CSS derived from the checked product UI,
+   contracts, and independent goldens. It may show the intended interaction, deterministic
+   synthetic facts, and required event sequence. It does not prove a live Luna call,
+   native WebMCP behavior, deployment status, latency, or reliability and may not carry
+   `LIVE LUNA`, `NATIVE WEBMCP`, or `VERIFIED ON` labels.
+2. `CAPTURED EVIDENCE` is a screenshot or trace from one observed exact-SHA release. Any
+   live-Luna, native-WebMCP, production, or measured claim must use this class and satisfy
+   the capture rules below.
 
-- asset filename and slide number;
-- full Git SHA and deployed URL;
-- UTC capture timestamp and client name/version;
-- viewport and device-pixel ratio;
-- document kind, sanitized document ID, run ID, attempt number, and resulting revision
-  where applicable;
-- whether the observation is `NATIVE_WEBMCP`, `LIVE_LUNA_RELAY`, `WEBMCP_OFF`, or
-  `CONCEPTUAL_ONLY`;
-- the matching sanitized trace, golden, ablation, or browser-test artifact;
-- the synthetic source labels shown in the UI; and
-- the person who captured or generated the evidence.
+Captured deck evidence lives under `demo/v4.2-relay/deck/`. Create
+`demo/v4.2-relay/deck/evidence-manifest.json` only when captured evidence is included.
+Each captured entry records asset filename and slide; full Git SHA and deployed URL; UTC
+timestamp and client/version; viewport and device-pixel ratio; sanitized document/run
+lineage where applicable; evidence class; matching sanitized trace/golden/ablation;
+visible synthetic labels; and capturer. Rendered visuals instead cite their owning deck
+source plus the checked contract/golden and need no invented deployment manifest.
 
 Capture rules:
 
-1. Slides 1, 3, and 5 through 11 must all resolve to the same approved release SHA.
-2. Slides 6, 7, 8, and 10 require real Luna relay runs. Canned responses, mocked provider
-   tests, and seeded completed examples cannot be presented as live execution.
-3. Slides 6, 9, and 11 require a supported WebMCP surface. Record the exact Chrome version
-   and flag state or the exact ChatGPT in-app browser version.
-4. The Postmortem frames used on slides 3 and 5 through 8 must belong to one traceable task
-   lineage. The Product frames on slide 10 must belong to one separate traceable Data run.
-5. Capture the whole product state before cropping. Keep an untouched source capture and
-   list every derived crop in the evidence manifest.
-6. Redact bearer tokens, API keys, share/member credentials, unrestricted provider
-   payloads, private URLs, cookies, and raw model transcripts. Never blur a secret after
-   committing it; secrets must not enter the asset in the first place.
-7. A trace may show event type, bounded input summary, tool name, source labels, latency,
-   state, model, runtime, and correlation IDs. It must not show chain-of-thought.
-8. Code and data evidence must display the exact synthetic label in the screenshot, not
-   only in the deck caption.
-9. Do not show unresolved placeholders such as `PENDING`, fake revision numbers, fake
-   response IDs, or a future public URL. Omit unavailable evidence until the gate passes.
-10. Do not state reliability, speed, cost, adoption, or accuracy numbers unless the exact
-    measurement and method are included in the evidence manifest.
+1. Every captured core frame resolves to the same approved release SHA.
+2. A `LIVE LUNA` label requires the named real run through the server-held
+   `gpt-5.6-luna` Responses path. Mocked providers and seeded examples are not live proof.
+3. A `NATIVE WEBMCP` label requires an observed supported client using the standard
+   `document.modelContext` path; record client/version and exact descriptor behavior.
+4. Frames presented as one Postmortem or Product lineage must reconcile to that one
+   sanitized task/run/attempt and resulting revision.
+5. Capture the whole product state before cropping; retain the untouched source and list
+   every derived crop in the manifest.
+6. Secrets, private URLs, unrestricted provider payloads, and raw model transcripts must
+   never enter an asset. A trace may show only bounded, sanitized operational facts and
+   never chain-of-thought.
+7. Code and data results display their synthetic label in the visual itself.
+8. Do not show unresolved placeholders, fake IDs, or future public URLs. Do not claim
+   reliability, speed, cost, adoption, or accuracy without the recorded measurement.
+9. Rendered visuals never substitute for the separate exact-SHA native and live-provider
+   release gates, even when their appearance exactly matches the product.
 
 ## 5. Navigation and accessibility contract
 
@@ -142,9 +144,9 @@ Capture rules:
 - Respect `prefers-reduced-motion: reduce` by removing zoom, parallax, animated counters,
   and cross-slide movement. There is no autoplay and no timed advancement.
 - Preserve the full slide reading order in the DOM. At narrow widths, stack the existing
-  composition rather than hiding screenshots, copy, captions, controls, or citations.
-- All meaningful screenshots require alt text describing the product state and the proof
-  visible in it. Decorative texture and connector lines use empty alternative text.
+  composition rather than hiding visuals, copy, captions, controls, or citations.
+- All meaningful visuals require alt text describing the product state and whether the
+  frame is rendered or captured. Decorative texture and connector lines use empty alternative text.
   Important text such as tool names, facts, URLs, and truth labels must remain live HTML,
   even when also present inside a screenshot.
 - Text and controls must meet WCAG AA contrast. Color may reinforce but may not be the only
@@ -154,6 +156,11 @@ Capture rules:
   page without clipping.
 
 ## 6. Slide contract
+
+Each slide may use the checked rendered composition described below. The file names in an
+`Evidence` block are the optional captured-evidence upgrade path; they become mandatory
+only if that slide carries a live, native, deployed, or verified label. A `Gate` in those
+blocks governs that evidence label, not inclusion of a clearly labeled rendered visual.
 
 ### Slide 1 — Ratiflow
 
@@ -169,8 +176,8 @@ Capture rules:
 
 **Composition**
 
-Use a minimal title block in the left third. A large final Postmortem workspace crop fills
-the right two-thirds and runs off the lower-right edge. The crop shows the completed Code
+Use a minimal title block in the left third. A large Postmortem workspace visual fills
+the right two-thirds and runs off the lower-right edge. The frame shows the checked Code
 revision and enough of the Flight Recorder to signal the product's distinguishing proof.
 
 **Evidence**
@@ -178,7 +185,7 @@ revision and enough of the Flight Recorder to signal the product's distinguishin
 - `01-postmortem-hero-source.png` — untouched deployed viewport after the successful Code
   run.
 - `01-postmortem-hero.png` — approved slide crop derived from that source.
-- Visible labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
+- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
   and the capture-provenance label.
 - Gate: live Luna run, linked revision, and recorder sequence all verified on the final SHA.
 
@@ -213,7 +220,7 @@ They are conceptual typography, not product controls or a competitor imitation.
 
 **Composition**
 
-Use one horizontal sequence of three broad screenshot crops: the selected mention, live
+Use one horizontal sequence of three broad product frames: the selected mention, role
 tool discovery, and completed exact-range diff. A single hairline connects them. Labels
 under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
 
@@ -223,7 +230,7 @@ under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
 - `03b-discovery-source.png` and `03b-discovery.png`.
 - `03c-revision-source.png` and `03c-revision.png`.
 - All three frames come from the same Postmortem task, run, and final release SHA.
-- Visible labels on discovery/revision frames: `LIVE LUNA · APPLICATION-OWNED WEBMCP
+- Captured-evidence labels on discovery/revision frames: `LIVE LUNA · APPLICATION-OWNED WEBMCP
   RELAY` and `SYNTHETIC DEMO CODE`.
 
 **Primary criterion:** WebMCP Leverage.
@@ -261,7 +268,7 @@ the grouped Humans/Agents mention menu in the third crop if it remains legible.
 
 Make the selected Root Cause passage the dominant visual. Keep the comment composer and
 grouped Humans/Agents autocomplete in the aligned margin, with `@Code` selected. The exact
-product prompt inside the screenshot must match the frozen Postmortem hero golden; the deck
+product prompt inside the frame must match the frozen Postmortem hero golden; the deck
 must not rewrite it for appearance.
 
 **Evidence**
@@ -282,8 +289,8 @@ must not rewrite it for appearance.
 
 **Composition**
 
-Use an ink-dark proof slide. Put the real Code and General catalog captures on opposite
-sides with a restrained `toolchange` transition between them. Visually subordinate common
+Use an ink-dark mechanism slide. Put the checked Code and General catalog frames on
+opposite sides with a restrained `toolchange` transition between them. Visually subordinate common
 tools and emphasize only the specialist deltas:
 
 - Code: `search_demo_code`, `read_demo_file`.
@@ -297,7 +304,7 @@ generation, and ordered events. Do not display hidden reasoning or unrestricted 
 - `06a-code-catalog-source.png` and `06a-code-catalog.png`.
 - `06b-general-catalog-source.png` and `06b-general-catalog.png`.
 - `06-role-switch-trace.json` — sanitized ordered events for both catalogs.
-- Visible labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `NATIVE WEBMCP`, and
+- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `NATIVE WEBMCP`, and
   capture provenance.
 - Gate: both catalogs are observed sequentially on one document; physical registration
   generations differ; a real `toolchange` is observed; the old descriptor is rejected.
@@ -314,7 +321,7 @@ generation, and ordered events. Do not display hidden reasoning or unrestricted 
 
 Use the completed comment's before/after diff as the main visual. A thin evidence line
 beneath it shows `commit:7d3c9e1` and `checkout.log`; keep the linked revision and Restore
-action visible. The screenshot—not added deck prose—carries the detailed finding.
+action visible. The product visual—not added deck prose—carries the detailed finding.
 
 **Evidence**
 
@@ -322,7 +329,7 @@ action visible. The screenshot—not added deck prose—carries the detailed fin
 - `07-code-result-trace.json` — sanitized Luna/WebMCP task lineage.
 - The result must match the frozen synthetic golden: ignored `Retry-After`, up to five
   zero-delay retries, 5.8x retry traffic, and queue growth from 420 to 18,240.
-- Visible labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
+- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
   and capture provenance.
 - Gate: exact-range revision, evidence refs, rationale, model/runtime, and Restore target
   agree across the screenshot, trace, history, and golden.
@@ -346,7 +353,7 @@ distinct but connected.
 
 - `08-history-lineage-source.png` and `08-history-lineage.png`.
 - `08-history-lineage.json` — sanitized expected provenance and revision links.
-- Visible labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
+- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO CODE`,
   and capture provenance.
 - Gate: the human grantor, canonical managed agents, task IDs, attempts, revisions, and
   Restore destination are mutually consistent; no self-declared identity is presented as
@@ -372,7 +379,7 @@ ON` and `WEBMCP OFF`; do not simulate a broken page.
 - `09a-webmcp-on-source.png` and `09a-webmcp-on.png`.
 - `09b-webmcp-off-source.png` and `09b-webmcp-off.png`.
 - `09-ablation.json` — exact test setup and observed capability difference.
-- Visible labels: `NATIVE WEBMCP` on the left, `WEBMCP OFF · HUMAN MODE` on the right,
+- Captured-evidence labels: `NATIVE WEBMCP` on the left, `WEBMCP OFF · HUMAN MODE` on the right,
   plus capture provenance on both.
 - Gate: controlled ablation proves human read/edit/comment behavior still works and both
   managed discovery and execution cannot proceed without `document.modelContext`.
@@ -397,14 +404,14 @@ only if those facts remain exact in the final Product golden.
 - `10-product-data-result-source.png` and `10-product-data-result.png`.
 - `10-product-data-trace.json` — live Data run including `query_demo_metrics` and scoped
   revision submission.
-- Visible labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO DATA`,
+- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO DATA`,
   and capture provenance.
 - Gate: chart data, accessible data table, comment, trace, evidence refs, exact diff, and
   resulting revision all agree with the independent Product golden.
 
 **Primary criterion:** Potential Impact.
 
-### Slide 11 — Luna chooses the action; the browser executes it.
+### Slide 11 — Luna composes the action; the browser executes it.
 
 **Visible copy**
 
@@ -417,9 +424,9 @@ Use an ink-dark single-line architecture flow:
 
 `@mention -> task + lease -> WebMCP catalog <-> Luna Responses -> executeTool -> revision ledger`
 
-Keep nodes as simple live-text labels, not a dashboard. Under the flow, align six event
-timestamps from one sanitized real run so the conceptual diagram is visibly grounded in
-observed execution.
+Keep nodes as simple live-text labels, not a dashboard. Under the flow, align the six
+required event labels. Add timestamps only when they come from one sanitized captured
+run; otherwise label the architecture `PRODUCT FLOW VISUAL`.
 
 **Evidence**
 
@@ -427,11 +434,14 @@ observed execution.
 - `11-architecture-evidence.json` — release SHA, source-file anchors, catalog digest,
   response/call correlation, revision ID, and verification references used to generate
   the diagram.
-- Visible labels: `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS`,
-  `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `NATIVE WEBMCP`, and capture provenance.
-- Gate: the trace proves a client `tool_search_call`, browser `getTools()`, approved
-  `tool_search_output`, Luna function call, matching `executeTool()`, function output,
-  and committed revision. The API key remains server-only and absent from every artifact.
+- Always show `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS` and the
+  visual-class label. Add `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `NATIVE WEBMCP`,
+  and capture provenance only for matching captured evidence.
+- Captured-evidence gate: one reconciled trace proves a client `tool_search_call`, browser
+  `getTools()`, approved `tool_search_output`, server-pinned Luna function call, matching
+  `executeTool()`, function output, and committed revision. Without that artifact, the
+  rendered architecture is labeled `PRODUCT FLOW VISUAL` and depicts only the required
+  sequence. The API key remains server-only and absent from every artifact.
 
 **Primary criterion:** Creativity & Ambition.
 
@@ -441,7 +451,7 @@ observed execution.
 
 > **WebMCP Leverage** — the page changes the tools.
 
-> **Execution** — the result is scoped, reliable, and reversible.
+> **Execution** — the result is scoped, bounded, and reversible.
 
 > **Potential Impact** — people and agents share one decision trail.
 
@@ -449,9 +459,10 @@ observed execution.
 
 **Composition**
 
-Center one oversized `@` between a fresh Postmortem crop and a fresh Product crop. Place
-the four judging lines around it as flat editorial text, not four cards. Close with the
-verified live URL, public repository URL, exact release SHA, and one action:
+Center one oversized `@` between a Postmortem visual and a Product visual. Place the four
+judging lines around it as flat editorial text, not four cards. Close with the internal
+live-demo action. Add a verified live URL, public repository URL, and exact release SHA
+only after each is observed:
 
 > Try Postmortem → `@Code`
 
@@ -471,21 +482,22 @@ Do not end on a generic thank-you slide.
 
 ## 7. Slide-to-evidence gate
 
-| Slide | Must be real before inclusion | May be conceptual |
+| Slide | Allowed rendered visual | Captured-evidence upgrade |
 |---|---|---|
-| 1 | Final Postmortem live-run state | Cover crop and typography |
-| 2 | Untouched seed document | Detached context fragments |
-| 3 | Same-lineage mention, discovery, revision | Connector line |
-| 4 | Fresh-session NUX states | Oversized step numerals |
-| 5 | Exact canonical `@Code` assignment | Selection emphasis |
-| 6 | Native role catalog delta and live trace | Layout only |
-| 7 | Live Luna result and committed diff | None |
-| 8 | Real history/provenance lineage | Revision-spine styling |
-| 9 | Controlled native/WebMCP-off ablation | A/B divider |
-| 10 | Live Data result, chart, diff, and trace | None |
-| 11 | End-to-end trace and source anchors | Simplified flow geometry |
-| 12 | Verified final URLs, SHA, and fresh crops | Oversized `@` |
+| 1 | Checked Postmortem result and recorder composition | Final Postmortem live-run state |
+| 2 | Seed document plus detached-context typography | Exact seed screenshot |
+| 3 | Checked mention → discovery → revision sequence | Same-lineage captured sequence |
+| 4 | Checked NUX states | Fresh-session NUX screenshots |
+| 5 | Frozen canonical `@Code` assignment | Exact assignment screenshot |
+| 6 | Contract-accurate role catalog delta | Native role delta and live trace |
+| 7 | Golden Code diff and synthetic refs | Live Luna result and committed diff |
+| 8 | Golden history/provenance lineage | Captured matching lineage |
+| 9 | Contract WebMCP-on/off comparison | Controlled native ablation |
+| 10 | Golden Data result and chart | Live Data result, diff, and trace |
+| 11 | Contract architecture and required event sequence | Composed exact-SHA trace |
+| 12 | Checked two-document synthesis and internal action | Verified public URLs, SHA, and crops |
 
-If a required observation is unavailable, remove or replace the claim rather than using
-a simulation. The deck may be visually polished before release, but it becomes
-submission evidence only when every used asset passes this gate.
+If an observation is unavailable, keep the explanatory frame visibly labeled
+`PRODUCT FLOW VISUAL` and omit the evidence-only label. The deck becomes submission
+evidence only for those captured claims whose artifacts pass this gate; it never converts
+rendered visuals into proof by visual similarity.

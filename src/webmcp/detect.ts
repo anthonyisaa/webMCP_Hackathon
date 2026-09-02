@@ -1,4 +1,8 @@
-import type { WebMCPModelContextLike, WebMCPNamespace } from "./types";
+import type {
+  WebMCPConsumerModelContext,
+  WebMCPModelContextLike,
+  WebMCPNamespace,
+} from "./types";
 
 interface ModelContextHost {
   modelContext?: WebMCPModelContextLike;
@@ -39,4 +43,22 @@ export function makeRegistrationContextKey(
   contextEpoch: number,
 ): string {
   return JSON.stringify([memberSessionInstanceId, contextEpoch]);
+}
+
+/** Managed Relay is standard-only and requires the complete consumer surface. */
+export function asStandardWebMCPConsumer(
+  detected: DetectedWebMCP,
+): WebMCPConsumerModelContext | null {
+  const context = detected.context;
+  if (
+    detected.namespace !== "document.modelContext"
+    || !context
+    || typeof context.getTools !== "function"
+    || typeof context.executeTool !== "function"
+    || typeof context.addEventListener !== "function"
+    || typeof context.removeEventListener !== "function"
+  ) {
+    return null;
+  }
+  return context as WebMCPConsumerModelContext;
 }

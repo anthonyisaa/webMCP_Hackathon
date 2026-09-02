@@ -6,6 +6,17 @@ import { TOOL_NAMES, type CompiledCapabilities, type ToolName } from "../contrac
  */
 export type WebMCPRegistrationMode = "dynamic" | "static-superset";
 
+/** The repository page never advertises its BYOA and managed Relay catalogs together. */
+export type RepositoryWebMCPRuntimeMode = "IDLE_BYOA" | "MANAGED_RELAY";
+
+export function repositoryCatalogForMode(
+  mode: RepositoryWebMCPRuntimeMode,
+  idleNames: readonly string[],
+  relayNames: readonly string[],
+): string[] {
+  return mode === "IDLE_BYOA" ? [...idleNames] : [...relayNames];
+}
+
 export function resolveWebMCPRegistrationMode(
   vercelEnv: string | undefined,
   ablation: string | undefined,

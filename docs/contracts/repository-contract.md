@@ -264,6 +264,10 @@ The immutable, document-monotonic relay trace uses exactly these event kinds:
 `ATTEMPT_FAILED`, `RUN_WAITING_RETRY`, `RUN_COMPLETED`, `RUN_EXHAUSTED`, and
 `RUN_CANCELLED`.
 
+`MODEL_TOOL_SELECTED` remains the frozen wire event name. It records that the provider
+returned, and the server validated, the exact function the server pinned for that step;
+it does not assert that Luna autonomously selected a tool from the discovered catalog.
+
 Each `RelayTraceEvent` contains event/version/document/run IDs, nullable attempt ID,
 exact kind, nullable logical/physical tool names and manifest/argument/result digests, a
 bounded scalar-only detail object, and timestamp. It never stores chain-of-thought, raw
@@ -279,6 +283,13 @@ developer prompt, provider response ID, arbitrary tool definition, credential, a
 origin. Every call uses `gpt-5.6-luna`, the fixed repeated developer instruction, and
 client-executed tool search. A provider response ID may be retained privately for
 continuation and sanitized evidence; it is not authority.
+
+After the browser returns the validated manifest, every nonterminal continuation exposes
+only the exact next active physical function and names it in
+`tool_choice: { type: "function", name }`. Luna composes that function's strict
+arguments and must return the pinned call; any other name is rejected. After
+`submit_scoped_revision`, the terminal continuation sends `tools: []` with
+`tool_choice: "none"`.
 
 `RelayStepInput` is exactly one of:
 
@@ -339,8 +350,14 @@ request UUID. No model field can override that context.
 `northstar_launch_capacity | inc_482_checkout_impact`. Fixtures perform no network
 access, and every returned fact carries an unmistakable synthetic source label.
 
-`RelayAttemptAuthorizationPort` loads a live authorized attempt for the exact grant and
-step, records one legal step outcome, and loads a verified result receipt.
+`RelayAttemptAuthorizationPort.beginStep` atomically locks the attempt and either reserves
+the exact expected cursor before provider dispatch, reports that the same request is still
+in progress, or replays its terminal full Relay result. Only the caller that receives the
+authorized context may spend. `recordStepResult` changes that reservation to terminal and
+stores either success or failure; an abandoned reservation stays non-dispatchable until
+attempt reconciliation/expiry. The port also loads verified result receipts. Exact replay
+reconstructs the original public outcome—including any signed permit—from persisted
+claims; a changed digest under the same request UUID fails.
 `LunaResponsesProviderPort` accepts only `START`, `TOOL_SEARCH_OUTPUT`, or
 `FUNCTION_CALL_OUTPUT` and returns only `SEARCH_REQUIRED`, `CALL_REQUIRED`, or
 `COMPLETED`. These ports keep database authority, WebMCP execution, fixtures, and the
@@ -410,7 +427,14 @@ check, and create only these relations:
 - `ratiflow_document_private.issue_relay_execution_permits_v4` — function-call binding,
   fixed permit claims including nonce/issued-at/expiry, token digest,
   argument/generation/lease binding, server request UUID, state, verified output, digest,
-  and result-receipt ID.
+  and result-receipt ID; and
+- `ratiflow_document_private.issue_relay_steps_v4` — one row per bounded step with
+  attempt/step/request ID, input digest, `RESERVED | TERMINAL` state, private provider
+  response ID, the full successful or failed Relay result, approved manifest digest
+  where applicable, linked permit ID, and timestamps. Its unique cursor reservation is
+  acquired atomically before provider dispatch; exact in-flight retries observe
+  `IN_PROGRESS`, exact terminal retries replay, and competing requests cannot spend.
+  It never stores a plaintext grant/permit, reasoning item, or unrestricted transcript.
 
 No separate relay-lease table is needed: the live lease is part of the one active
 attempt, and claim/renew/release lock that row with server-clock comparisons. Database
@@ -435,6 +459,11 @@ still one `WEBMCP` Direct revision with assigned managed profile, task creator a
 exact before/after diff, rationale, evidence, and Restore. Model/provider metadata lives
 in the relay lineage, not in model-controlled revision fields. Synthetic labels identify
 the demo metrics, code, and style fixtures in both tool results and visible evidence.
+The final specialist result carries the complete deterministic evidence set for its
+required path, and a scoped revision must cite that exact set: one selected Data dataset;
+both `checkout.log` and `commit:7d3c9e1` for Code; or both `Ratiflow company style guide`
+and `Ratiflow consistency rules` for General. Missing, duplicate, extra, or forged refs
+fail before the mutation permit is issued.
 
 ## v4.2.8 Exact errors and bounds
 
@@ -445,13 +474,18 @@ Relay operations retain every existing `RepositoryFailure` code and add exactly:
 - `RELAY_LEASE_LOST` — the attempt no longer owns the exact live lease;
 - `RELAY_STATE_CONFLICT` — the expected step or legal transition no longer matches;
 - `RELAY_EXECUTION_NOT_ARMED` — no matching one-shot permit is armed;
-- `RELAY_MANIFEST_MISMATCH` — discovered tools differ from the approved generation; and
-- `RELAY_RESULT_INVALID` — a tool envelope, receipt, schema, or bounded output is invalid.
+- `RELAY_MANIFEST_MISMATCH` — discovered tools differ from the approved generation;
+- `RELAY_RESULT_INVALID` — a tool envelope, receipt, schema, or bounded output is invalid; and
+- `RELAY_PROVIDER_OUTCOME_UNKNOWN` — a Responses call crossed the dispatch boundary but
+  its authenticated result was lost, so the attempt remains `RECONCILING` and no new
+  provider attempt is claimable until authoritative reconciliation or expiry.
 
 Invalid or expired grants and permits return the existing generic `UNAUTHORIZED` without
 revealing whether a secret once existed. Capacity/cost abuse uses `RATE_LIMITED`.
-Ordinary unavailable state is visible and retryable; it never becomes a fabricated
-success.
+An unavailable result exposes its checked retryability and never becomes a fabricated
+success. `RELAY_PROVIDER_OUTCOME_UNKNOWN` is deliberately non-retryable at the public
+boundary: human Retry and the recovery heartbeat cannot purchase another provider call
+while its durable step is unresolved.
 
 `RELAY_BOUNDS` is exact:
 

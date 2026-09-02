@@ -771,3 +771,41 @@ test("tool output fails closed when a service returns non-JSON data", async () =
     /circular|serialize|JSON/i,
   );
 });
+
+test("managed Relay suspension withdraws all idle tools and blocks reconciliation until resume", async () => {
+  const initial = surface();
+  const latest = runtime(initial);
+  const harness = serviceHarness(initial);
+  const deps = dependencies(latest, harness.service);
+  const context = new FakeModelContext();
+  const manager = new RepositoryWebMCPRegistrationManager(context, deps.value);
+  const key = makeRepositoryRegistrationContextKey(
+    DOCUMENT_ID,
+    4,
+    latest.current.sessionInstanceId,
+    latest.current.pageSessionId,
+    latest.current.agentSessionToken,
+    latest.current.selfMemberId,
+  );
+
+  await manager.reconcile(initial, MEMBER_ID, key);
+  const withdrawn = await manager.suspend();
+  assert.deepEqual(withdrawn.removed, REPOSITORY_TOOL_NAMES);
+  assert.deepEqual(manager.registeredTools, []);
+  assert.equal(context.calls.every(({ signal }) => signal?.aborted), true);
+
+  const whileSuspended = await manager.reconcile(initial, MEMBER_ID, key);
+  assert.deepEqual(whileSuspended, {
+    added: [],
+    removed: [],
+    retained: [],
+    reRegistered: [],
+  });
+  assert.deepEqual(manager.registeredTools, []);
+
+  manager.resume();
+  const restored = await manager.reconcile(initial, MEMBER_ID, key);
+  assert.deepEqual(restored.added, REPOSITORY_TOOL_NAMES);
+  assert.deepEqual(manager.registeredTools, REPOSITORY_TOOL_NAMES);
+  manager.dispose();
+});

@@ -64,7 +64,10 @@ async function invokeNativeTool<T>(
       (candidate) => candidate.name === toolName,
     );
     if (!tool) throw new Error(`Native tool ${toolName} was not discovered.`);
-    const raw = await context.executeTool(tool, toolInput);
+    const nativeInput = typeof tool.inputSchema === "string"
+      ? JSON.stringify(toolInput)
+      : toolInput;
+    const raw = await context.executeTool(tool, nativeInput);
     let parsed: unknown = raw;
     if (typeof parsed === "string") parsed = JSON.parse(parsed) as unknown;
     if (
@@ -104,13 +107,13 @@ function expectNativeEnvelope<T>(invocation: NativeInvocation<T>): T {
   return invocation.structuredContent;
 }
 
-test("native v4.1 discovers eight tools, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
+test("native v4.2 discovers the eight-tool idle catalog, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto("/");
   await page.getByLabel("What should collaborators call you?").fill("Quinn Patel");
-  await page.getByRole("button", { name: "Explore postmortem" }).click();
+  await page.getByRole("button", { name: "Open live postmortem" }).click();
   await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/u);
   await expect(page.getByRole("heading", {
     level: 1,
@@ -119,13 +122,13 @@ test("native v4.1 discovers eight tools, connects Contextbot first, and reads Po
 
   await expect.poll(async () => (await discoverNativeTools(page)).supported, {
     message:
-      "Native v4.1 evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
+      "Native v4.2 evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
   }).toBe(true);
   const discovery = await discoverNativeTools(page);
   expect(discovery.hasGetTools).toBe(true);
   expect([...discovery.tools].sort()).toEqual([...REPOSITORY_TOOL_NAMES].sort());
   await expect(page.getByRole("heading", {
-    name: "Bring your agent into this document.",
+    name: "Select a passage. Mention a specialist. Watch the proof.",
   })).toBeVisible();
 
   if (discovery.hasExecuteTool) {
@@ -147,14 +150,10 @@ test("native v4.1 discovers eight tools, connects Contextbot first, and reads Po
       revision: 5,
       activityVersion: 11,
     });
-    const connectedStatus = page.getByRole("button", {
-      name: /Contextbot connected/u,
-    });
-    await expect(connectedStatus).toBeVisible();
-    await connectedStatus.click();
-    await expect(page.getByRole("heading", {
-      name: "Your agent is ready to mention.",
+    await expect(page.getByRole("button", {
+      name: /3 managed agents ready/u,
     })).toBeVisible();
+    await expect(page.getByText("Advanced: Contextbot connected", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Close agent setup" }).click();
 
     const inspected = expectNativeEnvelope(
@@ -177,7 +176,7 @@ test("native v4.1 discovers eight tools, connects Contextbot first, and reads Po
       agents: expect.arrayContaining([
         expect.objectContaining({
           name: "Contextbot",
-          member: { displayName: "Quinn Patel" },
+          member: expect.objectContaining({ displayName: "Quinn Patel" }),
         }),
       ]),
       tasks: expect.any(Array),
@@ -250,7 +249,7 @@ test("native v4.1 discovers eight tools, connects Contextbot first, and reads Po
     test.info().annotations.push({
       type: "pending",
       description:
-        "This supported client discovered the v4.1 catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
+        "This supported client discovered the v4.2 idle catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
     });
   }
 

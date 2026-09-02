@@ -3,12 +3,26 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import type {
+  RelayBrowserClientPort,
+  RelayWorkspaceState,
+} from "../../agent-relay/contracts";
+import {
+  RelayBrowserRuntime,
+  RelayHttpClient,
+  createDOMRelayBrowserEnvironment,
+  unavailableRelayStatus,
+  type RelayBrowserRuntimeStatus,
+} from "../../agent-relay/browser";
+import type {
   IssueAgentProfile,
   IssueWorkspaceSurface,
   RepositoryBrowserClientPort,
 } from "../../repository/contracts";
 import { reconcileIssueSurface } from "../../repository/surface-reconciliation";
-import { detectModelContext } from "../../webmcp/detect";
+import {
+  asStandardWebMCPConsumer,
+  detectModelContext,
+} from "../../webmcp/detect";
 import { RepositoryActivitySignal } from "../../webmcp/repository-activity-signal";
 import {
   emptyRepositoryRegistrationDiff,
@@ -33,6 +47,16 @@ export interface RepositoryWebMCPBridgeProps {
   onToolExecutionChange?: (
     tool: "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null,
   ) => void;
+  /** Human session authority for the application-owned managed Relay sidecar. */
+  relaySessionToken?: string;
+  /** Optional injected client for tests or an alternate checked same-origin adapter. */
+  relayClient?: RelayBrowserClientPort;
+  /** Increment after a managed mention or explicit Retry to wake dispatch immediately. */
+  relayWakeSignal?: number;
+  /** Increment only after a human confirms the bounded second attempt. */
+  relayRetrySignal?: number;
+  onRelayStateChange?: (state: RelayWorkspaceState | null) => void;
+  onRelayRuntimeStatus?: (status: RelayBrowserRuntimeStatus) => void;
 }
 
 function createPageSessionId(identityKey: string): string {
@@ -54,6 +78,12 @@ export function RepositoryWebMCPBridge({
   onAuthoritativeSurface,
   onAgentConnectionChange,
   onToolExecutionChange,
+  relaySessionToken,
+  relayClient,
+  relayWakeSignal = 0,
+  relayRetrySignal = 0,
+  onRelayStateChange,
+  onRelayRuntimeStatus,
 }: RepositoryWebMCPBridgeProps) {
   const identityKey = JSON.stringify([
     surface.document.id,
@@ -61,6 +91,7 @@ export function RepositoryWebMCPBridge({
     sessionInstanceId,
     agentSessionToken,
     selfMemberId,
+    relaySessionToken ?? null,
   ]);
   const pageSessionId = useMemo(() => createPageSessionId(identityKey), [identityKey]);
   const latest = useRef({
@@ -72,6 +103,9 @@ export function RepositoryWebMCPBridge({
   }) as MutableRepositoryWebMCPRuntimeRef;
   const connectionRef = useRef<IssueAgentProfile | null>(null);
   const managerRef = useRef<RepositoryWebMCPRegistrationManager | null>(null);
+  const relayRuntimeRef = useRef<RelayBrowserRuntime | null>(null);
+  const relayClientRef = useRef<RelayBrowserClientPort | null>(null);
+  const relayStateReadControllerRef = useRef<AbortController | null>(null);
   const activitySignalRef = useRef<RepositoryActivitySignal | null>(null);
   const namespaceRef = useRef<RepositoryWebMCPBridgeStatus["namespace"]>("unsupported");
   const unsupportedIdentityRef = useRef<string | null>(null);
@@ -79,6 +113,9 @@ export function RepositoryWebMCPBridge({
   const authoritativeCallbackRef = useRef(onAuthoritativeSurface);
   const connectionCallbackRef = useRef(onAgentConnectionChange);
   const executionCallbackRef = useRef(onToolExecutionChange);
+  const relayStateCallbackRef = useRef(onRelayStateChange);
+  const relayStatusCallbackRef = useRef(onRelayRuntimeStatus);
+  const previousRelayRetrySignalRef = useRef(relayRetrySignal);
 
   const registrationSurfaceKey = JSON.stringify([
     surface.document.id,
@@ -108,6 +145,8 @@ export function RepositoryWebMCPBridge({
     authoritativeCallbackRef.current = onAuthoritativeSurface;
     connectionCallbackRef.current = onAgentConnectionChange;
     executionCallbackRef.current = onToolExecutionChange;
+    relayStateCallbackRef.current = onRelayStateChange;
+    relayStatusCallbackRef.current = onRelayRuntimeStatus;
 
     // Report the ordinary-browser state before paint. React may defer passive effects
     // while navigation settles, but the human UI must never imply that absent tools are
@@ -135,8 +174,21 @@ export function RepositoryWebMCPBridge({
     activitySignalRef.current = activitySignal;
     const detected = detectModelContext();
     namespaceRef.current = detected.namespace;
+    const activeRelayClient = relayClient ?? (relaySessionToken
+      ? new RelayHttpClient({
+          humanSessionToken: relaySessionToken,
+          origin: window.location.origin,
+        })
+      : null);
+    relayClientRef.current = activeRelayClient;
+    const consumerContext = asStandardWebMCPConsumer(detected);
     if (!detected.context) {
+      if (!activeRelayClient) relayStateCallbackRef.current?.(null);
+      relayStatusCallbackRef.current?.(unavailableRelayStatus());
       return () => {
+        relayStateReadControllerRef.current?.abort("Repository session changed");
+        relayStateReadControllerRef.current = null;
+        if (relayClientRef.current === activeRelayClient) relayClientRef.current = null;
         connectionRef.current = null;
         connectionCallbackRef.current?.(null);
         if (activitySignalRef.current === activitySignal) {
@@ -166,6 +218,62 @@ export function RepositoryWebMCPBridge({
       dependencies,
     );
     managerRef.current = manager;
+    let relayRuntime: RelayBrowserRuntime | null = null;
+    if (activeRelayClient && consumerContext) {
+      try {
+        relayRuntime = new RelayBrowserRuntime({
+          context: consumerContext,
+          client: activeRelayClient,
+          pageSessionId,
+          environment: createDOMRelayBrowserEnvironment(),
+          idleCatalog: {
+            withdraw: async (reason) => {
+              const lastDiff = await manager.suspend(reason);
+              statusCallbackRef.current?.({
+                namespace: namespaceRef.current,
+                supported: true,
+                registeredTools: manager.registeredTools,
+                lastDiff,
+              });
+              return lastDiff;
+            },
+            restore: async () => {
+              manager.resume();
+              const current = latest.current;
+              const key = makeRepositoryRegistrationContextKey(
+                current.surface.document.id,
+                current.surface.document.protocolVersion,
+                current.sessionInstanceId,
+                current.pageSessionId,
+                current.agentSessionToken,
+                current.selfMemberId,
+              );
+              const lastDiff = await manager.reconcile(
+                current.surface,
+                current.selfMemberId,
+                key,
+              );
+              statusCallbackRef.current?.({
+                namespace: namespaceRef.current,
+                supported: true,
+                registeredTools: manager.registeredTools,
+                lastDiff,
+              });
+              return lastDiff;
+            },
+          },
+          onStateChange: (state) => relayStateCallbackRef.current?.(state),
+          onStatusChange: (status) => relayStatusCallbackRef.current?.(status),
+        });
+        relayRuntimeRef.current = relayRuntime;
+        relayRuntime.start();
+      } catch {
+        relayStatusCallbackRef.current?.(unavailableRelayStatus());
+      }
+    } else {
+      if (!activeRelayClient) relayStateCallbackRef.current?.(null);
+      relayStatusCallbackRef.current?.(unavailableRelayStatus());
+    }
     statusCallbackRef.current?.({
       namespace: detected.namespace,
       supported: true,
@@ -174,6 +282,11 @@ export function RepositoryWebMCPBridge({
     });
 
     return () => {
+      relayStateReadControllerRef.current?.abort("Repository session changed");
+      relayStateReadControllerRef.current = null;
+      if (relayClientRef.current === activeRelayClient) relayClientRef.current = null;
+      void relayRuntime?.dispose();
+      if (relayRuntimeRef.current === relayRuntime) relayRuntimeRef.current = null;
       manager.dispose();
       if (managerRef.current === manager) managerRef.current = null;
       if (activitySignalRef.current === activitySignal) {
@@ -183,7 +296,64 @@ export function RepositoryWebMCPBridge({
       activeWaitKeys.clear();
       executionCallbackRef.current?.(null);
     };
-  }, [identityKey, service]);
+  }, [identityKey, pageSessionId, relayClient, relaySessionToken, service]);
+
+  useEffect(() => {
+    const runtime = relayRuntimeRef.current;
+    if (runtime) {
+      runtime.wake();
+      return;
+    }
+    const client = relayClientRef.current;
+    if (!client) return;
+    relayStateReadControllerRef.current?.abort("Relay state refresh superseded");
+    const controller = new AbortController();
+    relayStateReadControllerRef.current = controller;
+    void client.readState(controller.signal).then(
+      (result) => {
+        if (!controller.signal.aborted && result.ok) {
+          relayStateCallbackRef.current?.(result.data);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      controller.abort("Relay state refresh superseded");
+      if (relayStateReadControllerRef.current === controller) {
+        relayStateReadControllerRef.current = null;
+      }
+    };
+  }, [
+    identityKey,
+    relayClient,
+    relayWakeSignal,
+    surface.document.activityVersion,
+  ]);
+
+  useEffect(() => {
+    if (previousRelayRetrySignalRef.current === relayRetrySignal) return;
+    previousRelayRetrySignalRef.current = relayRetrySignal;
+    const runtime = relayRuntimeRef.current;
+    if (runtime) {
+      runtime.retry();
+      return;
+    }
+    const client = relayClientRef.current;
+    if (!client) return;
+    relayStateReadControllerRef.current?.abort("Relay retry state refresh superseded");
+    const controller = new AbortController();
+    relayStateReadControllerRef.current = controller;
+    void client.readState(controller.signal).then(
+      (result) => {
+        if (!controller.signal.aborted && result.ok) relayStateCallbackRef.current?.(result.data);
+      },
+      () => undefined,
+    );
+    return () => {
+      controller.abort("Relay retry state refresh superseded");
+      if (relayStateReadControllerRef.current === controller) relayStateReadControllerRef.current = null;
+    };
+  }, [identityKey, relayRetrySignal]);
 
   useEffect(() => {
     const manager = managerRef.current;

@@ -1,184 +1,196 @@
-# Ratiflow — Devpost submission draft (v4.1)
+# Ratiflow — WebMCP Challenge submission
 
-**Tagline:** A shared document that remembers why.
+**Tagline:** Mention the expert. The page supplies the tools. The document keeps the
+proof.
 
-**Short description:** Ratiflow lets a person select a passage, leave an anchored
-`@Agent` comment, and keep writing. The assigned agent can commit only that passage.
-Its prompt, source context, rationale, evidence, owner, diff, and revision remain
-attached to the document so another person—or a completely new agent—can understand
-how the current version came to be.
+- **Planned v4.2 live demo:** [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app)
+- **Planned v4.2 12-slide story:** [ratiflow-webmcp.vercel.app/deck](https://ratiflow-webmcp.vercel.app/deck)
+- **Source:** [github.com/anthonyisaa/webMCP_Hackathon](https://github.com/anthonyisaa/webMCP_Hackathon)
+  (private during release preparation)
 
-> Candidate copy only. Do not describe the current build as deployed, live-database
-> verified, or natively proven through a supported WebMCP client until those checks have
-> been observed against one release SHA.
+> **Release status:** the URLs above still serve the prior v4.1 release and are not v4.2
+> evidence. Application promotion is authorized in principle, but the exact v4.2
+> Supabase migration still requires explicit database-project approval; the matching
+> deployment and URL checks follow that apply. Remove this note only after the exact-SHA
+> v4.2 release is observed.
 
-## Inspiration
+## The pitch
 
-Collaborative documents make human editing feel effortless, but agent collaboration
-often starts by leaving the document: copy context into a chat, paste the answer back,
-then lose the prompt and reasoning that produced it. Approval forms do not fix that.
-They just make every agent edit feel heavier.
+Ratiflow turns a shared document into a dynamic agent workspace. A person enters a
+nickname, opens one of two completed two-page documents, selects a passage, and writes
+the most familiar collaboration gesture on the web: a comment beginning with `@Code`,
+`@Data`, or `@General`.
 
-Ratiflow borrows durable snapshots, authorship, diffs, and Restore from Git, then hides
-the machinery behind a document interface. The page stays readable. The history is
-quiet until a person—or WebMCP—needs it.
+That mention changes what the page can do. Ratiflow temporarily replaces its eight
+idle bring-your-own-agent tools with only the selected specialist's six- or seven-tool
+WebMCP catalog. GPT-5.6 Luna discovers that live catalog through client-executed tool
+search; the server pins each required next function in a bounded role workflow, Luna
+composes its strict arguments and returns the call, and the browser then invokes the
+exact tool descriptor returned by
+`document.modelContext.getTools()`. The result can revise only the selected passage.
 
-## What it does
+This is not another rewrite button or chat window. The document itself becomes the
+agent's capability, context, and provenance plane.
 
-After entering a name, a person opens either an **Incident postmortem** or a **Product
-document**. To delegate work they select rendered text, open one anchored comment, and
-write something natural:
+## The 90-second judge experience
+
+1. Choose a nickname. It labels your comments and revisions; no account is required for
+   this prototype.
+2. Open the completed **INC-482 Checkout outage postmortem** or **Northstar CSV export
+   launch decision**. Each is a working two-page document with human and agent history.
+3. Follow the three-step coach. One click selects the exact suggested section and
+   prefills the full specialist prompt; the judge still reviews it and chooses
+   **Assign & run**. Typing `@` manually opens the Humans plus managed `@Data`, `@Code`,
+   and `@General` directory.
+4. In the Postmortem, ask `@Code` to verify Root cause against the labeled synthetic
+   repository and checkout log. In the Product document, ask `@Data` to test Success
+   measures against the labeled synthetic capacity plan.
+5. Watch the Flight Recorder show the application's catalog transition and tool-call
+   receipts while the result lands as one scoped revision.
+6. Ask `@General` to reword a section, then open **History** to inspect authorship,
+   prompt, evidence, diff, and Restore.
+
+Two blank templates remain available behind **Prefer a blank document?**, but the main
+path starts with the two completed examples so the WebMCP moment is immediately clear.
+
+## What the specialists demonstrate
+
+### `@Code` — evidence from a synthetic repository
+
+The Postmortem begins at r5 with prior human and agent collaboration. `@Code` searches
+only the deterministic synthetic checkout repository, opens the bounded allowlisted
+incident bundle, and verifies that provider throttling was the external trigger while retry
+middleware was the internal amplifier. The evidence records five zero-delay retries,
+traffic amplification of 5.8×, and queue growth from 420 to 18,240 before the agent
+replaces only Root cause as r6.
+
+### `@Data` — inspectable capacity arithmetic
+
+The Product document begins at r6. `@Data` queries only the deterministic synthetic
+Northstar capacity fixture and shows why 10 reliability days plus 4 beta-export days
+fit the 14 available days, while 10 plus 8 full-export days require 18. It preserves the
+October 15 invite-only beta, November 1 general availability, and renewal commitment,
+then replaces only Success measures as r7.
+
+### `@General` — bounded editorial judgment
+
+`@General` receives writing and consistency tools instead of code or data access. It can
+read the synthetic company style guide, check terminology, and submit one bounded
+rewrite without changing the underlying facts. Switching roles visibly removes the
+previous specialist's tools before adding the new catalog.
+
+All specialist outputs are labeled synthetic demo evidence. Ratiflow makes no claim that
+the prototype is connected to a live customer database, repository, or filesystem.
+
+## Why WebMCP is essential
+
+Most agent integrations decide every possible tool on the server before the model runs.
+Ratiflow demonstrates a different future: the live page publishes the smallest useful
+capability set for the work a human just delegated.
+
+When no managed run is active, the top-level page exposes eight advanced
+bring-your-own-agent tools:
 
 ```text
-@ChatGPT Rework this paragraph so the decision and tradeoff are explicit.
+connect_agent · inspect_document · read_document_history
+read_collaboration_context · list_my_tasks · wait_for_my_tasks
+comment_on_task · submit_task_result
 ```
+
+During a managed run, that catalog is withdrawn. Every specialist receives the same five
+bounded collaboration tools—read assignment, read document context, read collaboration
+context, comment, and submit a scoped revision—plus only its specialty:
+
+| Mention | Specialist tools | Total |
+|---|---|---:|
+| `@Data` | `query_demo_metrics` | 6 |
+| `@Code` | `search_demo_code`, `read_demo_file` | 7 |
+| `@General` | `read_company_style_guide`, `check_document_consistency` | 7 |
+
+The composed path is visible and testable:
 
 ```text
-@Databot Use the latest numbers to replace this placeholder with a GFM table and chart.
+@mention
+  → page registers one role catalog and emits toolchange
+  → Luna requests client tool search through the Responses API
+  → browser reads document.modelContext.getTools()
+  → catalog returns as tool_search_output
+  → server pins the exact required function by name
+  → Luna composes its strict arguments and returns that call
+  → browser calls executeTool() with the exact returned descriptor
+  → evidence-backed revision commits
+  → role catalog is withdrawn and the eight idle tools return
 ```
 
-Autocomplete selects a known, owner-bound agent profile. A recognized leading mention
-atomically becomes `TASK-n`; any other comment remains a human discussion. There is no
-task form, authority checkbox, or document-approval queue.
+Remove WebMCP and the document still works for people—editing, comments, sharing,
+History, and Restore remain available—but managed actuation fails closed. That makes
+WebMCP structural to the experience rather than an integration badge.
 
-The selected agent can discuss its task or submit a scoped replacement. A successful
-result commits immediately as the next immutable revision. The completed comment shows
-the highlighted before/after change, rationale, evidence, revision link, agent name,
-and human owner. A person can **Restore** a prior snapshot afterward; Restore appends a
-new revision instead of deleting the change. Human discussions use **Close**, which
-records who closed them without pretending that a content change was accepted.
+## How Luna and WebMCP connect
 
-Markdown is real source, not decoration. Reading mode safely renders headings, lists,
-links, and GFM tables. A validated fenced `chart` object renders an accessible bar or
-line chart plus its data table; unsafe HTML, executable content, remote images, and
-unvalidated chart options never run.
+Ratiflow uses an **application-owned WebMCP Relay powered by GPT-5.6 Luna**. Luna's
+Responses API supports client-executed `tool_search`; Ratiflow maps that request to the
+page's current WebMCP catalog and returns the discovered definitions to the model.
 
-## The history agents can actually use
+This is explicitly **not** a claim that Luna natively supports OpenAI Site Tools. It is
+a forward-looking composition of two real primitives: Luna tool search and the browser's
+`document.modelContext` tools. The OpenAI credential stays server-side.
 
-Every content revision stores a full title/body snapshot and SHA-256 digest. Agent work
-also retains its exact `@` prompt, immutable source range, source revision and digest,
-bounded surrounding and prior collaboration context, submitted rationale, evidence,
-server-computed diff, agent profile, human owner, and source/parent revision lineage.
-Human saves, comments, replies, closures, agent assignments, completions, and Restore
-events form a separate ordered collaboration ledger.
+Mentions wake the eligible open page immediately. A 15-second timer only recovers missed
+work while that page remains open; it is not cron, an unattended bot, or a background
+agent service.
 
-This distinction keeps the human view simple while giving a newly connected agent the
-facts behind the head revision—including decisions that only occurred in comments.
+## The document keeps the proof
 
-## Bring your own agent through WebMCP
+Every successful result becomes a normal, reversible document revision—not an answer
+that disappears in chat. Ratiflow retains:
 
-The top-level document page exposes exactly eight tools through
-`document.modelContext`, in this order:
+- the human nickname, managed specialist, and exact `@` instruction;
+- the selected passage and immutable source revision;
+- labeled evidence references and bounded tool receipts;
+- rationale and a server-computed before/after diff;
+- the resulting full document snapshot and revision lineage; and
+- comments, replies, closures, and Restore as a separate collaboration history.
 
-1. `connect_agent`
-2. `inspect_document`
-3. `read_document_history`
-4. `read_collaboration_context`
-5. `list_my_tasks`
-6. `wait_for_my_tasks`
-7. `comment_on_task`
-8. `submit_task_result`
+Restore appends a new revision instead of erasing the agent's change. Server-side
+revision checks, task scope, leases, one-shot permits, evidence binding, attempt limits,
+and spend quotas—not model prose—enforce authority.
 
-The first call in each page-registration lifetime is `connect_agent({ name })`. The
-name is explicitly self-declared—not vendor-verified—and the server binds it to the
-authenticated human member behind that page. Later calls derive the document, owner,
-actor, assignee, scope, and Direct authority from the page credential and stored task;
-the model cannot forge or widen them.
+The Flight Recorder is a readable **application trace** of that relay. It is not
+presented as cryptographic browser attestation. Native WebMCP behavior is a separate
+proof class, evaluated as dated observational evidence from a supported client against
+the deployed release.
 
-`read_collaboration_context` pages a newest-first ledger joined to revisions, prompts,
-canonical source context, rationales, evidence, complete task discussions, closed human
-comments, and agent-owner profiles. It is the continuity layer for agents arriving from
-different platforms. No agent tool creates a human comment, chooses authority, closes a
-discussion, or performs Restore.
+## How we built it
 
-## Detailed postmortem example
+Ratiflow uses Next.js, React, TypeScript, Vercel, and Supabase/Postgres. The top-level
+document owns one mutually exclusive WebMCP coordinator. Tool registrations are scoped
+to a generation and removed with `AbortSignal`; stale descriptors and replayed one-shot
+permits fail closed. The server derives actor, agent, task, range, and revision authority
+instead of accepting those fields from the model.
 
-The completed **INC-482 · Checkout outage postmortem** ends at **r5 / activity 11**.
-Priya Shah starts at r1 with three `Investigation in progress.` placeholders and leaves
-anchored comments for three owner-bound agents:
-
-- `TASK-1` asks Nadia Chen's `Databot` to use `impact.csv`. Its r2 replacement records
-  28,417 attempts, 21,675 successes, 6,742 failures, 311 affected merchants, zero
-  duplicate charges, a GFM table, and a checkout-outcomes chart.
-- `TASK-2` asks Leo Park's `Logbot` to use `checkout.log`. Starting from the same r1,
-  its disjoint selection safely rebases and becomes r3 with the 09:43–10:21 UTC
-  timeline.
-- `TASK-3` asks Sam Rivera's `Builder` to use `commit:7d3c9e1` and the log. Its r4
-  change separates provider throttling—the external trigger—from retry middleware that
-  ignored `Retry-After`, retried immediately up to five times, drove traffic to 5.8×,
-  and exhausted the queue—the internal amplifier.
-
-Priya then leaves an ordinary human comment questioning whether the root-cause wording
-overclaims the team's code. A second `@Builder` assignment becomes `TASK-4`; Builder
-uses that discussion and prior history to clarify r5. Priya closes the separate human
-thread. Both the completed task and closed challenge remain visible, but neither creates
-a fake approval event.
-
-## Detailed Product document example
-
-The completed **Northstar · CSV export launch decision** ends at **r6 / activity 11**.
-Jordan Lee first makes a human r2 correction: incident rotation reduces pre-beta
-capacity from 18 to 14 engineering days.
-
-- `TASK-1` asks Morgan Chen's `Databot` to compare options. Its r3 analysis shows that
-  10 reliability days plus 4 beta-export days exactly fit 14; doing all 8 export days
-  before beta would require 18 and exceed capacity by 4. The GFM table and chart make
-  the arithmetic inspectable.
-- `TASK-2` asks Avery Singh's `ChatGPT` to synthesize the decision. Its r4 recommendation
-  keeps October 15 as an invite-only design-partner beta, finishes the remaining four
-  export days afterward, reaches full GA by November 1, and protects the $180,000
-  renewal.
-
-Elena Ruiz opens a human discussion about whether “invite-only beta” sounds like general
-availability; Jordan replies and Elena closes it. Elena later saves an alternative r5
-that ships to every customer on October 15. Jordan restores r4 as a new r6. History
-preserves the alternative and its author while making the restored head explicit.
-
-## The Contextbot continuity moment
-
-Quinn Patel opens either completed example as a new, non-authoring viewer and brings a
-fresh agent. Only then does that agent call `connect_agent({"name":"Contextbot"})`, so
-it has no pre-seeded profile, task, or authorship. Contextbot pages the collaboration
-ledger and revision history to reconstruct the postmortem's trigger-versus-amplifier
-decision or the Product document's capacity and staged-launch decision. That is the
-core demonstration: provenance is useful context, not a history screen people must
-manually decode.
-
-## How it is built
-
-Ratiflow uses Next.js, React, TypeScript, and an additive Supabase/Postgres persistence
-path behind the same checked domain operations used by the ordinary UI and WebMCP
-bridge. Tool registration belongs to the top-level issue page and tears down on route or
-session changes. Server transactions enforce identity, document isolation, replay-safe
-mutations, exact-range writes, and revision/activity ordering.
-
-Anchors use Unicode code-point ranges. Disjoint stale-base work may rebase exactly;
-overlap, changed selected text, ambiguity, or a stale task fails without a partial
-mutation. This is deliberate scoped collaboration, not a character-level CRDT claim.
+The editor stores complete Markdown snapshots and SHA-256 digests. Safe GFM tables and
+validated chart blocks remain revisioned, diffable, and restorable. Human editing and
+comments do not depend on WebMCP.
 
 ## What we are proud of
 
-- Delegation is one anchored comment, not a workflow builder.
-- Agents do useful work immediately while every edit remains reversible.
-- A completed thread explains the change without pulling attention away from the
-  document.
-- Human discussion and document revision history remain distinct but connected.
-- Postmortem and Product examples contain enough real history to test a genuinely new
-  agent's understanding.
-- The ordinary document experience remains usable when WebMCP is absent.
+- A universal collaboration gesture—`@mention`—controls a genuinely dynamic tool
+  surface without exposing an agent configuration UI.
+- Role changes are concrete: `@Code`, `@Data`, and `@General` receive visibly different
+  page capabilities.
+- One run connects model discovery, exact page execution, synthetic source evidence,
+  a bounded write, and durable history.
+- The demo is honest about what is application-owned, what is native browser behavior,
+  what is synthetic, and what continues working without an agent.
+- The same pattern can scale from a hackathon directory to company, team, and personal
+  specialists while the document remains the shared source of truth.
 
 ## What is next
 
-The prototype intentionally supports two document types and possession-of-link
-collaboration. A production path would add organizational identity and policy,
-longer-lived retention, verified agent principals, and connectors for live logs, data,
-and code—without adding complexity to the `@Agent` interaction.
-
-## Release evidence fields
-
-- Live app: **[PENDING exact-SHA deployment]**
-- Public source and license: **[PENDING verified public HEAD]**
-- Public narrated video: **[PENDING verified URL]**
-- Supported-client native WebMCP evidence: **[PENDING exact-SHA capture]**
-- Live Supabase v4.1 migration/security verification: **[PENDING]**
-- Devpost submission: **[PENDING observed submission URL]**
+The hackathon prototype uses a synthetic directory and possession-of-link workspaces.
+A production version would add organizational identity and policy, verified agent
+principals, longer retention, and permissioned connectors for real repositories,
+analytics, and incident systems. The core interaction would stay the same: mention the
+right expert, let the page reveal only the right tools, and preserve exactly what changed
+and why.

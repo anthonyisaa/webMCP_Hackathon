@@ -67,6 +67,10 @@ export interface MarkdownSelectionEvent extends RepositorySourceSelection {
 
 export interface MarkdownDocumentProps {
   source: string;
+  /** Absolute code-point offset when rendering one slice of a larger immutable source. */
+  sourceCodePointOffset?: number;
+  /** Omit when an ancestor represents multiple rendered source slices as one test surface. */
+  testId?: string | null;
   anchors?: readonly IssueSelectionAnchor[];
   onSelectSource?: (selection: MarkdownSelectionEvent) => void;
   className?: string;
@@ -76,24 +80,28 @@ function rangeOverlapsAnchor(
   source: string,
   range: { startUtf16: number; endUtf16: number } | null,
   anchors: readonly IssueSelectionAnchor[],
+  sourceCodePointOffset: number,
 ): boolean {
   if (!range) return false;
   const start = repositoryCodePointOffset(source, range.startUtf16);
   const end = repositoryCodePointOffset(source, range.endUtf16);
   if (start === null || end === null) return false;
-  return anchors.some((anchor) => anchor.field === "BODY" && anchor.rangeStart < end && anchor.rangeEnd > start);
+  const absoluteStart = start + sourceCodePointOffset;
+  const absoluteEnd = end + sourceCodePointOffset;
+  return anchors.some((anchor) => anchor.field === "BODY" && anchor.rangeStart < absoluteEnd && anchor.rangeEnd > absoluteStart);
 }
 
 function sourceAttributes(
   source: string,
   node: ExtraProps["node"],
   anchors: readonly IssueSelectionAnchor[],
+  sourceCodePointOffset: number,
 ) {
   const range = nodeRange(node);
   return range ? {
     "data-source-start": range.startUtf16,
     "data-source-end": range.endUtf16,
-    "data-commented": rangeOverlapsAnchor(source, range, anchors) ? "true" : undefined,
+    "data-commented": rangeOverlapsAnchor(source, range, anchors, sourceCodePointOffset) ? "true" : undefined,
   } : {};
 }
 
@@ -101,20 +109,27 @@ function blockSelection(
   source: string,
   range: { startUtf16: number; endUtf16: number } | null,
   element: HTMLElement,
+  sourceCodePointOffset: number,
   onSelectSource?: (selection: MarkdownSelectionEvent) => void,
 ) {
   if (!range || !onSelectSource) return;
   const selection = sourceRangeToSelection(source, "BODY", range.startUtf16, range.endUtf16);
-  if (selection) onSelectSource({ ...selection, rect: element.getBoundingClientRect() });
+  if (selection) onSelectSource({
+    ...selection,
+    rangeStart: selection.rangeStart + sourceCodePointOffset,
+    rangeEnd: selection.rangeEnd + sourceCodePointOffset,
+    rect: element.getBoundingClientRect(),
+  });
 }
 
 function createComponents(
   source: string,
   anchors: readonly IssueSelectionAnchor[],
+  sourceCodePointOffset: number,
   onSelectSource?: (selection: MarkdownSelectionEvent) => void,
 ): Components {
   type BlockProps<Tag extends keyof React.JSX.IntrinsicElements> = ComponentPropsWithoutRef<Tag> & ExtraProps;
-  const attributes = (node: ExtraProps["node"]) => sourceAttributes(source, node, anchors);
+  const attributes = (node: ExtraProps["node"]) => sourceAttributes(source, node, anchors, sourceCodePointOffset);
 
   return {
     h1: ({ node, ...props }: BlockProps<"h1">) => <h1 {...attributes(node)} {...props} />,
@@ -157,7 +172,7 @@ function createComponents(
               <ChartFigure
                 chart={parsed.value}
                 onSelectSource={onSelectSource && range
-                  ? (element) => blockSelection(source, range, element, onSelectSource)
+                  ? (element) => blockSelection(source, range, element, sourceCodePointOffset, onSelectSource)
                   : undefined}
               />
             ) : (
@@ -178,7 +193,7 @@ function createComponents(
           <div className={styles.tableActions} data-selection-disabled="true">
             <span>Table</span>
             {onSelectSource && range ? (
-              <button type="button" onClick={(event) => blockSelection(source, range, event.currentTarget.closest(`.${styles.markdownTable}`) as HTMLElement, onSelectSource)}>
+              <button type="button" onClick={(event) => blockSelection(source, range, event.currentTarget.closest(`.${styles.markdownTable}`) as HTMLElement, sourceCodePointOffset, onSelectSource)}>
                 Comment on table
               </button>
             ) : null}
@@ -193,11 +208,11 @@ function createComponents(
 }
 
 /** Safe GFM reading view that keeps exact raw-source positions for anchored comments. */
-export function MarkdownDocument({ source, anchors = [], onSelectSource, className }: MarkdownDocumentProps) {
+export function MarkdownDocument({ source, sourceCodePointOffset = 0, testId = "rendered-document-body", anchors = [], onSelectSource, className }: MarkdownDocumentProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const components = useMemo(
-    () => createComponents(source, anchors, onSelectSource),
-    [anchors, onSelectSource, source],
+    () => createComponents(source, anchors, sourceCodePointOffset, onSelectSource),
+    [anchors, onSelectSource, source, sourceCodePointOffset],
   );
 
   const captureSelection = (event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) => {
@@ -206,7 +221,12 @@ export function MarkdownDocument({ source, anchors = [], onSelectSource, classNa
     if (!mapped) return;
     const browserSelection = window.getSelection();
     if (!browserSelection || browserSelection.rangeCount !== 1) return;
-    onSelectSource({ ...mapped, rect: browserSelection.getRangeAt(0).getBoundingClientRect() });
+    onSelectSource({
+      ...mapped,
+      rangeStart: mapped.rangeStart + sourceCodePointOffset,
+      rangeEnd: mapped.rangeEnd + sourceCodePointOffset,
+      rect: browserSelection.getRangeAt(0).getBoundingClientRect(),
+    });
     event.stopPropagation();
   };
 
@@ -214,7 +234,7 @@ export function MarkdownDocument({ source, anchors = [], onSelectSource, classNa
     <div
       ref={rootRef}
       className={`${styles.markdownDocument}${className ? ` ${className}` : ""}`}
-      data-testid="rendered-document-body"
+      data-testid={testId ?? undefined}
       onMouseUp={captureSelection}
       onKeyUp={(event) => {
         if (event.shiftKey || event.key === "Enter") captureSelection(event);

@@ -33,6 +33,7 @@ import {
   POSTMORTEM_TEMPLATE_TITLE,
   PRODUCT_DOCUMENT_TEMPLATE_BODY,
   PRODUCT_DOCUMENT_TEMPLATE_TITLE,
+  REPOSITORY_TOOL_NAMES,
   REPOSITORY_PROTOCOL_VERSION,
   type AddHumanIssueCommentServiceInput,
   type CancelIssueTaskServiceInput,
@@ -94,7 +95,48 @@ import {
   type TouchIssuePresenceServiceInput,
   type WaitForMyIssueTasksInput,
   type WaitForMyIssueTasksOutcome,
+  type CreateDirectoryMentionServiceInput,
 } from "@/repository/contracts";
+import {
+  MANAGED_AGENT_MODEL,
+  MANAGED_AGENT_RUNTIME,
+  MANAGED_AGENT_TOOL_CATALOGS,
+  MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS,
+  RELAY_BOUNDS,
+  RELAY_EXECUTION_PERMIT_AUDIENCE,
+  RELAY_GRANT_AUDIENCE,
+  RELAY_PHYSICAL_TOOL_NAME_PATTERN,
+  RELAY_TRACE_KINDS,
+  type DirectoryMentionReceipt,
+  type ManagedAgentDirectoryEntry,
+  type ManagedAgentLogicalToolName,
+  type ManagedAgentSpecialty,
+  type RelayAttempt,
+  type RelayBrowserTraceInput,
+  type RelayClaimOutcome,
+  type RelayClaimedAttemptView,
+  type RelayBeginStepResult,
+  type RelayExecutionPermit,
+  type RelayExecutionPermitClaims,
+  type RelayFailure,
+  type RelayGrant,
+  type RelayGrantClaims,
+  type RelayNormalizedToolManifest,
+  type RelayResult,
+  type RelayRun,
+  type RelayStepRecordInput,
+  type RelayStepReservationInput,
+  type RelayStepOutcome,
+  type RelayTraceEvent,
+  type RelayToolInvocationContext,
+  type RelayReadAssignmentResult,
+  type RelayReadDocumentContextResult,
+  type RelayProgressCommentInput,
+  type RelaySubmitRevisionInput,
+  type RelayWorkspaceState,
+  type SpecialistFixturePort,
+} from "@/agent-relay/contracts";
 import { compileIssueMention } from "@/capabilities/mention-compiler";
 import {
   POSTMORTEM_EXAMPLE,
@@ -110,6 +152,20 @@ import {
   replaceIssueRange,
   type IssueSplice,
 } from "@/repository/range";
+import {
+  RELAY_PROVIDER_RUN_QUOTA,
+  type IssueRelayPermitInput,
+  type IssueRelayToolExecutionInput,
+  type IssueRelayTraceInput,
+  type RepositoryRelayServicePort,
+} from "@/domain/repository-relay-service";
+import {
+  RepositoryRelayTokenCodec,
+  relayCanonicalJson,
+  relaySecretDigest,
+  relaySha256,
+  validRelaySigningSecret,
+} from "@/domain/repository-relay-security";
 
 type SessionActor = "HUMAN" | "AGENT";
 
@@ -152,6 +208,9 @@ type StoredTask = {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  /** Private v4.2 identity/context; removed from the exact v4.1 projection. */
+  managedAgentProfileId?: string;
+  managedContext?: IssueTaskContextSnapshot;
 };
 
 type StoredAgentProfile = IssueAgentProfile & {
@@ -180,7 +239,56 @@ type StoredActivity = {
 
 type LedgerEntry = {
   fingerprint: string;
-  result: RepositoryResult<unknown>;
+  result: RelayResult<unknown>;
+};
+
+type StoredManagedAgent = {
+  entry: ManagedAgentDirectoryEntry;
+};
+
+type StoredRelayRun = RelayRun;
+
+type StoredRelayStep = {
+  requestId: string;
+  inputDigest: `sha256:${string}`;
+  expectedStep: number;
+  status: "RESERVED" | "TERMINAL";
+  providerResponseId: string | null;
+  result: RelayResult<RelayStepOutcome> | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+type StoredRelayAttempt = RelayAttempt & {
+  claimRequestId: string;
+  retryRunId: string | null;
+  grantClaims: RelayGrantClaims;
+  grantDigest: `sha256:${string}`;
+  grantRevokedAt: string | null;
+  previousProviderResponseId: string | null;
+  previousOutcome: RelayStepOutcome | null;
+  manifest: RelayNormalizedToolManifest | null;
+  steps: Map<string, StoredRelayStep>;
+};
+
+type StoredRelayPermit = {
+  claims: RelayExecutionPermitClaims;
+  tokenDigest: `sha256:${string}`;
+  status: "ISSUED" | "EXECUTING" | "COMPLETED" | "FAILED" | "REVOKED";
+  documentId: string;
+  runId: string;
+  taskId: string;
+  profileId: string;
+  logicalToolName: ManagedAgentLogicalToolName;
+  arguments: Readonly<Record<string, unknown>>;
+  requestId: string;
+  executionIdempotencyKey: string | null;
+  resultReceiptId: string | null;
+  output: string | null;
+  outputDigest: `sha256:${string}` | null;
+  failure: RelayFailure | null;
+  createdAt: string;
+  completedAt: string | null;
 };
 
 type CredentialIssuanceOperation = "launch" | "example" | "join" | "reset";
@@ -188,6 +296,14 @@ type CredentialIssuanceOperation = "launch" | "example" | "join" | "reset";
 type CredentialRateBucket = {
   windowStartedAt: number;
   count: number;
+};
+
+type RelayProviderDispatch = {
+  documentId: string;
+  attemptId: string;
+  reservedAt: number;
+  reservationExpiresAt: number;
+  dispatchedAt: number | null;
 };
 
 type StoredWorkspace = {
@@ -207,12 +323,36 @@ type StoredWorkspace = {
   pageConnections: Map<string, StoredAgentPageConnection>;
   activities: StoredActivity[];
   ledger: Map<string, LedgerEntry>;
+  managedAgentsByProfileId: Map<string, StoredManagedAgent>;
+  relayRuns: StoredRelayRun[];
+  relayAttempts: StoredRelayAttempt[];
+  relayPermits: Map<string, StoredRelayPermit>;
+  relayEventVersion: number;
+  relayTrace: RelayTraceEvent[];
 };
 
 type ResolvedSession = {
   workspace: StoredWorkspace;
   session: StoredSession;
   member: StoredMember;
+};
+
+type AuthorizedRelay = RelayFailure | {
+  ok: true;
+  workspace: StoredWorkspace;
+  run: StoredRelayRun;
+  attempt: StoredRelayAttempt;
+  task: StoredTask;
+  agent: ManagedAgentDirectoryEntry;
+};
+
+type AuthorizedRelayTool = RepositoryFailure | {
+  ok: true;
+  workspace: StoredWorkspace;
+  run: StoredRelayRun;
+  attempt: StoredRelayAttempt;
+  task: StoredTask;
+  agent: ManagedAgentDirectoryEntry;
 };
 
 type RevisionInput = {
@@ -234,7 +374,12 @@ export type LocalRepositoryServiceOptions = {
   waitSecondMs?: number;
   credentialRateLimitWindowMs?: number;
   credentialRateLimits?: Partial<Record<CredentialIssuanceOperation, number>>;
+  relayProviderQuotaWindowMs?: number;
+  relayProviderDeploymentLimit?: number;
+  relayProviderDocumentLimit?: number;
   now?: () => number;
+  relaySigningSecret?: string;
+  specialistFixturePort?: SpecialistFixturePort;
 };
 
 const DISPLAY_NAME_MAX_LENGTH = 80;
@@ -258,6 +403,49 @@ const HERO_PROFILE_IDS = {
   leo: "00000000-0000-4000-8000-000000005122",
   sam: "00000000-0000-4000-8000-000000005123",
 } as const;
+const RELAY_RECENT_REVISION_LIMIT = 10;
+const MANAGED_AGENT_DIRECTORY_SEEDS = [
+  {
+    handle: "data",
+    displayName: "Data",
+    principalName: "Data · managed agent",
+    scope: "COMPANY",
+    specialty: "DATA",
+    syntheticSourceLabels: [
+      "Synthetic demo data · northstar_launch_capacity",
+      "Synthetic demo data · inc_482_checkout_impact",
+    ],
+  },
+  {
+    handle: "code",
+    displayName: "Code",
+    principalName: "Code · managed agent",
+    scope: "TEAM",
+    specialty: "CODE",
+    syntheticSourceLabels: [
+      "Synthetic demo data · commit:7d3c9e1",
+      "Synthetic demo data · checkout.log",
+    ],
+  },
+  {
+    handle: "general",
+    displayName: "General",
+    principalName: "General · managed agent",
+    scope: "PERSONAL",
+    specialty: "GENERAL",
+    syntheticSourceLabels: [
+      "Synthetic demo data · Ratiflow company style guide",
+      "Synthetic demo data · Ratiflow consistency rules",
+    ],
+  },
+] as const satisfies ReadonlyArray<{
+  handle: "data" | "code" | "general";
+  displayName: string;
+  principalName: string;
+  scope: "COMPANY" | "TEAM" | "PERSONAL";
+  specialty: ManagedAgentSpecialty;
+  syntheticSourceLabels: readonly string[];
+}>;
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -289,6 +477,49 @@ function boundedText(value: unknown, max: number, allowEmpty = false): value is 
     && (allowEmpty || value.trim().length > 0);
 }
 
+function boundedOpaqueId(value: unknown, max: number): value is string {
+  return typeof value === "string"
+    && value.length > 0
+    && Buffer.byteLength(value, "utf8") <= max
+    && !/[\u0000-\u001f\u007f]/u.test(value);
+}
+
+function matchesRelayToolInput(
+  logicalName: ManagedAgentLogicalToolName,
+  value: Readonly<Record<string, unknown>>,
+): boolean {
+  switch (logicalName) {
+    case "read_assignment":
+    case "read_document_context":
+    case "read_company_style_guide":
+      return hasExactKeys(value, []);
+    case "read_collaboration_context":
+      return hasExactKeys(value, ["limit"])
+        && Number.isSafeInteger(value.limit) && Number(value.limit) >= 1 && Number(value.limit) <= 20;
+    case "comment_on_assignment":
+      return hasExactKeys(value, ["body", "evidenceRefs"])
+        && boundedText(value.body, ISSUE_COMMENT_MAX_LENGTH)
+        && validEvidence(value.evidenceRefs);
+    case "submit_scoped_revision":
+      return hasExactKeys(value, ["basedOnRevision", "resultSummary", "replacementText", "evidenceRefs"])
+        && Number.isSafeInteger(value.basedOnRevision) && Number(value.basedOnRevision) >= 1
+        && boundedText(value.resultSummary, ISSUE_CHANGE_SUMMARY_MAX_LENGTH)
+        && boundedText(value.replacementText, ISSUE_BODY_MAX_LENGTH)
+        && validEvidence(value.evidenceRefs);
+    case "query_demo_metrics":
+      return hasExactKeys(value, ["dataset", "question"])
+        && ["northstar_launch_capacity", "inc_482_checkout_impact"].includes(String(value.dataset))
+        && boundedText(value.question, 500);
+    case "search_demo_code":
+      return hasExactKeys(value, ["query"]) && boundedText(value.query, 300);
+    case "read_demo_file":
+      return hasExactKeys(value, ["path"])
+        && ["src/checkout/retry-middleware.ts", "checkout.log"].includes(String(value.path));
+    case "check_document_consistency":
+      return hasExactKeys(value, ["section"]) && boundedText(value.section, 8_000);
+  }
+}
+
 function validEvidence(value: unknown): value is string[] {
   return Array.isArray(value)
     && value.length <= ISSUE_EVIDENCE_REF_LIMIT
@@ -313,6 +544,15 @@ function failure(
   retryable = false,
   details: Partial<RepositoryFailure> = {},
 ): RepositoryFailure {
+  return { ok: false, code, message, retryable, ...details };
+}
+
+function relayFailure(
+  code: RelayFailure["code"],
+  message: string,
+  retryable = false,
+  details: Partial<RelayFailure> = {},
+): RelayFailure {
   return { ok: false, code, message, retryable, ...details };
 }
 
@@ -371,6 +611,20 @@ function agentActor(task: StoredTask, profile?: StoredAgentProfile): IssueAgentA
   };
 }
 
+function managedAgentActor(
+  task: StoredTask,
+  agent: ManagedAgentDirectoryEntry,
+): IssueAgentActorSnapshot {
+  return {
+    actorType: "AGENT",
+    displayName: agent.displayName,
+    member: clone(task.assignee),
+    // The exact v4.1 projection uses its legal null-profile compatibility identity.
+    agentProfileId: null,
+    agentLabel: agent.displayName,
+  };
+}
+
 function revisionSummary(revision: IssueRevision): IssueRevisionSummary {
   return clone({
     revisionId: revision.revisionId,
@@ -386,7 +640,35 @@ function revisionSummary(revision: IssueRevision): IssueRevisionSummary {
 }
 
 function publicTask(task: StoredTask): IssueTask {
-  return clone(task) as IssueTask;
+  const result = clone(task) as StoredTask;
+  delete result.managedAgentProfileId;
+  delete result.managedContext;
+  return result as IssueTask;
+}
+
+function claimedAttemptView(attempt: StoredRelayAttempt): RelayClaimedAttemptView {
+  const {
+    claimRequestId: _claimRequestId,
+    retryRunId: _retryRunId,
+    grantClaims: _grantClaims,
+    grantDigest: _grantDigest,
+    grantRevokedAt: _grantRevokedAt,
+    previousProviderResponseId: _previousProviderResponseId,
+    previousOutcome: _previousOutcome,
+    manifest: _manifest,
+    steps: _steps,
+    pageSessionId: _pageSessionId,
+    ...view
+  } = clone(attempt);
+  void [_claimRequestId, _retryRunId, _grantClaims, _grantDigest, _grantRevokedAt,
+    _previousProviderResponseId, _previousOutcome, _manifest, _steps, _pageSessionId];
+  return view;
+}
+
+function stateAttemptView(attempt: StoredRelayAttempt): RelayWorkspaceState["activeAttempt"] {
+  const { leaseId: _leaseId, ...view } = claimedAttemptView(attempt);
+  void _leaseId;
+  return view;
 }
 
 function taskIsActive(task: StoredTask): boolean {
@@ -409,7 +691,8 @@ function publicThread(thread: IssueThread): IssueThread {
 }
 
 /** In-memory protocol-v4 semantic reference and local/demo fallback. */
-export class LocalRepositoryService implements RepositoryServicePort, RepositoryEvaluationPort {
+export class LocalRepositoryService
+implements RepositoryServicePort, RepositoryEvaluationPort {
   private readonly workspaces = new Map<string, StoredWorkspace>();
   private readonly workspaceIdsByShareTokenHash = new Map<string, string>();
   private readonly sessions = new Map<string, StoredSession>();
@@ -421,7 +704,13 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
   private readonly credentialRateLimitWindowMs: number;
   private readonly credentialRateLimits: Record<CredentialIssuanceOperation, number>;
   private readonly credentialRateBuckets = new Map<string, CredentialRateBucket>();
+  private readonly relayProviderQuotaWindowMs: number;
+  private readonly relayProviderDeploymentLimit: number;
+  private readonly relayProviderDocumentLimit: number;
+  private relayProviderDispatches: RelayProviderDispatch[] = [];
   private readonly now: () => number;
+  private readonly relayTokenCodec: RepositoryRelayTokenCodec | null;
+  private readonly specialistFixturePort?: SpecialistFixturePort;
   private resetInFlight = false;
 
   constructor({
@@ -430,7 +719,12 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     waitSecondMs = 1_000,
     credentialRateLimitWindowMs = DEFAULT_CREDENTIAL_RATE_LIMIT_WINDOW_MS,
     credentialRateLimits = {},
+    relayProviderQuotaWindowMs = RELAY_PROVIDER_RUN_QUOTA.windowMs,
+    relayProviderDeploymentLimit = RELAY_PROVIDER_RUN_QUOTA.deploymentLimit,
+    relayProviderDocumentLimit = RELAY_PROVIDER_RUN_QUOTA.documentLimit,
     now = Date.now,
+    relaySigningSecret,
+    specialistFixturePort,
   }: LocalRepositoryServiceOptions = {}) {
     this.sessionTtlMs = Math.min(ISSUE_WORKSPACE_TTL_MS, Math.max(1, sessionTtlMs));
     this.presenceTtlMs = Math.max(1, presenceTtlMs);
@@ -440,7 +734,1274 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       ...DEFAULT_CREDENTIAL_RATE_LIMITS,
       ...credentialRateLimits,
     };
+    this.relayProviderQuotaWindowMs = Math.max(1, relayProviderQuotaWindowMs);
+    this.relayProviderDeploymentLimit = Math.max(0, relayProviderDeploymentLimit);
+    this.relayProviderDocumentLimit = Math.max(0, relayProviderDocumentLimit);
     this.now = now;
+    this.relayTokenCodec = validRelaySigningSecret(relaySigningSecret)
+      ? new RepositoryRelayTokenCodec(relaySigningSecret)
+      : null;
+    this.specialistFixturePort = specialistFixturePort;
+  }
+
+  /** Returns the protocol-4 sidecar without merging its colliding tool methods into v4.1. */
+  getRelayService(): RepositoryRelayServicePort {
+    return {
+      createDirectoryMention: this.createDirectoryMention.bind(this),
+      readRelayState: this.readRelayState.bind(this),
+      claimRelay: this.claimRelay.bind(this),
+      renewRelayLease: this.renewRelayLease.bind(this),
+      releaseRelayLease: this.releaseRelayLease.bind(this),
+      issueExecutionPermit: this.issueExecutionPermit.bind(this),
+      executeRelayTool: this.executeRelayTool.bind(this),
+      recordRelayManifest: this.recordRelayManifest.bind(this),
+      recordRelayTrace: this.recordRelayTrace.bind(this),
+      beginStep: this.beginStep.bind(this),
+      recordStepResult: this.recordStepResult.bind(this),
+      loadVerifiedToolResult: this.loadVerifiedToolResult.bind(this),
+      readAssignment: this.readAssignment.bind(this),
+      readDocumentContext: this.readDocumentContext.bind(this),
+      readCollaborationContext: this.readManagedCollaborationContext.bind(this),
+      commentOnAssignment: this.commentOnAssignment.bind(this),
+      submitScopedRevision: this.submitScopedRevision.bind(this),
+    };
+  }
+
+  async createDirectoryMention(
+    sessionToken: string,
+    input: CreateDirectoryMentionServiceInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<DirectoryMentionReceipt>> {
+    throwIfAborted(signal);
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return relayFailure("UNAUTHORIZED", "A valid human session is required.");
+    const replay = this.relayReplay<DirectoryMentionReceipt>(resolved, "directory.mention", input);
+    if (replay) return replay;
+    if (!hasExactKeys(input, ["expectedRevision", "requestId", "comment", "target", "anchor"])
+      || !isUuid(input.requestId)
+      || !isCounter(input.expectedRevision)
+      || !boundedText(input.comment, ISSUE_COMMENT_MAX_LENGTH)
+      || !isRecord(input.target)
+      || !this.validAnchorInputShape(input.anchor)) {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure("INVALID_INPUT", "The directory mention input is invalid."));
+    }
+    const workspace = resolved.workspace;
+    const stale = this.requireHead(workspace, input.expectedRevision);
+    if (stale) return this.recordRelayReplay(resolved, "directory.mention", input, stale);
+
+    if (input.target.kind === "HUMAN"
+      && hasExactKeys(input.target, ["kind", "memberId"])
+      && isUuid(input.target.memberId)) {
+      const managedMemberIds = new Set([...workspace.managedAgentsByProfileId.values()]
+        .map(({ entry }) => entry.principal.memberId));
+      const target = workspace.members.get(input.target.memberId);
+      if (!target || managedMemberIds.has(target.memberId)
+        || !this.validDirectoryComment(input.comment, target.displayName)) {
+        return this.recordRelayReplay(resolved, "directory.mention", input,
+          relayFailure("STALE_MENTION_TARGET", "The selected human changed. Choose them again."));
+      }
+      if (workspace.threads.filter((thread) => thread.taskId === null).length
+        >= ISSUE_STANDALONE_THREAD_LIMIT) {
+        return this.recordRelayReplay(resolved, "directory.mention", input,
+          relayFailure("RATE_LIMITED", "The standalone thread limit has been reached."));
+      }
+      const anchor = this.makeAnchor(workspace, input.anchor);
+      if (!anchor) {
+        return this.recordRelayReplay(resolved, "directory.mention", input,
+          relayFailure("INVALID_INPUT", "The discussion target is invalid."));
+      }
+      const timestamp = this.stamp(workspace);
+      const threadId = randomUUID();
+      const commentId = randomUUID();
+      const comment: IssueComment = {
+        commentId,
+        threadId,
+        replyToCommentId: null,
+        author: humanActor(resolved.member),
+        origin: "ORDINARY_UI",
+        createdRevision: workspace.document.revision,
+        body: input.comment,
+        evidenceRefs: [],
+        createdAt: timestamp,
+      };
+      workspace.threads.push({
+        threadId,
+        taskId: null,
+        creationAnchor: clone(anchor),
+        anchor,
+        status: "OPEN",
+        createdBy: this.memberSnapshot(resolved.member),
+        createdAt: timestamp,
+        resolvedBy: null,
+        resolvedAt: null,
+        comments: [comment],
+      });
+      this.appendActivity(workspace, {
+        kind: "THREAD_CREATED",
+        actor: comment.author,
+        threadId,
+        commentId,
+        excerpt: input.comment,
+        timestamp,
+      });
+      const receipt: DirectoryMentionReceipt = {
+        outcome: "DISCUSSION_CREATED",
+        target: clone(input.target),
+        threadId,
+        commentId,
+        taskId: null,
+        runId: null,
+      };
+      this.notify(workspace.id);
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        { ok: true, data: receipt });
+    }
+
+    if (input.target.kind !== "AGENT"
+      || !hasExactKeys(input.target, ["kind", "profileId"])
+      || !isUuid(input.target.profileId)
+      || input.anchor.scope !== "SELECTION") {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure("INVALID_INPUT", "The canonical directory target is invalid."));
+    }
+    const managed = workspace.managedAgentsByProfileId.get(input.target.profileId)?.entry;
+    if (!managed || managed.readiness !== "READY"
+      || !this.validDirectoryComment(input.comment, managed.displayName)) {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure(managed?.readiness === "DISABLED" ? "RELAY_UNAVAILABLE" : "STALE_MENTION_TARGET",
+          managed?.readiness === "DISABLED"
+            ? "Managed Relay is not configured on this server."
+            : "The selected managed agent changed. Choose it again."));
+    }
+    const compiled = compileIssueMention(input.comment, managed.displayName);
+    if (!compiled.ok) {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure("INVALID_INPUT", "The managed mention instruction is invalid."));
+    }
+    if (workspace.tasks.length >= ISSUE_WORKSPACE_TASK_LIMIT
+      || this.activeTasks(workspace).length >= ISSUE_ACTIVE_TASK_LIMIT
+      || this.activeTasks(workspace).filter((task) => task.assignee.memberId === managed.principal.memberId).length
+        >= ISSUE_ASSIGNEE_ACTIVE_TASK_LIMIT) {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure("RATE_LIMITED", "The active task limit has been reached."));
+    }
+    const anchor = this.makeAnchor(workspace, input.anchor);
+    if (!anchor || anchor.scope !== "SELECTION"
+      || issuePointLength(anchor.selectedText) > RELAY_BOUNDS.maxSelectionCodePoints) {
+      return this.recordRelayReplay(resolved, "directory.mention", input,
+        relayFailure("INVALID_INPUT", "Managed work requires a valid bounded selection."));
+    }
+    const timestamp = this.stamp(workspace);
+    const taskId = randomUUID();
+    const threadId = randomUUID();
+    const commentId = randomUUID();
+    const runId = randomUUID();
+    const sourceValue = anchor.field === "TITLE" ? workspace.document.title : workspace.document.body;
+    const context: IssueTaskContextSnapshot = {
+      sourceRevision: workspace.document.revision,
+      sourceDigest: digest(workspace.document.title, workspace.document.body),
+      documentTitle: workspace.document.title,
+      field: anchor.field,
+      rangeStart: anchor.rangeStart,
+      rangeEnd: anchor.rangeEnd,
+      targetText: anchor.selectedText,
+      beforeText: issueSlice(sourceValue,
+        Math.max(0, anchor.rangeStart - ISSUE_TASK_CONTEXT_SIDE_MAX_LENGTH), anchor.rangeStart),
+      afterText: issueSlice(sourceValue, anchor.rangeEnd,
+        anchor.rangeEnd + ISSUE_TASK_CONTEXT_SIDE_MAX_LENGTH),
+      priorContext: this.snapshotPriorContext(workspace),
+    };
+    const creator = this.memberSnapshot(resolved.member);
+    if (!workspace.members.has(managed.principal.memberId)) {
+      workspace.members.set(managed.principal.memberId, {
+        ...clone(managed.principal),
+        color: MEMBER_COLORS[workspace.members.size % MEMBER_COLORS.length]!,
+      });
+    }
+    const task: StoredTask = {
+      taskId,
+      taskKey: `TASK-${workspace.nextTaskNumber++}`,
+      title: compiled.value.title,
+      category: ({ DATA: "DATA", CODE: "CODEBASE", GENERAL: "GENERAL" } as const)[managed.specialty],
+      instruction: compiled.value.instruction,
+      agentLabel: managed.displayName,
+      agentProfileId: null,
+      context: null,
+      managedAgentProfileId: managed.profileId,
+      managedContext: context,
+      mode: "DIRECT",
+      status: "OPEN",
+      creationAnchor: clone(anchor),
+      anchor: clone(anchor),
+      creator,
+      assignee: clone(managed.principal),
+      threadId,
+      proposal: null,
+      result: null,
+      decision: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      resolvedAt: null,
+    };
+    const comment: IssueComment = {
+      commentId,
+      threadId,
+      replyToCommentId: null,
+      author: humanActor(resolved.member),
+      origin: "ORDINARY_UI",
+      createdRevision: workspace.document.revision,
+      body: input.comment,
+      evidenceRefs: [],
+      createdAt: timestamp,
+    };
+    const run: RelayRun = {
+      runId,
+      taskId,
+      profileId: managed.profileId,
+      specialty: managed.specialty,
+      runtime: MANAGED_AGENT_RUNTIME,
+      model: MANAGED_AGENT_MODEL,
+      status: "QUEUED",
+      attemptCount: 0,
+      maxAttempts: RELAY_BOUNDS.maxAttemptsPerRun,
+      terminalReason: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      completedAt: null,
+    };
+    workspace.tasks.push(task);
+    workspace.threads.push({
+      threadId,
+      taskId,
+      creationAnchor: clone(anchor),
+      anchor: clone(anchor),
+      status: "OPEN",
+      createdBy: creator,
+      createdAt: timestamp,
+      resolvedBy: null,
+      resolvedAt: null,
+      comments: [comment],
+    });
+    workspace.relayRuns.push(run);
+    this.appendActivity(workspace, {
+      kind: "TASK_CREATED",
+      actor: comment.author,
+      taskId,
+      threadId,
+      commentId,
+      excerpt: input.comment,
+      timestamp,
+    });
+    this.appendRelayTrace(workspace, run, null, { kind: "RUN_QUEUED" }, timestamp);
+    const receipt: DirectoryMentionReceipt = {
+      outcome: "MANAGED_TASK_QUEUED",
+      target: clone(input.target),
+      threadId,
+      commentId,
+      taskId,
+      runId,
+    };
+    this.notify(workspace.id);
+    return this.recordRelayReplay(resolved, "directory.mention", input,
+      { ok: true, data: receipt });
+  }
+
+  async readRelayState(
+    sessionToken: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayWorkspaceState>> {
+    throwIfAborted(signal);
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return relayFailure("UNAUTHORIZED", "A valid human session is required.");
+    this.reconcileExpiredRelay(resolved.workspace);
+    const managedMemberIds = new Set([...resolved.workspace.managedAgentsByProfileId.values()]
+      .map(({ entry }) => entry.principal.memberId));
+    const managed = [...resolved.workspace.managedAgentsByProfileId.values()]
+      .map(({ entry }) => clone(entry))
+      .sort((left, right) => MANAGED_AGENT_DIRECTORY_SEEDS.findIndex((seed) => seed.handle === left.handle)
+        - MANAGED_AGENT_DIRECTORY_SEEDS.findIndex((seed) => seed.handle === right.handle));
+    const usedHandles = this.reservedDirectoryHandles();
+    for (const agent of managed) usedHandles.add(agent.handle.toLowerCase());
+    const humans = [...resolved.workspace.members.values()]
+      .filter((member) => !managedMemberIds.has(member.memberId))
+      .sort((left, right) => left.displayName.localeCompare(right.displayName)
+        || left.memberId.localeCompare(right.memberId))
+      .map((member) => ({
+        kind: "HUMAN" as const,
+        member: this.memberSnapshot(member),
+        handle: this.uniqueDirectoryHandle(
+          member.displayName, member.memberId, "h", usedHandles,
+        ),
+        displayName: member.displayName,
+      }));
+    const selfDeclared = [...resolved.workspace.agentsByMemberId.values()]
+      .sort((left, right) => left.name.localeCompare(right.name)
+        || left.profileId.localeCompare(right.profileId))
+      .map((profile) => ({
+        kind: "AGENT" as const,
+        profileId: profile.profileId,
+        principal: clone(profile.member),
+        handle: this.uniqueDirectoryHandle(
+          profile.name, profile.profileId, "a", usedHandles,
+        ),
+        displayName: profile.name,
+        scope: "PERSONAL" as const,
+        readiness: "READY" as const,
+        identitySource: "SELF_DECLARED" as const,
+        specialty: "GENERAL" as const,
+        runtime: "BRING_YOUR_OWN_AGENT" as const,
+        logicalToolNames: [...REPOSITORY_TOOL_NAMES],
+        syntheticSourceLabels: [] as [],
+      }));
+    const activeAttempt = resolved.workspace.relayAttempts.find((attempt) =>
+      !["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)) ?? null;
+    return {
+      ok: true,
+      data: {
+        directory: [...humans, ...managed, ...selfDeclared],
+        runs: resolved.workspace.relayRuns.slice().sort((left, right) =>
+          left.createdAt.localeCompare(right.createdAt) || left.runId.localeCompare(right.runId)).map(clone),
+        activeAttempt: activeAttempt ? stateAttemptView(activeAttempt) : null,
+        trace: resolved.workspace.relayTrace.slice(-RELAY_BOUNDS.maxTraceEventsPerStateRead).map(clone),
+        currentRelayEventVersion: resolved.workspace.relayEventVersion,
+        webMcpRequired: true,
+        recoveryHeartbeatMs: RELAY_BOUNDS.recoveryHeartbeatMs,
+      },
+    };
+  }
+
+  async claimRelay(
+    sessionToken: string,
+    pageSessionId: string,
+    requestId: string,
+    retryRunId?: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayClaimOutcome>> {
+    throwIfAborted(signal);
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return relayFailure("UNAUTHORIZED", "A valid human session is required.");
+    if (!isUuid(pageSessionId) || !isUuid(requestId)
+      || (retryRunId !== undefined && !isUuid(retryRunId))) {
+      return relayFailure("INVALID_INPUT", "A page session and idempotency key are required.");
+    }
+    if (!this.relayTokenCodec) {
+      return relayFailure("RELAY_UNAVAILABLE", "Managed Relay is not configured on this server.");
+    }
+    const workspace = resolved.workspace;
+    const credentialDigest = relaySecretDigest(sessionToken);
+    const pageDigest = relaySecretDigest(pageSessionId);
+    const prior = workspace.relayAttempts.find((attempt) => attempt.claimRequestId === requestId);
+    if (prior) {
+      const exact = prior.grantClaims.claimantMemberId === resolved.member.memberId
+        && prior.grantClaims.credentialSessionDigest === credentialDigest
+        && prior.grantClaims.pageSessionDigest === pageDigest
+        && prior.retryRunId === (retryRunId ?? null);
+      if (!exact) return relayFailure("REQUEST_REPLAY_MISMATCH", "This request ID was already used with different input.");
+      const run = workspace.relayRuns.find((entry) => entry.runId === prior.runId);
+      const agent = run && workspace.managedAgentsByProfileId.get(run.profileId)?.entry;
+      if (!run || !agent) return relayFailure("RELAY_STATE_CONFLICT", "The prior Relay claim is no longer coherent.");
+      return {
+        ok: true,
+        data: {
+          outcome: "CLAIMED",
+          run: clone(run),
+          attempt: claimedAttemptView(prior),
+          agent: clone(agent),
+          grant: this.relayTokenCodec.signGrant(prior.grantClaims),
+        },
+      };
+    }
+    this.reconcileExpiredRelay(workspace);
+    const activeRun = workspace.relayRuns.find((run) => run.status === "ACTIVE");
+    if (activeRun) {
+      const activeAttempt = workspace.relayAttempts.find((attempt) => attempt.runId === activeRun.runId
+        && !["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status));
+      const retryAfterMs = activeAttempt
+        ? Math.max(1, Math.min(RELAY_BOUNDS.recoveryHeartbeatMs,
+          Date.parse(activeAttempt.leaseExpiresAt) - this.now()))
+        : RELAY_BOUNDS.recoveryHeartbeatMs;
+      return { ok: true, data: { outcome: "BUSY", retryAfterMs, activeRunId: activeRun.runId } };
+    }
+    const run = workspace.relayRuns
+      .filter((entry) => entry.status === "QUEUED" || entry.status === "WAITING_RETRY")
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt)
+        || left.runId.localeCompare(right.runId))[0];
+    if (!run) {
+      if (retryRunId !== undefined) {
+        return relayFailure("RELAY_STATE_CONFLICT", "The requested Relay retry is no longer available.");
+      }
+      return { ok: true, data: { outcome: "NO_WORK", retryAfterMs: RELAY_BOUNDS.recoveryHeartbeatMs } };
+    }
+    if (run.status === "WAITING_RETRY" && retryRunId === undefined) {
+      return { ok: true, data: { outcome: "NO_WORK", retryAfterMs: RELAY_BOUNDS.recoveryHeartbeatMs } };
+    }
+    if ((run.status === "WAITING_RETRY" && retryRunId !== run.runId)
+      || (run.status === "QUEUED" && retryRunId !== undefined)) {
+      return relayFailure("RELAY_STATE_CONFLICT", "The explicit Relay retry does not match the queue head.");
+    }
+    const task = workspace.tasks.find((entry) => entry.taskId === run.taskId);
+    const agent = workspace.managedAgentsByProfileId.get(run.profileId)?.entry;
+    if (!task || task.status !== "OPEN" || task.managedAgentProfileId !== run.profileId || !agent) {
+      this.cancelRelayLineage(workspace, run.taskId, "TASK_STALE");
+      return relayFailure("RELAY_STATE_CONFLICT", "The queued managed task is no longer eligible.");
+    }
+    const now = this.stamp(workspace);
+    const nowMs = Date.parse(now);
+    const attemptId = randomUUID();
+    const leaseId = randomUUID();
+    const attemptNumber = run.attemptCount + 1;
+    const deadlineAt = new Date(nowMs + RELAY_BOUNDS.attemptDeadlineMs).toISOString();
+    const claims: RelayGrantClaims = {
+      v: 1,
+      aud: RELAY_GRANT_AUDIENCE,
+      documentId: workspace.id,
+      profileId: run.profileId,
+      taskId: run.taskId,
+      runId: run.runId,
+      attemptId,
+      claimantMemberId: resolved.member.memberId,
+      credentialSessionDigest: credentialDigest,
+      pageSessionDigest: pageDigest,
+      leaseId,
+      registrationGeneration: attemptNumber,
+      nonce: randomBytes(18).toString("base64url"),
+      issuedAt: now,
+      expiresAt: new Date(Math.min(nowMs + RELAY_BOUNDS.grantTtlMs, workspace.expiresAt)).toISOString(),
+    };
+    const grant = this.relayTokenCodec.signGrant(claims);
+    const attempt: StoredRelayAttempt = {
+      attemptId,
+      runId: run.runId,
+      attemptNumber,
+      status: "CLAIMED",
+      claimedBy: this.memberSnapshot(resolved.member),
+      pageSessionId,
+      registrationGeneration: attemptNumber,
+      registrationScope: randomBytes(8).toString("hex"),
+      leaseId,
+      leaseExpiresAt: new Date(nowMs + RELAY_BOUNDS.leaseTtlMs).toISOString(),
+      providerDispatched: false,
+      providerCallCount: 0,
+      toolCallCount: 0,
+      currentStep: 0,
+      startedAt: now,
+      deadlineAt,
+      updatedAt: now,
+      completedAt: null,
+      claimRequestId: requestId,
+      retryRunId: retryRunId ?? null,
+      grantClaims: claims,
+      grantDigest: relaySecretDigest(grant),
+      grantRevokedAt: null,
+      previousProviderResponseId: null,
+      previousOutcome: null,
+      manifest: null,
+      steps: new Map(),
+    };
+    if (!this.reserveRelayProviderDispatch(workspace.id, attemptId, Date.parse(deadlineAt))) {
+      return relayFailure(
+        "RATE_LIMITED",
+        "The managed Relay provider-run quota is reached for this rolling window.",
+        true,
+      );
+    }
+    workspace.relayAttempts.push(attempt);
+    run.status = "ACTIVE";
+    run.attemptCount = attemptNumber;
+    run.updatedAt = now;
+    this.appendRelayTrace(workspace, run, attempt, { kind: "RUN_CLAIMED" }, now);
+    return {
+      ok: true,
+      data: {
+        outcome: "CLAIMED",
+        run: clone(run),
+        attempt: claimedAttemptView(attempt),
+        agent: clone(agent),
+        grant,
+      },
+    };
+  }
+
+  async renewRelayLease(
+    grant: RelayGrant,
+    expectedLeaseId: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayClaimedAttemptView>> {
+    throwIfAborted(signal);
+    if (!isUuid(expectedLeaseId)) return relayFailure("INVALID_INPUT", "A valid expected lease is required.");
+    const authorized = this.authorizeRelayGrant(grant);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run } = authorized;
+    if (attempt.leaseId !== expectedLeaseId || Date.parse(attempt.leaseExpiresAt) <= this.now()
+      || Date.parse(attempt.deadlineAt) <= this.now()) {
+      return relayFailure("RELAY_LEASE_LOST", "The managed Relay lease was lost.");
+    }
+    const timestamp = this.stamp(workspace);
+    attempt.leaseExpiresAt = new Date(Math.min(
+      this.now() + RELAY_BOUNDS.leaseTtlMs,
+      Date.parse(attempt.deadlineAt),
+    )).toISOString();
+    attempt.updatedAt = timestamp;
+    this.appendRelayTrace(workspace, run, attempt, { kind: "LEASE_RENEWED" }, timestamp);
+    return { ok: true, data: claimedAttemptView(attempt) };
+  }
+
+  async releaseRelayLease(
+    grant: RelayGrant,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayRun>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeRelayGrant(grant, true, true);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run } = authorized;
+    if (!attempt.providerDispatched) this.releaseRelayProviderReservation(attempt.attemptId);
+    if (attempt.grantRevokedAt !== null) return { ok: true, data: clone(run) };
+    const timestamp = this.stamp(workspace);
+    if (run.status === "COMPLETED" && attempt.status === "SUCCEEDED") {
+      if (!workspace.relayTrace.some((event) => event.runId === run.runId
+        && event.kind === "RUN_COMPLETED")
+        && workspace.relayTrace.some((event) => event.runId === run.runId
+          && event.kind === "IDLE_CATALOG_RESTORED")) {
+        this.appendRelayTrace(workspace, run, attempt, { kind: "RUN_COMPLETED" }, timestamp);
+      }
+      attempt.grantRevokedAt = timestamp;
+      attempt.updatedAt = timestamp;
+      this.revokeAttemptPermits(workspace, attempt.attemptId, timestamp);
+      return { ok: true, data: clone(run) };
+    }
+    attempt.grantRevokedAt = timestamp;
+    attempt.updatedAt = timestamp;
+    this.revokeAttemptPermits(workspace, attempt.attemptId, timestamp);
+    if (!attempt.providerDispatched) {
+      attempt.status = "EXPIRED";
+      attempt.completedAt = timestamp;
+      run.status = run.attemptCount >= run.maxAttempts ? "EXHAUSTED" : "QUEUED";
+      run.terminalReason = run.status === "EXHAUSTED" ? "ATTEMPTS_EXHAUSTED" : null;
+      run.completedAt = run.status === "EXHAUSTED" ? timestamp : null;
+      run.updatedAt = timestamp;
+      if (run.status === "EXHAUSTED") {
+        this.appendRelayTrace(workspace, run, attempt, {
+          kind: "ATTEMPT_FAILED",
+          detail: { reason: "RELEASED_BEFORE_DISPATCH" },
+        }, timestamp);
+        this.appendRelayTrace(workspace, run, attempt, { kind: "RUN_EXHAUSTED" }, timestamp);
+      }
+    } else if (run.status === "ACTIVE" && Date.parse(attempt.deadlineAt) <= this.now()) {
+      this.failExecutingAttemptPermits(workspace, attempt.attemptId, timestamp);
+      attempt.status = "FAILED";
+      run.status = run.attemptCount >= run.maxAttempts ? "EXHAUSTED" : "WAITING_RETRY";
+      run.terminalReason = run.status === "EXHAUSTED" ? "ATTEMPTS_EXHAUSTED" : null;
+      run.completedAt = run.status === "EXHAUSTED" ? timestamp : null;
+      run.updatedAt = timestamp;
+      this.appendRelayTrace(workspace, run, attempt, {
+        kind: "ATTEMPT_FAILED",
+        detail: { reason: "ATTEMPT_DEADLINE_EXPIRED" },
+      }, timestamp);
+      this.appendRelayTrace(workspace, run, attempt, {
+        kind: run.status === "EXHAUSTED" ? "RUN_EXHAUSTED" : "RUN_WAITING_RETRY",
+      }, timestamp);
+    } else if (run.status === "ACTIVE"
+      && (!["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)
+        || [...attempt.steps.values()].some((step) =>
+          step.status === "TERMINAL" && step.result?.ok === false
+          && step.result.code === "RELAY_PROVIDER_OUTCOME_UNKNOWN"))) {
+      attempt.status = "RECONCILING";
+      attempt.completedAt = null;
+      run.updatedAt = timestamp;
+      if (!workspace.relayTrace.some((event) => event.attemptId === attempt.attemptId
+        && event.kind === "ATTEMPT_RECONCILING")) {
+        this.appendRelayTrace(workspace, run, attempt, { kind: "ATTEMPT_RECONCILING" }, timestamp);
+      }
+    }
+    return { ok: true, data: clone(run) };
+  }
+
+  async issueExecutionPermit(
+    grant: RelayGrant,
+    input: IssueRelayPermitInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayExecutionPermit>> {
+    throwIfAborted(signal);
+    if (!hasExactKeys(input, ["attemptId", "functionCallId", "physicalToolName", "arguments"])
+      || !isUuid(input.attemptId)
+      || !boundedOpaqueId(input.functionCallId, 512)
+      || typeof input.physicalToolName !== "string"
+      || !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(input.physicalToolName)
+      || !isRecord(input.arguments)) {
+      return relayFailure("INVALID_INPUT", "The execution-permit request is invalid.");
+    }
+    if (Buffer.byteLength(relayCanonicalJson(input.arguments), "utf8")
+      > RELAY_BOUNDS.maxFunctionArgumentsBytes) {
+      return relayFailure("RELAY_RESULT_INVALID", "The managed tool arguments exceed their bound.");
+    }
+    const authorized = this.authorizeRelayGrant(grant);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run, agent } = authorized;
+    if (attempt.attemptId !== input.attemptId) {
+      return relayFailure("RELAY_STATE_CONFLICT", "The execution permit targets another attempt.");
+    }
+    const logicalToolName = this.logicalToolForPhysicalName(agent, attempt, input.physicalToolName);
+    if (!logicalToolName) {
+      return relayFailure("RELAY_MANIFEST_MISMATCH", "The physical tool is not in the active managed catalog.");
+    }
+    const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalToolName];
+    if (!matchesRelayToolInput(logicalToolName, input.arguments)) {
+      return relayFailure("RELAY_RESULT_INVALID", "The managed tool arguments are invalid.");
+    }
+    void definition;
+    const argumentsDigest = relaySha256(input.arguments);
+    const permitKey = `${attempt.attemptId}:${input.functionCallId}`;
+    const existing = workspace.relayPermits.get(permitKey);
+    if (existing) {
+      if (existing.claims.physicalToolName !== input.physicalToolName
+        || existing.claims.argumentsDigest !== argumentsDigest
+        || relayCanonicalJson(existing.arguments) !== relayCanonicalJson(input.arguments)) {
+        return relayFailure("REQUEST_REPLAY_MISMATCH", "This function call was already bound to different input.");
+      }
+      const token = this.relayTokenCodec!.signPermit(existing.claims);
+      return { ok: true, data: this.executionPermit(existing.claims, token) };
+    }
+    if (attempt.toolCallCount >= RELAY_BOUNDS.maxToolCallsPerAttempt) {
+      return relayFailure("RATE_LIMITED", "The managed tool-call budget is exhausted.");
+    }
+    const timestamp = this.stamp(workspace);
+    const expiresAt = new Date(Math.min(
+      this.now() + RELAY_BOUNDS.executionPermitTtlMs,
+      Date.parse(attempt.leaseExpiresAt),
+      Date.parse(attempt.deadlineAt),
+    )).toISOString();
+    const claims: RelayExecutionPermitClaims = {
+      v: 1,
+      aud: RELAY_EXECUTION_PERMIT_AUDIENCE,
+      attemptId: attempt.attemptId,
+      functionCallId: input.functionCallId,
+      physicalToolName: input.physicalToolName,
+      argumentsDigest,
+      registrationGeneration: attempt.registrationGeneration,
+      leaseId: attempt.leaseId,
+      nonce: randomBytes(18).toString("base64url"),
+      issuedAt: timestamp,
+      expiresAt,
+    };
+    const token = this.relayTokenCodec!.signPermit(claims);
+    workspace.relayPermits.set(permitKey, {
+      claims,
+      tokenDigest: relaySecretDigest(token),
+      status: "ISSUED",
+      documentId: workspace.id,
+      runId: run.runId,
+      taskId: run.taskId,
+      profileId: run.profileId,
+      logicalToolName,
+      arguments: clone(input.arguments),
+      requestId: randomUUID(),
+      executionIdempotencyKey: null,
+      resultReceiptId: null,
+      output: null,
+      outputDigest: null,
+      failure: null,
+      createdAt: timestamp,
+      completedAt: null,
+    });
+    return { ok: true, data: this.executionPermit(claims, token) };
+  }
+
+  async executeRelayTool(
+    grant: RelayGrant,
+    input: IssueRelayToolExecutionInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<{ resultReceiptId: string; output: string }>> {
+    throwIfAborted(signal);
+    if (!hasExactKeys(input, ["requestId", "permit", "physicalToolName", "input"])
+      || !isUuid(input.requestId)
+      || typeof input.permit !== "string"
+      || typeof input.physicalToolName !== "string"
+      || !isRecord(input.input)) {
+      return relayFailure("INVALID_INPUT", "The managed tool request is invalid.");
+    }
+    const authorized = this.authorizeRelayGrant(grant, true);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run, task, agent } = authorized;
+    const permitClaims = this.relayTokenCodec?.verifyPermit(input.permit);
+    if (!permitClaims || permitClaims.attemptId !== attempt.attemptId
+      || permitClaims.physicalToolName !== input.physicalToolName
+      || permitClaims.registrationGeneration !== attempt.registrationGeneration
+      || permitClaims.leaseId !== attempt.leaseId
+      || permitClaims.argumentsDigest !== relaySha256(input.input)) {
+      return relayFailure("RELAY_EXECUTION_NOT_ARMED", "The managed tool execution permit is invalid.");
+    }
+    const permit = workspace.relayPermits.get(`${attempt.attemptId}:${permitClaims.functionCallId}`);
+    if (!permit || permit.tokenDigest !== relaySecretDigest(input.permit)
+      || permit.logicalToolName !== this.logicalToolForPhysicalName(agent, attempt, input.physicalToolName)
+      || relayCanonicalJson(permit.arguments) !== relayCanonicalJson(input.input)) {
+      return relayFailure("RELAY_EXECUTION_NOT_ARMED", "The managed tool execution permit does not match this call.");
+    }
+    if (permit.executionIdempotencyKey !== null
+      && permit.executionIdempotencyKey !== input.requestId) {
+      return relayFailure("REQUEST_REPLAY_MISMATCH", "This tool permit was already consumed by another request.");
+    }
+    if (permit.status === "COMPLETED" && permit.resultReceiptId && permit.output) {
+      return { ok: true, data: { resultReceiptId: permit.resultReceiptId, output: permit.output } };
+    }
+    if (permit.status === "FAILED" && permit.failure) return clone(permit.failure);
+    if (permit.status !== "ISSUED") {
+      return relayFailure("RELAY_EXECUTION_NOT_ARMED", "The one-shot tool permit is already in use.");
+    }
+    if (run.status !== "ACTIVE"
+      || ["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)
+      || Date.parse(attempt.leaseExpiresAt) <= this.now()
+      || Date.parse(attempt.deadlineAt) <= this.now()
+      || Date.parse(permitClaims.expiresAt) <= this.now()) {
+      return relayFailure("RELAY_EXECUTION_NOT_ARMED", "The managed tool execution permit is expired or inactive.");
+    }
+    permit.status = "EXECUTING";
+    permit.executionIdempotencyKey = input.requestId;
+    attempt.status = "EXECUTING_TOOL";
+    attempt.updatedAt = this.stamp(workspace);
+    this.appendRelayTrace(workspace, run, attempt, {
+      kind: "WEBMCP_EXECUTE_STARTED",
+      logicalToolName: permit.logicalToolName,
+      physicalToolName: input.physicalToolName,
+      argumentsDigest: permitClaims.argumentsDigest,
+    }, attempt.updatedAt);
+    const context: RelayToolInvocationContext = {
+      documentId: workspace.id,
+      runId: run.runId,
+      attemptId: attempt.attemptId,
+      taskId: task.taskId,
+      profileId: agent.profileId,
+      registrationGeneration: attempt.registrationGeneration,
+      physicalToolName: input.physicalToolName,
+      logicalToolName: permit.logicalToolName,
+      requestId: permit.requestId,
+    };
+    let toolResult: RepositoryResult<Readonly<Record<string, unknown>>>;
+    try {
+      toolResult = await this.invokeManagedTool(context, input.input, signal);
+    } catch (error) {
+      const failed = relayFailure(
+        "RELAY_RESULT_INVALID",
+        error instanceof DOMException && error.name === "AbortError"
+          ? "The managed tool execution was cancelled."
+          : "The managed tool execution failed.",
+        false,
+      );
+      permit.status = "FAILED";
+      permit.failure = failed;
+      permit.completedAt = this.stamp(workspace);
+      return failed;
+    }
+    const outputEnvelope = toolResult.ok
+      ? { ok: true as const, data: clone(toolResult.data) }
+      : { ok: false as const, code: toolResult.code, message: toolResult.message, retryable: toolResult.retryable };
+    const output = relayCanonicalJson(outputEnvelope);
+    if (Buffer.byteLength(output, "utf8") > RELAY_BOUNDS.maxVerifiedToolResultBytes) {
+      const failed = relayFailure("RELAY_RESULT_INVALID", "The managed tool result exceeds its bound.");
+      permit.status = "FAILED";
+      permit.failure = failed;
+      permit.completedAt = this.stamp(workspace);
+      return failed;
+    }
+    const completedAt = this.stamp(workspace);
+    permit.status = "COMPLETED";
+    permit.resultReceiptId = randomUUID();
+    permit.output = output;
+    permit.outputDigest = relaySha256(outputEnvelope);
+    permit.completedAt = completedAt;
+    attempt.status = (run.status as RelayRun["status"]) === "COMPLETED"
+      ? "SUCCEEDED"
+      : "AWAITING_MODEL";
+    attempt.updatedAt = completedAt;
+    this.appendRelayTrace(workspace, run, attempt, {
+      kind: "WEBMCP_EXECUTE_COMPLETED",
+      logicalToolName: permit.logicalToolName,
+      physicalToolName: input.physicalToolName,
+      argumentsDigest: permitClaims.argumentsDigest,
+      resultDigest: permit.outputDigest,
+    }, completedAt);
+    return { ok: true, data: { resultReceiptId: permit.resultReceiptId, output } };
+  }
+
+  async recordRelayManifest(
+    grant: RelayGrant,
+    manifest: RelayNormalizedToolManifest,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<{ digest: `sha256:${string}` }>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeRelayGrant(grant);
+    if (!authorized.ok) return authorized;
+    const { attempt, agent } = authorized;
+    if (!this.validRelayManifest(manifest, agent, attempt)) {
+      return relayFailure("RELAY_MANIFEST_MISMATCH", "The page tool manifest does not match the managed catalog.");
+    }
+    if (attempt.manifest && relayCanonicalJson(attempt.manifest) !== relayCanonicalJson(manifest)) {
+      return relayFailure("RELAY_MANIFEST_MISMATCH", "The managed catalog changed within this attempt.");
+    }
+    if (attempt.manifest) return { ok: true, data: { digest: attempt.manifest.digest } };
+    attempt.manifest = clone(manifest);
+    const timestamp = this.stamp(authorized.workspace);
+    this.appendRelayTrace(authorized.workspace, authorized.run, attempt, {
+      kind: "WEBMCP_GET_TOOLS_COMPLETED",
+      manifestDigest: manifest.digest,
+      detail: { toolCount: manifest.entries.length },
+    }, timestamp);
+    return { ok: true, data: { digest: manifest.digest } };
+  }
+
+  async recordRelayTrace(
+    grant: RelayGrant,
+    input: RelayBrowserTraceInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayTraceEvent>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeRelayGrant(grant, true);
+    if (!authorized.ok) return authorized;
+    if (!this.validBrowserRelayTraceInput(input)) {
+      return relayFailure("INVALID_INPUT", "The Relay trace event is invalid.");
+    }
+    const attemptEvents = authorized.workspace.relayTrace.filter((event) =>
+      event.attemptId === authorized.attempt.attemptId).length;
+    if (attemptEvents >= RELAY_BOUNDS.maxTraceEventsPerAttempt) {
+      return relayFailure("RATE_LIMITED", "The Relay trace event limit is reached.");
+    }
+    const event = this.appendRelayTrace(
+      authorized.workspace,
+      authorized.run,
+      authorized.attempt,
+      input,
+      this.stamp(authorized.workspace),
+    );
+    return { ok: true, data: clone(event) };
+  }
+
+  async beginStep(
+    grant: RelayGrant,
+    reservation: RelayStepReservationInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayBeginStepResult>> {
+    throwIfAborted(signal);
+    if (!hasExactKeys(reservation, ["requestId", "inputDigest", "attemptId", "expectedStep"])
+      || !isUuid(reservation.requestId)
+      || !isUuid(reservation.attemptId)
+      || !/^sha256:[0-9a-f]{64}$/u.test(reservation.inputDigest)
+      || !isCounter(reservation.expectedStep)) {
+      return relayFailure("INVALID_INPUT", "The Relay step reservation is invalid.");
+    }
+    const authorized = this.authorizeRelayGrant(grant, true);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run, agent } = authorized;
+    if (attempt.attemptId !== reservation.attemptId) {
+      return relayFailure("RELAY_STATE_CONFLICT", "The Relay step targets another attempt.");
+    }
+    const existing = attempt.steps.get(reservation.requestId);
+    if (existing) {
+      if (existing.inputDigest !== reservation.inputDigest
+        || existing.expectedStep !== reservation.expectedStep) {
+        return relayFailure("REQUEST_REPLAY_MISMATCH", "This step request ID was already used with different input.");
+      }
+      if (existing.status === "TERMINAL" && existing.result) {
+        return { ok: true, data: { disposition: "RECORDED", result: clone(existing.result) } };
+      }
+      return { ok: true, data: { disposition: "IN_PROGRESS", retryAfterMs: RELAY_BOUNDS.recoveryHeartbeatMs } };
+    }
+    const finalReceiptContinuation = run.status === "COMPLETED"
+      && run.terminalReason === "TASK_COMPLETED"
+      && attempt.status === "SUCCEEDED"
+      && attempt.previousOutcome?.outcome === "EXECUTE_TOOL";
+    if (!finalReceiptContinuation && (run.status !== "ACTIVE"
+      || ["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)
+      || Date.parse(attempt.leaseExpiresAt) <= this.now()
+      || Date.parse(attempt.deadlineAt) <= this.now())) {
+      return relayFailure("RELAY_LEASE_LOST", "The managed Relay lease was lost.");
+    }
+    if (reservation.expectedStep !== attempt.currentStep
+      || attempt.steps.size >= RELAY_BOUNDS.maxResponsesCallsPerAttempt
+      || [...attempt.steps.values()].some((step) => step.status === "RESERVED")) {
+      return relayFailure("RELAY_STATE_CONFLICT", "The Relay step cursor is not available.");
+    }
+    if (!finalReceiptContinuation && !attempt.providerDispatched
+      && !this.consumeRelayProviderDispatch(workspace.id, attempt.attemptId)) {
+      return relayFailure(
+        "RELAY_STATE_CONFLICT",
+        "The managed Relay provider authorization reservation is missing.",
+      );
+    }
+    const timestamp = this.stamp(workspace);
+    attempt.steps.set(reservation.requestId, {
+      ...reservation,
+      status: "RESERVED",
+      providerResponseId: null,
+      result: null,
+      createdAt: timestamp,
+      completedAt: null,
+    });
+    attempt.providerDispatched = true;
+    if (!finalReceiptContinuation) attempt.status = "AWAITING_MODEL";
+    attempt.updatedAt = timestamp;
+    return {
+      ok: true,
+      data: {
+        disposition: "AUTHORIZED",
+        context: {
+          run: clone(run),
+          attempt: this.privateRelayAttempt(attempt),
+          agent: clone(agent),
+          previousProviderResponseId: attempt.previousProviderResponseId,
+          previousOutcome: clone(attempt.previousOutcome),
+        },
+      },
+    };
+  }
+
+  async recordStepResult(
+    grant: RelayGrant,
+    record: RelayStepRecordInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<{ attempt: RelayAttempt; result: RelayResult<RelayStepOutcome> }>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeRelayGrant(grant, true);
+    if (!authorized.ok) return authorized;
+    const { workspace, attempt, run, task } = authorized;
+    const stored = attempt.steps.get(record.requestId);
+    if (!stored || attempt.attemptId !== record.attemptId
+      || stored.inputDigest !== record.inputDigest
+      || stored.expectedStep !== record.expectedStep) {
+      return relayFailure("RELAY_STATE_CONFLICT", "The Relay step reservation does not match.");
+    }
+    if (stored.status === "TERMINAL" && stored.result) {
+      if (relayCanonicalJson(stored.result) !== relayCanonicalJson(record.result)
+        || stored.providerResponseId !== record.providerResponseId) {
+        return relayFailure("REQUEST_REPLAY_MISMATCH", "The Relay step result changed on replay.");
+      }
+      return { ok: true, data: { attempt: this.privateRelayAttempt(attempt), result: clone(stored.result) } };
+    }
+    if (stored.status !== "RESERVED") {
+      return relayFailure("RELAY_STATE_CONFLICT", "The Relay step is not reserved.");
+    }
+    const timestamp = this.stamp(workspace);
+    stored.status = "TERMINAL";
+    stored.providerResponseId = record.providerResponseId;
+    stored.result = clone(record.result);
+    stored.completedAt = timestamp;
+    const providerOutcomeUnknown = !record.result.ok
+      && record.result.code === "RELAY_PROVIDER_OUTCOME_UNKNOWN";
+    if (record.providerResponseId !== null || providerOutcomeUnknown) {
+      attempt.providerCallCount += 1;
+    }
+    if (!record.result.ok) {
+      const committedLineage = run.status === "COMPLETED"
+        && run.terminalReason === "TASK_COMPLETED"
+        && task.status === "COMPLETED";
+      if (providerOutcomeUnknown && !committedLineage) {
+        attempt.status = "RECONCILING";
+        attempt.completedAt = null;
+        if (!workspace.relayTrace.some((event) => event.attemptId === attempt.attemptId
+          && event.kind === "ATTEMPT_RECONCILING")) {
+          this.appendRelayTrace(workspace, run, attempt, {
+            kind: "ATTEMPT_RECONCILING",
+            detail: { reason: "PROVIDER_OUTCOME_UNKNOWN" },
+          }, timestamp);
+        }
+      } else if (!committedLineage && !providerOutcomeUnknown) {
+        attempt.status = "FAILED";
+        attempt.completedAt = timestamp;
+        run.status = run.attemptCount >= run.maxAttempts ? "EXHAUSTED" : "WAITING_RETRY";
+        run.terminalReason = run.status === "EXHAUSTED" ? "ATTEMPTS_EXHAUSTED" : null;
+        run.completedAt = run.status === "EXHAUSTED" ? timestamp : null;
+        this.appendRelayTrace(workspace, run, attempt, { kind: "ATTEMPT_FAILED" }, timestamp);
+        this.appendRelayTrace(workspace, run, attempt, {
+          kind: run.status === "EXHAUSTED" ? "RUN_EXHAUSTED" : "RUN_WAITING_RETRY",
+        }, timestamp);
+      }
+    } else {
+      const outcome = record.result.data;
+      const previousOutcome = attempt.previousOutcome;
+      attempt.currentStep = outcome.nextStep;
+      attempt.previousProviderResponseId = record.providerResponseId;
+      attempt.previousOutcome = clone(outcome);
+      if (outcome.outcome === "DISCOVER_TOOLS") {
+        attempt.status = "DISCOVERING";
+        if (previousOutcome === null) {
+          this.appendRelayTrace(workspace, run, attempt, { kind: "MODEL_TOOL_SEARCH_REQUESTED" }, timestamp);
+        }
+      }
+      if (outcome.outcome === "EXECUTE_TOOL") {
+        attempt.status = "EXECUTING_TOOL";
+        attempt.toolCallCount += 1;
+        this.appendRelayTrace(workspace, run, attempt, {
+          kind: "MODEL_TOOL_SELECTED",
+          physicalToolName: outcome.physicalToolName,
+          argumentsDigest: outcome.permit.argumentsDigest,
+        }, timestamp);
+      }
+      if (outcome.outcome === "COMPLETED") {
+        attempt.status = "SUCCEEDED";
+        attempt.completedAt = timestamp;
+        run.status = "COMPLETED";
+        run.terminalReason = "TASK_COMPLETED";
+        run.completedAt ??= timestamp;
+      }
+      if (outcome.outcome === "RETRY_REQUIRED") {
+        if (run.status !== "COMPLETED" || run.terminalReason !== "TASK_COMPLETED"
+          || task.status !== "COMPLETED") {
+          attempt.status = "FAILED";
+          attempt.completedAt = timestamp;
+          run.status = outcome.run.status;
+          run.terminalReason = outcome.run.terminalReason;
+          run.completedAt = outcome.run.completedAt;
+        }
+      }
+    }
+    attempt.updatedAt = timestamp;
+    run.updatedAt = timestamp;
+    return { ok: true, data: { attempt: this.privateRelayAttempt(attempt), result: clone(record.result) } };
+  }
+
+  async loadVerifiedToolResult(
+    grant: RelayGrant,
+    resultReceiptId: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<{ functionCallId: string; output: string }>> {
+    throwIfAborted(signal);
+    if (!isUuid(resultReceiptId)) return relayFailure("RELAY_RESULT_INVALID", "The tool result receipt is invalid.");
+    const authorized = this.authorizeRelayGrant(grant, true);
+    if (!authorized.ok) return authorized;
+    const permit = [...authorized.workspace.relayPermits.values()].find((entry) =>
+      entry.claims.attemptId === authorized.attempt.attemptId
+      && entry.resultReceiptId === resultReceiptId);
+    if (!permit || permit.status !== "COMPLETED" || !permit.output) {
+      return relayFailure("RELAY_RESULT_INVALID", "The verified tool result was not found.");
+    }
+    return { ok: true, data: { functionCallId: permit.claims.functionCallId, output: permit.output } };
+  }
+
+  async readAssignment(
+    context: RelayToolInvocationContext,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<RelayReadAssignmentResult>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeToolContext(context);
+    if (!authorized.ok) return authorized;
+    const thread = authorized.workspace.threads.find((entry) =>
+      entry.threadId === authorized.task.threadId);
+    if (!thread) return failure("NOT_FOUND", "The managed assignment thread was not found.");
+    return {
+      ok: true,
+      data: {
+        task: { task: this.managedTaskProjection(authorized.task), thread: publicThread(thread) },
+        agent: clone(authorized.agent),
+      },
+    };
+  }
+
+  async readDocumentContext(
+    context: RelayToolInvocationContext,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<RelayReadDocumentContextResult>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeToolContext(context);
+    if (!authorized.ok) return authorized;
+    return {
+      ok: true,
+      data: {
+        document: clone(authorized.workspace.document),
+        anchor: clone(authorized.task.anchor),
+        recentRevisions: authorized.workspace.revisions
+          .slice(-RELAY_RECENT_REVISION_LIMIT)
+          .reverse()
+          .map(clone),
+      },
+    };
+  }
+
+  async readManagedCollaborationContext(
+    context: RelayToolInvocationContext,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<{ tasks: IssueTask[]; comments: IssueComment[] }>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeToolContext(context);
+    if (!authorized.ok) return authorized;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) {
+      return failure("INVALID_INPUT", "The collaboration-context limit is invalid.");
+    }
+    const tasks = authorized.workspace.tasks
+      .filter((task) => task.taskId !== authorized.task.taskId)
+      .slice()
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)
+        || left.taskId.localeCompare(right.taskId))
+      .slice(0, limit)
+      .map((task) => task.managedAgentProfileId
+        ? this.managedTaskProjection(task)
+        : publicTask(task));
+    const comments = authorized.workspace.threads
+      .flatMap((thread) => thread.comments)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt)
+        || left.commentId.localeCompare(right.commentId))
+      .slice(0, limit)
+      .map(clone);
+    return { ok: true, data: { tasks, comments } };
+  }
+
+  async commentOnAssignment(
+    context: RelayToolInvocationContext,
+    input: RelayProgressCommentInput,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<{ comment: IssueComment }>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeToolContext(context);
+    if (!authorized.ok) return authorized;
+    const replay = this.toolReplay<{ comment: IssueComment }>(authorized.workspace, context, input);
+    if (replay) return replay;
+    if (!hasExactKeys(input, ["body", "evidenceRefs"])
+      || !boundedText(input.body, ISSUE_COMMENT_MAX_LENGTH)
+      || !validEvidence(input.evidenceRefs)) {
+      return this.recordToolReplay(authorized.workspace, context, input,
+        failure("INVALID_INPUT", "The assignment comment is invalid."));
+    }
+    const thread = authorized.workspace.threads.find((entry) =>
+      entry.threadId === authorized.task.threadId);
+    if (!thread) return failure("NOT_FOUND", "The managed assignment thread was not found.");
+    if (thread.comments.length >= ISSUE_THREAD_COMMENT_LIMIT) {
+      return failure("RATE_LIMITED", "The task thread is full.");
+    }
+    const timestamp = this.stamp(authorized.workspace);
+    const comment: IssueComment = {
+      commentId: randomUUID(),
+      threadId: thread.threadId,
+      replyToCommentId: null,
+      author: managedAgentActor(authorized.task, authorized.agent),
+      origin: "WEBMCP",
+      createdRevision: authorized.workspace.document.revision,
+      body: input.body,
+      evidenceRefs: clone(input.evidenceRefs),
+      createdAt: timestamp,
+    };
+    thread.comments.push(comment);
+    this.appendActivity(authorized.workspace, {
+      kind: "COMMENT_ADDED",
+      actor: comment.author,
+      taskId: authorized.task.taskId,
+      threadId: thread.threadId,
+      commentId: comment.commentId,
+      excerpt: comment.body,
+      timestamp,
+    });
+    const result = { ok: true, data: { comment: clone(comment) } } as const;
+    this.notify(authorized.workspace.id);
+    return this.recordToolReplay(authorized.workspace, context, input, result);
+  }
+
+  async submitScopedRevision(
+    context: RelayToolInvocationContext,
+    input: RelaySubmitRevisionInput,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<{ revision: IssueRevision; task: IssueTask }>> {
+    throwIfAborted(signal);
+    const authorized = this.authorizeToolContext(context);
+    if (!authorized.ok) return authorized;
+    const replay = this.toolReplay<{ revision: IssueRevision; task: IssueTask }>(
+      authorized.workspace, context, input,
+    );
+    if (replay) return replay;
+    if (!hasExactKeys(input, ["basedOnRevision", "resultSummary", "replacementText", "evidenceRefs"])
+      || !Number.isSafeInteger(input.basedOnRevision) || input.basedOnRevision < 1
+      || !boundedText(input.resultSummary, ISSUE_CHANGE_SUMMARY_MAX_LENGTH)
+      || !boundedText(input.replacementText, ISSUE_BODY_MAX_LENGTH)
+      || !validEvidence(input.evidenceRefs)) {
+      return this.recordToolReplay(authorized.workspace, context, input,
+        failure("INVALID_INPUT", "The scoped revision input is invalid."));
+    }
+    const { workspace, task, agent, attempt, run } = authorized;
+    if (task.status === "STALE") {
+      return this.recordToolReplay(workspace, context, input,
+        failure("STALE_TASK_CONTEXT", "The managed task target is stale.", false,
+          { currentTask: publicTask(task) }));
+    }
+    if (task.status !== "OPEN" || task.mode !== "DIRECT") {
+      return this.recordToolReplay(workspace, context, input,
+        failure("TASK_MODE_VIOLATION", "Only an Open Direct task accepts this revision."));
+    }
+    if (input.basedOnRevision < task.anchor.createdRevision
+      || input.basedOnRevision > workspace.document.revision) {
+      return this.recordToolReplay(workspace, context, input,
+        failure("INVALID_INPUT", "The source revision is outside this task's valid range."));
+    }
+    const live = this.liveSelection(workspace, task);
+    if (!live) {
+      this.cancelRelayLineage(workspace, task.taskId, "TASK_STALE");
+      return this.recordToolReplay(workspace, context, input,
+        failure("STALE_TASK_CONTEXT", "The managed task target is stale."));
+    }
+    if (input.replacementText === live.selectedText) {
+      return this.recordToolReplay(workspace, context, input,
+        failure("INVALID_INPUT", "The replacement must change the selected passage."));
+    }
+    const max = live.field === "TITLE" ? ISSUE_TITLE_MAX_LENGTH : ISSUE_BODY_MAX_LENGTH;
+    const nextField = replaceIssueRange(live.value, live.anchor.rangeStart,
+      live.anchor.rangeEnd, input.replacementText);
+    if (issuePointLength(nextField) > max
+      || (live.field === "TITLE" && nextField.trim().length === 0)) {
+      return this.recordToolReplay(workspace, context, input,
+        failure("INVALID_INPUT", "The replacement exceeds the document bounds."));
+    }
+    const timestamp = this.stamp(workspace);
+    const actor = managedAgentActor(task, agent);
+    task.status = "COMPLETED";
+    task.result = {
+      outcome: "COMMITTED",
+      resultSummary: input.resultSummary,
+      evidenceRefs: clone(input.evidenceRefs),
+      sourceRevision: input.basedOnRevision,
+      resultRevision: workspace.document.revision + 1,
+      liveAnchor: clone(live.anchor),
+      replacementText: input.replacementText,
+      submittedBy: actor,
+      submittedAt: timestamp,
+    };
+    task.updatedAt = timestamp;
+    task.resolvedAt = timestamp;
+    const revision = this.appendRevision(workspace, {
+      title: live.field === "TITLE" ? nextField : workspace.document.title,
+      body: live.field === "BODY" ? nextField : workspace.document.body,
+      provenance: {
+        authority: "DIRECT",
+        origin: "WEBMCP",
+        authorOrigin: "WEBMCP",
+        taskId: task.taskId,
+        sourceRevision: input.basedOnRevision,
+        author: actor,
+        committer: actor,
+        grantedBy: clone(task.creator),
+        approvedBy: null,
+        restoredRevision: null,
+      },
+      changeSummary: input.resultSummary,
+      evidenceRefs: clone(input.evidenceRefs),
+      ownTaskId: task.taskId,
+      ownReplacement: { field: live.field, replacement: input.replacementText },
+      activityKind: "TASK_COMPLETED",
+      timestamp,
+    });
+    this.resolveTaskThread(workspace, task, task.assignee, timestamp);
+    run.status = "COMPLETED";
+    run.terminalReason = "TASK_COMPLETED";
+    run.updatedAt = timestamp;
+    run.completedAt = timestamp;
+    attempt.status = "SUCCEEDED";
+    attempt.updatedAt = timestamp;
+    attempt.completedAt = timestamp;
+    this.appendRelayTrace(workspace, run, attempt, {
+      kind: "REVISION_COMMITTED",
+      detail: { revision: revision.revision },
+    }, timestamp);
+    const result = {
+      ok: true,
+      data: { revision: clone(revision), task: this.managedTaskProjection(task) },
+    } as const;
+    this.notify(workspace.id);
+    return this.recordToolReplay(workspace, context, input, result);
   }
 
   async resetPostmortemHero(
@@ -699,6 +2260,15 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     const workspace = resolved.workspace;
     const stale = this.requireHead(workspace, input.expectedRevision);
     if (stale) return this.recordReplay(resolved, "task.create", input, stale);
+    const managedAssignee = [...workspace.managedAgentsByProfileId.values()].some(
+      ({ entry }) => entry.principal.memberId === input.assignedToMemberId,
+    );
+    if (managedAssignee) {
+      return this.recordReplay(resolved, "task.create", input, failure(
+        "STALE_AGENT_PROFILE",
+        "Managed directory agents require the directory mention flow.",
+      ));
+    }
     const assignee = workspace.members.get(input.assignedToMemberId);
     if (!assignee) {
       return this.recordReplay(resolved, "task.create", input, failure("NOT_FOUND", "The assignee is not a member of this issue."));
@@ -787,6 +2357,15 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     const workspace = resolved.workspace;
     const stale = this.requireHead(workspace, input.expectedRevision);
     if (stale) return this.recordReplay(resolved, "mention.create", input, stale);
+    const managedAssignee = [...workspace.managedAgentsByProfileId.values()].some(
+      ({ entry }) => entry.principal.memberId === input.assignedToMemberId,
+    );
+    if (managedAssignee) {
+      return this.recordReplay(resolved, "mention.create", input, failure(
+        "STALE_AGENT_PROFILE",
+        "Managed directory agents require the directory mention flow.",
+      ));
+    }
     const assignee = workspace.members.get(input.assignedToMemberId);
     const profile = workspace.agentsByMemberId.get(input.assignedToMemberId);
     if (!assignee || !profile || profile.name !== input.mentionedAgentName) {
@@ -1061,6 +2640,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     task.status = "CANCELLED";
     task.updatedAt = timestamp;
     task.resolvedAt = timestamp;
+    if (task.managedAgentProfileId) {
+      this.cancelRelayLineage(resolved.workspace, task.taskId, "TASK_CANCELLED");
+    }
     this.resolveTaskThread(resolved.workspace, task, task.creator, timestamp);
     this.appendActivity(resolved.workspace, {
       kind: "TASK_CANCELLED",
@@ -1919,6 +3501,12 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       pageConnections: new Map(),
       activities: [],
       ledger: new Map(),
+      managedAgentsByProfileId: new Map(),
+      relayRuns: [],
+      relayAttempts: [],
+      relayPermits: new Map(),
+      relayEventVersion: 0,
+      relayTrace: [],
     } as unknown as StoredWorkspace;
     const member = this.addMember(workspace, displayName, identifiers.memberId);
     const timestamp = this.stamp(workspace);
@@ -1956,6 +3544,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       commentId: null,
       excerpt: summary,
     });
+    this.seedManagedDirectory(workspace);
     this.workspaces.set(id, workspace);
     this.workspaceIdsByShareTokenHash.set(workspace.shareTokenHash, id);
     return { workspace, bundle: this.issueBundle(workspace, member, shareToken) };
@@ -2045,6 +3634,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         task.status = "STALE";
         task.updatedAt = timestamp;
         task.resolvedAt = timestamp;
+        if (task.managedAgentProfileId) {
+          this.cancelRelayLineage(workspace, task.taskId, "TASK_STALE");
+        }
         this.resolveTaskThread(workspace, task, task.creator, timestamp);
       }
       const thread = workspace.threads.find((entry) => entry.threadId === task.threadId);
@@ -2076,6 +3668,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         task.status = "STALE";
         task.updatedAt = timestamp;
         task.resolvedAt = timestamp;
+        if (task.managedAgentProfileId) {
+          this.cancelRelayLineage(workspace, task.taskId, "TASK_STALE");
+        }
         this.resolveTaskThread(workspace, task, task.creator, timestamp);
       }
       const thread = workspace.threads.find((entry) => entry.threadId === task.threadId);
@@ -2165,6 +3760,32 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     };
     workspace.agentsByMemberId.set(member.memberId, profile);
     return profile;
+  }
+
+  private seedManagedDirectory(workspace: StoredWorkspace): void {
+    for (const seed of MANAGED_AGENT_DIRECTORY_SEEDS) {
+      const profileId = randomUUID();
+      const principal: IssueMemberSnapshot = {
+        memberId: randomUUID(),
+        displayName: seed.principalName,
+      };
+      workspace.managedAgentsByProfileId.set(profileId, {
+        entry: {
+          kind: "AGENT",
+          profileId,
+          principal,
+          handle: seed.handle,
+          displayName: seed.displayName,
+          scope: seed.scope,
+          identitySource: "DEMO_DIRECTORY",
+          specialty: seed.specialty,
+          runtime: MANAGED_AGENT_RUNTIME,
+          readiness: this.relayTokenCodec ? "READY" : "DISABLED",
+          logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[seed.specialty]],
+          syntheticSourceLabels: [...seed.syntheticSourceLabels],
+        },
+      });
+    }
   }
 
   private setExampleContextSides(
@@ -2394,6 +4015,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     const now = this.now();
     for (const [id, workspace] of this.workspaces) {
       if (workspace.expiresAt > now) continue;
+      this.releaseRelayProviderReservationsForDocument(id);
       this.workspaces.delete(id);
       this.workspaceIdsByShareTokenHash.delete(workspace.shareTokenHash);
       this.listeners.delete(id);
@@ -2471,6 +4093,516 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     return input.selectionEnd <= issuePointLength(value);
   }
 
+  private relayReplay<T>(
+    resolved: ResolvedSession,
+    operation: string,
+    input: unknown,
+  ): RelayResult<T> | null {
+    const requestId = isRecord(input) ? input.requestId : undefined;
+    if (!isUuid(requestId)) return null;
+    const existing = resolved.workspace.ledger.get(requestId);
+    if (!existing) return null;
+    const fingerprint = `${operation}:${canonical(input)}`;
+    return existing.fingerprint === fingerprint
+      ? clone(existing.result) as RelayResult<T>
+      : relayFailure("REQUEST_REPLAY_MISMATCH", "This request ID was already used with different input.");
+  }
+
+  private recordRelayReplay<T>(
+    resolved: ResolvedSession,
+    operation: string,
+    input: unknown,
+    result: RelayResult<T>,
+  ): RelayResult<T> {
+    const requestId = isRecord(input) ? input.requestId : undefined;
+    if (!isUuid(requestId)) return result;
+    const fingerprint = `${operation}:${canonical(input)}`;
+    const existing = resolved.workspace.ledger.get(requestId);
+    if (existing) {
+      return existing.fingerprint === fingerprint
+        ? clone(existing.result) as RelayResult<T>
+        : relayFailure("REQUEST_REPLAY_MISMATCH", "This request ID was already used with different input.");
+    }
+    resolved.workspace.ledger.set(requestId, {
+      fingerprint,
+      result: clone(result) as RelayResult<unknown>,
+    });
+    return result;
+  }
+
+  private toolReplay<T>(
+    workspace: StoredWorkspace,
+    context: RelayToolInvocationContext,
+    input: unknown,
+  ): RepositoryResult<T> | null {
+    const existing = workspace.ledger.get(context.requestId);
+    if (!existing) return null;
+    const fingerprint = `managed.${context.logicalToolName}:${canonical(input)}`;
+    return existing.fingerprint === fingerprint
+      ? clone(existing.result) as RepositoryResult<T>
+      : failure("REQUEST_REPLAY_MISMATCH", "This managed tool request changed on replay.");
+  }
+
+  private recordToolReplay<T>(
+    workspace: StoredWorkspace,
+    context: RelayToolInvocationContext,
+    input: unknown,
+    result: RepositoryResult<T>,
+  ): RepositoryResult<T> {
+    const fingerprint = `managed.${context.logicalToolName}:${canonical(input)}`;
+    const existing = workspace.ledger.get(context.requestId);
+    if (existing) {
+      return existing.fingerprint === fingerprint
+        ? clone(existing.result) as RepositoryResult<T>
+        : failure("REQUEST_REPLAY_MISMATCH", "This managed tool request changed on replay.");
+    }
+    workspace.ledger.set(context.requestId, {
+      fingerprint,
+      result: clone(result) as RepositoryResult<unknown>,
+    });
+    return result;
+  }
+
+  private validDirectoryComment(comment: string, displayName: string): boolean {
+    const prefix = `@${displayName}`;
+    if (!comment.startsWith(prefix)) return false;
+    const suffix = comment.slice(prefix.length);
+    return /^[ \t\r\n]+[^\s]/u.test(suffix.replace(/[ \t\r\n]+$/u, ""));
+  }
+
+  private directoryHandle(displayName: string, stableId: string): string {
+    const normalized = displayName.normalize("NFKD").toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-").replace(/^-|-$/gu, "");
+    return normalized || `member-${stableId.slice(0, 8)}`;
+  }
+
+  private reservedDirectoryHandles(): Set<string> {
+    const reserved = [
+      "data", "code", "general", "system", "user", "assistant", "tool",
+      "webmcp", "ratiflow", ...Object.keys(MANAGED_AGENT_TOOL_DEFINITIONS),
+      ...REPOSITORY_TOOL_NAMES,
+    ];
+    return new Set(reserved.flatMap((value) => [
+      value.toLowerCase(), value.toLowerCase().replace(/_/gu, "-"),
+    ]));
+  }
+
+  private uniqueDirectoryHandle(
+    displayName: string,
+    stableId: string,
+    kind: "h" | "a",
+    usedHandles: Set<string>,
+  ): string {
+    const base = this.directoryHandle(displayName, stableId);
+    if (!usedHandles.has(base.toLowerCase())) {
+      usedHandles.add(base.toLowerCase());
+      return base;
+    }
+    const candidate = `${base}-${kind}-${stableId.replace(/-/gu, "").toLowerCase()}`;
+    usedHandles.add(candidate);
+    return candidate;
+  }
+
+  private privateRelayAttempt(attempt: StoredRelayAttempt): RelayAttempt {
+    const {
+      claimRequestId: _claimRequestId,
+      retryRunId: _retryRunId,
+      grantClaims: _grantClaims,
+      grantDigest: _grantDigest,
+      grantRevokedAt: _grantRevokedAt,
+      previousProviderResponseId: _previousProviderResponseId,
+      previousOutcome: _previousOutcome,
+      manifest: _manifest,
+      steps: _steps,
+      ...publicAttempt
+    } = clone(attempt);
+    void [_claimRequestId, _retryRunId, _grantClaims, _grantDigest, _grantRevokedAt,
+      _previousProviderResponseId, _previousOutcome, _manifest, _steps];
+    return publicAttempt;
+  }
+
+  private executionPermit(
+    claims: RelayExecutionPermitClaims,
+    token: RelayExecutionPermit["token"],
+  ): RelayExecutionPermit {
+    return {
+      token,
+      attemptId: claims.attemptId,
+      functionCallId: claims.functionCallId,
+      physicalToolName: claims.physicalToolName,
+      argumentsDigest: claims.argumentsDigest,
+      registrationGeneration: claims.registrationGeneration,
+      leaseId: claims.leaseId,
+      expiresAt: claims.expiresAt,
+    };
+  }
+
+  private managedTaskProjection(task: StoredTask): IssueTask {
+    const result = publicTask(task) as StoredTask;
+    result.agentProfileId = task.managedAgentProfileId ?? null;
+    result.context = task.managedContext ? clone(task.managedContext) : null;
+    return result as IssueTask;
+  }
+
+  private logicalToolForPhysicalName(
+    agent: ManagedAgentDirectoryEntry,
+    attempt: StoredRelayAttempt,
+    physicalToolName: string,
+  ): ManagedAgentLogicalToolName | null {
+    for (const logicalName of agent.logicalToolNames) {
+      const expected = [
+        "rf",
+        agent.specialty.toLowerCase(),
+        attempt.registrationScope,
+        `g${attempt.registrationGeneration}`,
+        MANAGED_AGENT_TOOL_DEFINITIONS[logicalName].providerKey,
+      ].join("_");
+      if (expected === physicalToolName) return logicalName;
+    }
+    return null;
+  }
+
+  private validRelayManifest(
+    manifest: RelayNormalizedToolManifest,
+    agent: ManagedAgentDirectoryEntry,
+    attempt: StoredRelayAttempt,
+  ): boolean {
+    if (!isRecord(manifest) || !Array.isArray(manifest.entries)
+      || manifest.digest !== relaySha256({ entries: manifest.entries })
+      || manifest.entries.length !== agent.logicalToolNames.length) return false;
+    let origin: string | null = null;
+    for (const [index, logicalName] of agent.logicalToolNames.entries()) {
+      const entry = manifest.entries[index];
+      const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
+      if (!entry || typeof entry.origin !== "string") return false;
+      try {
+        const url = new URL(entry.origin);
+        if (url.origin !== entry.origin || !["http:", "https:"].includes(url.protocol)) return false;
+      } catch {
+        return false;
+      }
+      origin ??= entry.origin;
+      if (entry.origin !== origin
+        || entry.logicalName !== logicalName
+        || entry.registrationGeneration !== attempt.registrationGeneration
+        || entry.physicalName !== ["rf", agent.specialty.toLowerCase(), attempt.registrationScope,
+          `g${attempt.registrationGeneration}`, definition.providerKey].join("_")
+        || entry.description !== definition.description
+        || relayCanonicalJson(entry.inputSchema) !== relayCanonicalJson(definition.inputSchema)
+        || relayCanonicalJson(entry.annotations) !== relayCanonicalJson(definition.annotations)) return false;
+    }
+    return true;
+  }
+
+  private validBrowserRelayTraceInput(input: RelayBrowserTraceInput): boolean {
+    if (!isRecord(input) || !hasExactKeys(input, ["kind", "detail"])
+      || typeof input.kind !== "string" || !isRecord(input.detail)
+      || !hasExactKeys(input.detail, ["transition"])
+      || typeof input.detail.transition !== "string"
+      || !RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS.includes(
+        input.detail.transition as (typeof RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS)[number],
+      )) return false;
+    return input.kind === "WEBMCP_TOOLCHANGE_OBSERVED"
+      || input.kind === input.detail.transition;
+  }
+
+  private validRelayTraceInput(input: IssueRelayTraceInput): boolean {
+    if (!isRecord(input)
+      || typeof input.kind !== "string"
+      || !RELAY_TRACE_KINDS.includes(input.kind as (typeof RELAY_TRACE_KINDS)[number])) return false;
+    const digest = /^sha256:[0-9a-f]{64}$/u;
+    for (const value of [input.manifestDigest, input.argumentsDigest, input.resultDigest]) {
+      if (value !== undefined && value !== null && !digest.test(value)) return false;
+    }
+    if (input.logicalToolName !== undefined && input.logicalToolName !== null
+      && !Object.hasOwn(MANAGED_AGENT_TOOL_DEFINITIONS, input.logicalToolName)) return false;
+    if (input.physicalToolName !== undefined && input.physicalToolName !== null
+      && !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(input.physicalToolName)) return false;
+    const detail = input.detail ?? {};
+    return isRecord(detail)
+      && Object.values(detail).every((value) => value === null
+        || typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+      && Buffer.byteLength(relayCanonicalJson(detail), "utf8") <= RELAY_BOUNDS.maxTracePayloadBytes;
+  }
+
+  private appendRelayTrace(
+    workspace: StoredWorkspace,
+    run: RelayRun,
+    attempt: StoredRelayAttempt | null,
+    input: IssueRelayTraceInput,
+    timestamp: string,
+  ): RelayTraceEvent {
+    const event: RelayTraceEvent = {
+      relayEventId: randomUUID(),
+      relayEventVersion: ++workspace.relayEventVersion,
+      documentId: workspace.id,
+      runId: run.runId,
+      attemptId: attempt?.attemptId ?? null,
+      kind: input.kind,
+      logicalToolName: input.logicalToolName ?? null,
+      physicalToolName: input.physicalToolName ?? null,
+      manifestDigest: input.manifestDigest ?? null,
+      argumentsDigest: input.argumentsDigest ?? null,
+      resultDigest: input.resultDigest ?? null,
+      detail: clone(input.detail ?? {}),
+      createdAt: timestamp,
+    };
+    workspace.relayTrace.push(event);
+    return event;
+  }
+
+  private authorizeRelayGrant(
+    grant: RelayGrant,
+    allowTerminal = false,
+    allowRevoked = false,
+  ): AuthorizedRelay {
+    if (!this.relayTokenCodec || typeof grant !== "string") {
+      return relayFailure("RELAY_UNAVAILABLE", "Managed Relay is not configured.");
+    }
+    const claims = this.relayTokenCodec.verifyGrant(grant);
+    if (!claims || Date.parse(claims.expiresAt) <= this.now()) {
+      return relayFailure("UNAUTHORIZED", "The Relay grant is invalid or expired.");
+    }
+    const workspace = this.workspaces.get(claims.documentId);
+    const attempt = workspace?.relayAttempts.find((entry) => entry.attemptId === claims.attemptId);
+    const run = workspace?.relayRuns.find((entry) => entry.runId === claims.runId);
+    const task = workspace?.tasks.find((entry) => entry.taskId === claims.taskId);
+    const agent = workspace?.managedAgentsByProfileId.get(claims.profileId)?.entry;
+    if (!workspace || !attempt || !run || !task || !agent
+      || (!allowRevoked && attempt.grantRevokedAt !== null)
+      || attempt.grantDigest !== relaySecretDigest(grant)
+      || relayCanonicalJson(attempt.grantClaims) !== relayCanonicalJson(claims)
+      || attempt.runId !== run.runId
+      || run.taskId !== task.taskId
+      || run.profileId !== agent.profileId
+      || task.managedAgentProfileId !== agent.profileId
+      || attempt.leaseId !== claims.leaseId
+      || attempt.registrationGeneration !== claims.registrationGeneration) {
+      return relayFailure("UNAUTHORIZED", "The Relay grant is not authorized for this lineage.");
+    }
+    if (!allowTerminal && (run.status !== "ACTIVE"
+      || ["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)
+      || Date.parse(attempt.leaseExpiresAt) <= this.now()
+      || Date.parse(attempt.deadlineAt) <= this.now())) {
+      return relayFailure("RELAY_LEASE_LOST", "The managed Relay lease was lost.");
+    }
+    return { ok: true, workspace, attempt, run, task, agent };
+  }
+
+  private authorizeToolContext(context: RelayToolInvocationContext): AuthorizedRelayTool {
+    if (!isRecord(context) || !isUuid(context.documentId) || !isUuid(context.runId)
+      || !isUuid(context.attemptId) || !isUuid(context.taskId) || !isUuid(context.profileId)
+      || !isUuid(context.requestId) || !Number.isSafeInteger(context.registrationGeneration)
+      || context.registrationGeneration < 1
+      || !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(context.physicalToolName)) {
+      return failure("INVALID_INPUT", "The managed tool context is invalid.");
+    }
+    const workspace = this.workspaces.get(context.documentId);
+    const run = workspace?.relayRuns.find((entry) => entry.runId === context.runId);
+    const attempt = workspace?.relayAttempts.find((entry) => entry.attemptId === context.attemptId);
+    const task = workspace?.tasks.find((entry) => entry.taskId === context.taskId);
+    const agent = workspace?.managedAgentsByProfileId.get(context.profileId)?.entry;
+    if (!workspace || !run || !attempt || !task || !agent
+      || attempt.runId !== run.runId || run.taskId !== task.taskId || run.profileId !== agent.profileId
+      || attempt.registrationGeneration !== context.registrationGeneration
+      || task.managedAgentProfileId !== agent.profileId
+      || this.logicalToolForPhysicalName(agent, attempt, context.physicalToolName) !== context.logicalToolName
+      || !["ACTIVE", "COMPLETED"].includes(run.status)
+      || !["EXECUTING_TOOL", "SUCCEEDED"].includes(attempt.status)) {
+      return failure("UNAUTHORIZED", "The managed tool context is not authorized.");
+    }
+    return { ok: true, workspace, run, attempt, task, agent };
+  }
+
+  private revokeAttemptPermits(
+    workspace: StoredWorkspace,
+    attemptId: string,
+    timestamp: string,
+  ): void {
+    for (const permit of workspace.relayPermits.values()) {
+      if (permit.claims.attemptId === attemptId && permit.status === "ISSUED") {
+        permit.status = "REVOKED";
+        permit.completedAt = timestamp;
+      }
+    }
+  }
+
+  private failExecutingAttemptPermits(
+    workspace: StoredWorkspace,
+    attemptId: string,
+    timestamp: string,
+  ): void {
+    const failed = relayFailure(
+      "RELAY_EXECUTION_NOT_ARMED",
+      "The managed tool execution could not be reconciled before its deadline.",
+      false,
+    );
+    for (const permit of workspace.relayPermits.values()) {
+      if (permit.claims.attemptId === attemptId && permit.status === "EXECUTING") {
+        permit.status = "FAILED";
+        permit.failure = failed;
+        permit.completedAt = timestamp;
+      }
+    }
+  }
+
+  private reconcileExpiredRelay(workspace: StoredWorkspace): void {
+    const now = this.now();
+    for (const run of workspace.relayRuns) {
+      if (run.status !== "COMPLETED" || run.terminalReason !== "TASK_COMPLETED"
+        || workspace.relayTrace.some((event) => event.runId === run.runId
+          && event.kind === "RUN_COMPLETED")
+        || !workspace.relayTrace.some((event) => event.runId === run.runId
+          && event.kind === "IDLE_CATALOG_RESTORED")) continue;
+      const latestAttempt = workspace.relayAttempts
+        .filter((attempt) => attempt.runId === run.runId)
+        .sort((left, right) => right.attemptNumber - left.attemptNumber)[0] ?? null;
+      this.appendRelayTrace(
+        workspace,
+        run,
+        latestAttempt,
+        { kind: "RUN_COMPLETED" },
+        this.stamp(workspace),
+      );
+    }
+    for (const run of workspace.relayRuns) {
+      if ((run.status !== "QUEUED" && run.status !== "WAITING_RETRY")
+        || run.attemptCount < run.maxAttempts) continue;
+      const timestamp = this.stamp(workspace);
+      run.status = "EXHAUSTED";
+      run.terminalReason = "ATTEMPTS_EXHAUSTED";
+      run.updatedAt = timestamp;
+      run.completedAt = timestamp;
+      const latestAttempt = workspace.relayAttempts
+        .filter((attempt) => attempt.runId === run.runId)
+        .sort((left, right) => right.attemptNumber - left.attemptNumber)[0] ?? null;
+      if (!workspace.relayTrace.some((event) => event.runId === run.runId
+        && event.kind === "RUN_EXHAUSTED")) {
+        this.appendRelayTrace(workspace, run, latestAttempt, { kind: "RUN_EXHAUSTED" }, timestamp);
+      }
+    }
+    for (const attempt of workspace.relayAttempts) {
+      if (["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)) continue;
+      if (Date.parse(attempt.leaseExpiresAt) > now && Date.parse(attempt.deadlineAt) > now) continue;
+      const run = workspace.relayRuns.find((entry) => entry.runId === attempt.runId);
+      if (!run) continue;
+      const timestamp = this.stamp(workspace);
+      attempt.grantRevokedAt = timestamp;
+      attempt.updatedAt = timestamp;
+      this.revokeAttemptPermits(workspace, attempt.attemptId, timestamp);
+      if (attempt.providerDispatched && Date.parse(attempt.deadlineAt) > now) {
+        attempt.status = "RECONCILING";
+        if (!workspace.relayTrace.some((event) => event.attemptId === attempt.attemptId
+          && event.kind === "ATTEMPT_RECONCILING")) {
+          this.appendRelayTrace(workspace, run, attempt, { kind: "ATTEMPT_RECONCILING" }, timestamp);
+        }
+      } else if (attempt.providerDispatched) {
+        this.failExecutingAttemptPermits(workspace, attempt.attemptId, timestamp);
+        attempt.status = "FAILED";
+        attempt.completedAt = timestamp;
+        run.status = run.attemptCount >= run.maxAttempts ? "EXHAUSTED" : "WAITING_RETRY";
+        run.terminalReason = run.status === "EXHAUSTED" ? "ATTEMPTS_EXHAUSTED" : null;
+        run.completedAt = run.status === "EXHAUSTED" ? timestamp : null;
+        run.updatedAt = timestamp;
+        this.appendRelayTrace(workspace, run, attempt, { kind: "ATTEMPT_FAILED" }, timestamp);
+        this.appendRelayTrace(workspace, run, attempt, {
+          kind: run.status === "EXHAUSTED" ? "RUN_EXHAUSTED" : "RUN_WAITING_RETRY",
+        }, timestamp);
+      } else {
+        this.releaseRelayProviderReservation(attempt.attemptId);
+        attempt.status = "EXPIRED";
+        attempt.completedAt = timestamp;
+        this.failExecutingAttemptPermits(workspace, attempt.attemptId, timestamp);
+        run.status = run.attemptCount >= run.maxAttempts ? "EXHAUSTED" : "QUEUED";
+        run.terminalReason = run.status === "EXHAUSTED" ? "ATTEMPTS_EXHAUSTED" : null;
+        run.completedAt = run.status === "EXHAUSTED" ? timestamp : null;
+        run.updatedAt = timestamp;
+        this.appendRelayTrace(workspace, run, attempt, {
+          kind: "ATTEMPT_FAILED",
+          detail: { reason: "LEASE_EXPIRED_BEFORE_DISPATCH" },
+        }, timestamp);
+        if (run.status === "EXHAUSTED") {
+          this.appendRelayTrace(workspace, run, attempt, { kind: "RUN_EXHAUSTED" }, timestamp);
+        }
+      }
+    }
+  }
+
+  private cancelRelayLineage(
+    workspace: StoredWorkspace,
+    taskId: string,
+    reason: "TASK_CANCELLED" | "TASK_STALE",
+  ): void {
+    const run = workspace.relayRuns.find((entry) => entry.taskId === taskId);
+    if (!run || ["COMPLETED", "EXHAUSTED", "CANCELLED"].includes(run.status)) return;
+    const timestamp = this.stamp(workspace);
+    run.status = "CANCELLED";
+    run.terminalReason = reason;
+    run.updatedAt = timestamp;
+    run.completedAt = timestamp;
+    for (const attempt of workspace.relayAttempts.filter((entry) => entry.runId === run.runId)) {
+      if (!["SUCCEEDED", "FAILED", "EXPIRED", "CANCELLED"].includes(attempt.status)) {
+        if (!attempt.providerDispatched) this.releaseRelayProviderReservation(attempt.attemptId);
+        attempt.status = "CANCELLED";
+        attempt.grantRevokedAt = timestamp;
+        attempt.updatedAt = timestamp;
+        attempt.completedAt = timestamp;
+        this.revokeAttemptPermits(workspace, attempt.attemptId, timestamp);
+        this.failExecutingAttemptPermits(workspace, attempt.attemptId, timestamp);
+      }
+    }
+    const activeAttempt = workspace.relayAttempts.find((entry) => entry.runId === run.runId) ?? null;
+    this.appendRelayTrace(workspace, run, activeAttempt, {
+      kind: "RUN_CANCELLED",
+      detail: { terminalReason: reason },
+    }, timestamp);
+  }
+
+  private async invokeManagedTool(
+    context: RelayToolInvocationContext,
+    input: Readonly<Record<string, unknown>>,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<Readonly<Record<string, unknown>>>> {
+    switch (context.logicalToolName) {
+      case "read_assignment":
+        return this.readAssignment(context, signal) as Promise<RepositoryResult<Readonly<Record<string, unknown>>>>;
+      case "read_document_context":
+        return this.readDocumentContext(context, signal) as Promise<RepositoryResult<Readonly<Record<string, unknown>>>>;
+      case "read_collaboration_context":
+        return await this.readManagedCollaborationContext(context, Number(input.limit), signal) as unknown as RepositoryResult<Readonly<Record<string, unknown>>>;
+      case "comment_on_assignment":
+        return await this.commentOnAssignment(context, input as unknown as RelayProgressCommentInput, signal) as unknown as RepositoryResult<Readonly<Record<string, unknown>>>;
+      case "submit_scoped_revision":
+        return await this.submitScopedRevision(context, input as unknown as RelaySubmitRevisionInput, signal) as unknown as RepositoryResult<Readonly<Record<string, unknown>>>;
+      case "query_demo_metrics":
+        return this.invokeFixture(() => this.specialistFixturePort?.queryDemoMetrics(
+          input as never, signal,
+        ));
+      case "search_demo_code":
+        return this.invokeFixture(() => this.specialistFixturePort?.searchDemoCode(
+          input as never, signal,
+        ));
+      case "read_demo_file":
+        return this.invokeFixture(() => this.specialistFixturePort?.readDemoFile(
+          input as never, signal,
+        ));
+      case "read_company_style_guide":
+        return this.invokeFixture(() => this.specialistFixturePort?.readCompanyStyleGuide(signal));
+      case "check_document_consistency":
+        return this.invokeFixture(() => this.specialistFixturePort?.checkDocumentConsistency(
+          input as never, signal,
+        ));
+    }
+  }
+
+  private async invokeFixture(
+    invoke: () => Promise<Readonly<Record<string, unknown>>> | undefined,
+  ): Promise<RepositoryResult<Readonly<Record<string, unknown>>>> {
+    const promise = invoke();
+    if (!promise) return failure("PROTOCOL_MISMATCH", "The synthetic specialist fixture is unavailable.");
+    return { ok: true, data: await promise };
+  }
+
   private validateReply(thread: IssueThread, replyToCommentId?: string): RepositoryFailure | null {
     if (replyToCommentId === undefined) return null;
     return thread.comments.some((comment) => comment.commentId === replyToCommentId)
@@ -2540,6 +4672,59 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     bucket.count += 1;
     this.credentialRateBuckets.set(key, bucket);
     return true;
+  }
+
+  private pruneRelayProviderDispatches(now = this.now()): void {
+    const cutoff = now - this.relayProviderQuotaWindowMs;
+    this.relayProviderDispatches = this.relayProviderDispatches.filter((dispatch) =>
+      dispatch.dispatchedAt !== null
+        ? dispatch.dispatchedAt > cutoff
+        : dispatch.reservationExpiresAt > now);
+  }
+
+  private reserveRelayProviderDispatch(
+    documentId: string,
+    attemptId: string,
+    reservationExpiresAt: number,
+  ): boolean {
+    const now = this.now();
+    this.pruneRelayProviderDispatches(now);
+    if (this.relayProviderDispatches.some((dispatch) => dispatch.attemptId === attemptId)) {
+      return true;
+    }
+    if (this.relayProviderDispatches.length >= this.relayProviderDeploymentLimit
+      || this.relayProviderDispatches.filter((dispatch) =>
+        dispatch.documentId === documentId).length >= this.relayProviderDocumentLimit) {
+      return false;
+    }
+    this.relayProviderDispatches.push({
+      documentId,
+      attemptId,
+      reservedAt: now,
+      reservationExpiresAt,
+      dispatchedAt: null,
+    });
+    return true;
+  }
+
+  private consumeRelayProviderDispatch(documentId: string, attemptId: string): boolean {
+    const now = this.now();
+    this.pruneRelayProviderDispatches(now);
+    const reservation = this.relayProviderDispatches.find((dispatch) =>
+      dispatch.documentId === documentId && dispatch.attemptId === attemptId);
+    if (!reservation) return false;
+    reservation.dispatchedAt ??= now;
+    return true;
+  }
+
+  private releaseRelayProviderReservation(attemptId: string): void {
+    this.relayProviderDispatches = this.relayProviderDispatches.filter((dispatch) =>
+      dispatch.attemptId !== attemptId || dispatch.dispatchedAt !== null);
+  }
+
+  private releaseRelayProviderReservationsForDocument(documentId: string): void {
+    this.relayProviderDispatches = this.relayProviderDispatches.filter((dispatch) =>
+      dispatch.documentId !== documentId || dispatch.dispatchedAt !== null);
   }
 
   private memberSnapshot(member: IssueMemberSnapshot): IssueMemberSnapshot {
@@ -2638,6 +4823,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     const workspace = this.workspaces.get(documentId);
     if (!workspace) return;
     this.notify(documentId);
+    this.releaseRelayProviderReservationsForDocument(documentId);
     this.workspaces.delete(documentId);
     this.workspaceIdsByShareTokenHash.delete(workspace.shareTokenHash);
     this.listeners.delete(documentId);

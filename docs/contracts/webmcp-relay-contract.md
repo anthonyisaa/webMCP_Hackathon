@@ -17,7 +17,8 @@ The exact submission claim is:
 
 > Ratiflow runs an application-owned WebMCP Relay powered by GPT-5.6 Luna. The open
 > document discovers its live, role-scoped tools through `document.modelContext.getTools()`,
-> Luna selects among those tools through Responses API client tool search, and the same
+> the server pins each required next function from that catalog, Luna composes its strict
+> arguments and returns the call through Responses API client tool search, and the same
 > page executes the exact discovered descriptor through
 > `document.modelContext.executeTool()`. The document ledger keeps the resulting proof.
 
@@ -147,6 +148,21 @@ directly, or call a fixture port directly. Removing `document.modelContext`, `ge
 or `executeTool` makes managed execution fail closed with `RELAY_UNAVAILABLE` while all
 ordinary human document behavior remains usable.
 
+The argument encoding is bound to that exact discovered descriptor. When
+`RegisteredTool.inputSchema` is the draft object shape, `executeTool()` receives the
+validated argument object. When a supported client exposes the earlier stringified
+schema shape, the page first parses, bounds, and canonical-compares that schema, then
+passes the canonical JSON string of the same authorized argument object. It never sniffs
+the user agent and never tries one encoding and retries with another: a failed first call
+may already have dispatched an effect. Authorization and permit digests always bind the
+validated object, not the browser wire string.
+
+If a supported client cancels the consumer promise without forwarding
+`ToolExecuteCallbackOptions.signal` to the producer callback, the one-shot execution arm
+propagates the exact caller-owned signal within the same page. Evidence records whether
+cancellation arrived as `NATIVE_CALLBACK_SIGNAL` or `APPLICATION_PROPAGATED`; neither
+path weakens registration-signal teardown or the server's lease/permit checks.
+
 An earlier-generation descriptor is never retained across a mode switch. Executing one
 after its registration signal is aborted must be rejected by the supported browser
 without entering the callback. The observed DOM exception name is evidence, not contract:
@@ -172,8 +188,9 @@ The ordered specialist suffix is exact:
 | `CODE` | `search_demo_code`, `read_demo_file` | 7 |
 | `GENERAL` | `read_company_style_guide`, `check_document_consistency` | 7 |
 
-The first Luna-selected function in every attempt must be `read_assignment`. The server
-requires it in the fixed instruction and rejects a different first logical call. This
+The server pins `read_assignment` as the first active function in every attempt. Luna
+must return that named call with strict arguments; the server rejects a different first
+logical call. This
 proves that assignment context entered the model through WebMCP rather than being hidden
 in the initial prompt.
 
@@ -193,7 +210,7 @@ The exact definitions are:
 | `submit_scoped_revision` | `submit_revision` | Submit one evidence-backed replacement for only the active passage granted by this assignment. The server validates revision, range, role, lease, and provenance. | required `basedOnRevision >= 1`, `resultSummary` (`1..240`), `replacementText` (`1..50000`), and bounded `evidenceRefs` |
 | `query_demo_metrics` | `metrics` | Query one deterministic synthetic Ratiflow dataset for the assigned document. The result is demo data, not a live customer system. | required `dataset` (`northstar_launch_capacity | inc_482_checkout_impact`) and `question` (`1..500`) |
 | `search_demo_code` | `code_search` | Search the deterministic synthetic checkout repository for code relevant to the assigned incident. No live repository is accessed. | required `query` (`1..300`) |
-| `read_demo_file` | `code_read` | Read a bounded line range from an allowlisted synthetic checkout source file or log returned by code search. No live filesystem is exposed. | required `path` (`1..240`), `startLine` and `endLine` integers (`1..500`); application validation also requires a valid allowlisted range |
+| `read_demo_file` | `code_read` | Read one complete, bounded, allowlisted synthetic checkout source or log returned by code search. No live filesystem is exposed. | required `path`, exactly `src/checkout/retry-middleware.ts` or `checkout.log`; no caller-selected range |
 | `read_company_style_guide` | `style_guide` | Read the deterministic synthetic Ratiflow writing guide for a bounded editorial assignment. | `{}` |
 | `check_document_consistency` | `consistency` | Check one supplied document section against deterministic synthetic terminology and consistency rules without changing content. | required `section` (`1..8000`) |
 
@@ -270,9 +287,12 @@ interface RelayNormalizedToolManifestEntry {
 `RegisteredTool.window`, owner objects, callback references, titles, and producer-only
 annotations are excluded. `origin` must equal the canonical serialized origin of the
 current page. `inputSchema` is parsed once when the supported client exposes it as a JSON
-string. The page rejects a duplicate name, extra origin, missing tool, extra tool, schema
-parse failure, physical-name mismatch, logical-name mismatch, description mismatch, or
-generation mismatch.
+string. String bytes and the resulting finite JSON tree are bounded before recursive
+canonicalization. Both browser wire shapes normalize to the same object and therefore
+the same manifest digest. The page rejects a duplicate name, extra origin, missing tool,
+extra tool, absent/primitive/oversized/over-deep schema, schema parse failure,
+physical-name mismatch, logical-name mismatch, description mismatch, or generation
+mismatch.
 
 Entries are reordered into the exact logical catalog order above before hashing. The
 manifest digest is `sha256:` plus lowercase SHA-256 of the UTF-8 JSON Canonicalization
@@ -450,6 +470,19 @@ permit's concrete HTTP transport is owned by the checked HTTP adapter and is not
 JSON. No public body accepts `requestId`, provider response ID, developer prompt, model
 ID, arbitrary tool definition, credentials, actor, owner, or origin.
 
+Before any `/relay/step` provider request, the server calls one atomic database boundary
+with the grant, attempt, expected step, server-derived request UUID, and canonical input
+digest. That boundary locks the attempt and either (a) creates the durable step
+reservation and returns `AUTHORIZED`, (b) returns `IN_PROGRESS` for the same request and
+digest, or (c) returns the previously stored full `RelayResult<RelayStepOutcome>`. A
+changed digest for the same request is `REQUEST_REPLAY_MISMATCH`; a competing request for
+the reserved cursor is `RELAY_STATE_CONFLICT`. Only the caller receiving `AUTHORIZED`
+may spend on Luna. The server then atomically changes that reservation to terminal and
+stores either the successful outcome or the failure. Thus concurrent Vercel instances,
+an ambiguous response, and an exact transport retry cannot dispatch the same step twice.
+An abandoned reservation remains non-dispatchable until the bounded attempt is expired
+or reconciled; it is never reopened merely because an HTTP request disappeared.
+
 The exact step input is:
 
 ```ts
@@ -610,7 +643,14 @@ an exact `RelayProviderFunctionTool[]` (`type`, physical `name`, checked `descri
       strict: true
     }))
   }],
-  tool_choice: "required",
+  tools: [{
+    type: "function",
+    name: exactNextPhysicalName, // read_assignment for this continuation
+    description: exactCheckedDescription,
+    parameters: exactCheckedInputSchema,
+    strict: true
+  }],
+  tool_choice: { type: "function", name: exactNextPhysicalName },
   parallel_tool_calls: false,
   reasoning: { effort: "low" },
   max_output_tokens: 1600,
@@ -619,10 +659,13 @@ an exact `RelayProviderFunctionTool[]` (`type`, physical `name`, checked `descri
 ```
 
 Developer instructions repeat because Responses `instructions` do not automatically
-carry forward with `previous_response_id`. Loaded functions persist through that response
-lineage. `tool_choice: "required"` is valid on this continuation because its
-`tool_search_output` supplies functions. The fixed instruction requires the first call to
-map to `read_assignment`, and the server rejects a different first logical call.
+carry forward with `previous_response_id`. The complete discovered catalog remains
+deferred inside `tool_search_output`, while the top-level `tools` array activates exactly
+one non-deferred function. The named function selector forces that exact next physical
+function (`read_assignment` here), including when the stored deferred catalog remains
+available through the response lineage. A generic `"required"` selector is insufficient
+because Luna may select an earlier deferred function. The server also rejects any
+different returned name.
 
 The valid actionable item is:
 
@@ -648,7 +691,17 @@ browser as executable work.
 
 The browser executes the exact descriptor and `/relay/tool` stores the verified result.
 `SUBMIT_FUNCTION_RESULT` contains only its receipt. The server loads the bound call ID and
-output and sends:
+output, requires an `ok: true` envelope, projects it through the executed tool's exact
+model-output schema, and discards private correlation fields. Until the executed logical
+tool is `submit_scoped_revision`, it reconstructs only the exact next physical function
+and sends:
+
+The final specialist projection carries the complete server-known evidence set accumulated
+by its required deterministic path: Data carries its one selected dataset ref; Code carries
+`checkout.log` and `commit:7d3c9e1`; General carries `Ratiflow company style guide` and
+`Ratiflow consistency rules`. `submit_scoped_revision` must copy that complete set (order
+does not matter). An empty, omitted, duplicated, additional, or forged ref fails before a
+mutation permit is issued.
 
 ```ts
 {
@@ -658,8 +711,10 @@ output and sends:
   input: [{
     type: "function_call_output",
     call_id: verifiedResult.functionCallId,
-    output: verifiedResult.output
+    output: privacyMinimizedModelProjection
   }],
+  tools: [exactNextActiveFunction],
+  tool_choice: { type: "function", name: exactNextPhysicalName },
   parallel_tool_calls: false,
   reasoning: { effort: "low" },
   max_output_tokens: 1600,
@@ -667,10 +722,12 @@ output and sends:
 }
 ```
 
-The final no-tools continuation deliberately omits `tool_choice`; the exploratory C0 API
-run established that supplying a tool-choice value on a continuation with no current `tools`
-parameter can be rejected. The result may produce one later `function_call` from the
-stored lineage or a terminal assistant message. A terminal message is accepted only
+This named selector forces the next function in the server-enforced Data, Code, or General
+sequence and prevents either an early prose answer or a repeated deferred function from
+turning an otherwise valid run into a flaky retry.
+After `submit_scoped_revision`, the final continuation sends the same verified function
+output projection with `tools: []` and `tool_choice: "none"`. That final result must be a
+terminal assistant message. It is accepted only
 after authoritative state shows the assigned task and run completed; model prose cannot
 mark work complete. A repeated tool-search call,
 unknown output item, mixed action families, incomplete response, provider error, or
@@ -692,7 +749,7 @@ The checked interfaces are injectable boundaries, not optional abstractions.
 | `SpecialistFixturePort` | S4 pure fixture adapter | Reads only deterministic synthetic metrics, code, files, and writing guidance. It has no repository mutation or network connector authority. |
 | WebMCP callback adapter | S2 browser runtime | Maps one physical descriptor to one logical method on the two ports. It is the only browser adapter over those ports. |
 | `RelayBrowserClientPort` | S2 HTTP client | Maps state, claim, lease, step, and `/relay/tool` callback requests to the exact sidecar. Its `executeTool` method names the `/relay/tool` HTTP call; the coordinator must still invoke native `document.modelContext.executeTool()` first. |
-| `RelayAttemptAuthorizationPort` | S1 server authority | Loads a grant-bound attempt, records a compare-and-swap step outcome, and loads only stored verified tool-result receipts. |
+| `RelayAttemptAuthorizationPort` | S1 server authority | Loads exact step replays, a grant-bound attempt with private provider cursor/prior outcome, records a compare-and-swap provider response and step outcome, reconstructs signed permits from claims, and loads only stored verified tool-result receipts. |
 | `LunaResponsesProviderPort` | S3 server adapter | Makes the fixed Responses calls and projects untrusted provider output into `SEARCH_REQUIRED`, `CALL_REQUIRED`, or `COMPLETED`. |
 
 `RelayToolInvocationContext` is server-derived and contains document, run, attempt, task,
@@ -728,6 +785,10 @@ RUN_EXHAUSTED
 RUN_CANCELLED
 ```
 
+`MODEL_TOOL_SELECTED` is retained as the frozen wire event name. It means the provider
+returned, and the server validated, the exact function that the server pinned for that
+step. It does not mean Luna autonomously chose a tool from the discovered catalog.
+
 Every event stores document/run/optional attempt IDs, kind, optional logical and physical
 name, optional manifest/argument/result digests, a scalar-only sanitized `detail` object,
 and server timestamp. The detail object may contain only checked counters, durations,
@@ -748,10 +809,16 @@ The successful golden order permits `LEASE_RENEWED` to interleave but otherwise 
 RUN_QUEUED -> RUN_CLAIMED -> IDLE_CATALOG_WITHDRAWN
 -> RELAY_CATALOG_REGISTERED -> WEBMCP_TOOLCHANGE_OBSERVED
 -> MODEL_TOOL_SEARCH_REQUESTED -> WEBMCP_GET_TOOLS_COMPLETED
--> MODEL_TOOL_SELECTED -> WEBMCP_EXECUTE_STARTED -> WEBMCP_EXECUTE_COMPLETED
--> ... -> REVISION_COMMITTED -> RELAY_CATALOG_WITHDRAWN
+-> MODEL_TOOL_SELECTED -> WEBMCP_EXECUTE_STARTED -> REVISION_COMMITTED
+-> WEBMCP_EXECUTE_COMPLETED -> ... -> RELAY_CATALOG_WITHDRAWN
 -> WEBMCP_TOOLCHANGE_OBSERVED -> IDLE_CATALOG_RESTORED -> RUN_COMPLETED
 ```
+
+`REVISION_COMMITTED` is emitted by the authoritative mutation before the browser-facing
+execution receipt is finalized, so it truthfully precedes `WEBMCP_EXECUTE_COMPLETED`.
+The latter means the application recorded the finished tool result; it is not a claim
+of cryptographic browser attestation. Dated supported-client evidence proves native
+`executeTool()` separately.
 
 History records the managed agent, human grantor, fixed model, runtime
 `OPENAI_LUNA_WEBMCP_RELAY`, `origin=WEBMCP`, conspicuous synthetic source labels,
@@ -787,10 +854,16 @@ Operational rate limits may become stricter under load but cannot relax these ma
 must leave a readable `RATE_LIMITED` or `RELAY_UNAVAILABLE` state rather than fake a
 completion.
 
-Selected document context returned by a WebMCP tool is sent to OpenAI as function output.
-The NUX discloses that fact before the first claim. Provider storage/retention follows the
-configured OpenAI API account because the bounded stepper uses `store: true` and
-`previous_response_id`; Ratiflow makes no zero-retention claim.
+Only a privacy-minimized, tool-specific projection of a successful WebMCP result is sent
+to OpenAI as function output. The server validates that projection against an exact
+per-tool model-output schema. It retains only the bounded assignment instruction,
+selected prose, human-readable context, and labelled synthetic demo facts required by
+the role sequence; IDs, UUIDs, handles, tokens, exact range coordinates, and internal
+correlation fields are omitted or redacted. A failed (`ok: false`) prerequisite never
+advances the provider sequence. The NUX discloses the model boundary before the first
+claim. Provider storage/retention follows the configured OpenAI API account because the
+bounded stepper uses `store: true` and `previous_response_id`; Ratiflow makes no
+zero-retention claim.
 
 ## 13. Error taxonomy
 
@@ -805,6 +878,7 @@ Relay-specific codes are exact:
 | `RELAY_EXECUTION_NOT_ARMED` | A WebMCP callback lacks the one matching live in-memory permit arm or attempts to replay it. |
 | `RELAY_MANIFEST_MISMATCH` | Origin, set, physical/logical mapping, generation, schema, description, annotations, order, or digest differs from the server catalog. |
 | `RELAY_RESULT_INVALID` | Provider arguments/output or WebMCP result cannot be parsed, bounded, envelope-checked, schema-checked, or correlated. |
+| `RELAY_PROVIDER_OUTCOME_UNKNOWN` | A Responses call crossed the dispatch boundary but its authenticated result was lost. The attempt remains `RECONCILING`; no heartbeat or human Retry may purchase another provider attempt before authoritative reconciliation or expiry. |
 
 Existing repository codes remain valid, including `INVALID_INPUT`, `UNAUTHORIZED`,
 `NOT_FOUND`, `STALE_DOCUMENT`, `STALE_TASK_CONTEXT`, `TASK_MODE_VIOLATION`,
@@ -822,9 +896,9 @@ to receive their old exact projections. Existing creation, join, save, comment, 
 restore, self-declared agent, and eight-tool idle behavior remain authoritative.
 
 Managed profiles and relay state cannot leak into a protocol-v3 page or the decision-room
-surface. No Relay tool registers in idle mode. No idle tool registers in Relay mode. A
-model-selected mutation can land only through the existing protocol-4 revision/task
-transaction and retains the same source-anchor, revision, replay, attribution, evidence,
+surface. No Relay tool registers in idle mode. No idle tool registers in Relay mode.
+Model-authored mutation arguments can land only through the existing protocol-4 revision/task
+transaction and retain the same source-anchor, revision, replay, attribution, evidence,
 diff, and Restore guarantees.
 
 When WebMCP is absent, a judge can still name themselves, create or open either example,
@@ -869,10 +943,11 @@ The real provider smoke is disabled by default and requires
 `RATIFLOW_LIVE_LUNA_SMOKE=1` plus an authorized server-only `open_ai_api` or
 `OPENAI_API_KEY`; a credential pasted into chat is never eligible. An eligible recorded
 result must be regenerated from an exact clean source SHA. The exploratory C0 run makes
-three bounded calls: omit `tool_choice` and require client `tool_search_call` on
-start; return one strict synthetic function with `tool_choice: "required"` and require
-`function_call`; return a fixed `function_call_output` with no `tool_choice` and require
-terminal `LUNA_RELAY_SMOKE_OK`. It logs only item types, sanitized response-reference
+three bounded calls: omit `tool_choice` and require client `tool_search_call` on start;
+return the deferred discovery result plus exactly one active strict function with an
+exact named function selector and require that `function_call`; return a fixed
+`function_call_output` with `tools: []` and `tool_choice: "none"` and require terminal
+`LUNA_RELAY_SMOKE_OK`. It logs only item types, sanitized response-reference
 digests, aggregate usage, timing, and pass/fail. It never runs from the default fast gate.
 
 Release requires these adversarial results:

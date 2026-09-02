@@ -19,6 +19,7 @@ import {
   ISSUE_COMMENT_MAX_LENGTH,
   ISSUE_TITLE_MAX_LENGTH,
   REPOSITORY_TOOL_NAMES,
+  type CreateDirectoryMentionHttpInput,
   type IssueActorSnapshot,
   type IssueAgentProfile,
   type IssueAnchor,
@@ -34,16 +35,32 @@ import {
   type RepositoryBrowserClientPort,
   type RepositoryFailure,
 } from "@/repository/contracts";
+import type {
+  DirectoryMentionReceipt,
+  DirectoryEntry,
+  ManagedAgentDirectoryEntry,
+  RelayFailure,
+  RelayResult,
+  RelayWorkspaceState,
+} from "@/agent-relay/contracts";
+import { splitLivingDocumentIntoSheets, type LivingDocumentSheet } from "@/agent-relay/fixtures";
+import type { RelayBrowserRuntimeStatus } from "@/agent-relay/browser";
+import { MANAGED_RELAY_EXAMPLE_OVERLAYS } from "@/domain/repository-examples";
 import { reconcileIssueSurface } from "@/repository/surface-reconciliation";
 import type { RepositoryWebMCPBridgeStatus } from "@/webmcp/repository-types";
 
 import { MarkdownDocument, type MarkdownSelectionEvent } from "./MarkdownDocument";
+import { ManagedDirectory } from "./ManagedDirectory";
+import { RelayFlightRecorder } from "./RelayFlightRecorder";
 import { repositorySelectionFromDom, type RepositorySourceSelection } from "./markdown-source-map";
 import { RepositoryWebMCPBridge } from "./RepositoryWebMCPBridge";
 import styles from "./repository-workspace.module.css";
 
-type RailTab = "COMMENTS" | "HISTORY";
+type RailTab = "COMMENTS" | "HISTORY" | "RELAY";
 type AgentExecutionTool = "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null;
+
+const RAIL_TABS: readonly RailTab[] = ["COMMENTS", "HISTORY", "RELAY"];
+const TERMINAL_RELAY_RUNS = new Set(["COMPLETED", "EXHAUSTED", "CANCELLED"]);
 
 interface DocumentDraft {
   title: string;
@@ -55,13 +72,60 @@ interface SelectionDraft extends RepositorySourceSelection {
   rect: { left: number; top: number; bottom: number; width: number; height: number };
 }
 
+export function repositoryLivingDocumentSheets(
+  kind: IssueDocumentKind,
+  body: string,
+): readonly [LivingDocumentSheet, LivingDocumentSheet] | null {
+  try {
+    return splitLivingDocumentIntoSheets(kind, body);
+  } catch {
+    // Blank and user-authored documents remain a single continuous writing surface.
+    return null;
+  }
+}
+
+export function repositorySectionBodySelection(
+  body: string,
+  heading: string,
+): RepositorySourceSelection | null {
+  const headingStart = body.indexOf(heading);
+  if (headingStart < 0) return null;
+  let startUtf16 = headingStart + heading.length;
+  while (body[startUtf16] === "\r" || body[startUtf16] === "\n") startUtf16 += 1;
+  const nextHeading = body.indexOf("\n## ", startUtf16);
+  const rawEndUtf16 = nextHeading < 0 ? body.length : nextHeading;
+  const selectedText = body.slice(startUtf16, rawEndUtf16).trimEnd();
+  if (!selectedText) return null;
+  const endUtf16 = startUtf16 + selectedText.length;
+  return {
+    field: "BODY",
+    rangeStart: Array.from(body.slice(0, startUtf16)).length,
+    rangeEnd: Array.from(body.slice(0, endUtf16)).length,
+    selectedText,
+  };
+}
+
 export interface RepositoryWorkspaceProps {
   session: IssueSessionBundle;
-  service: RepositoryBrowserClientPort;
+  service: RepositoryWorkspaceServicePort;
   shareUrl?: string;
   onNewDocument?: () => void;
   onSessionUnavailable?: (message: string) => void;
   onSurfaceChange?: (surface: IssueWorkspaceSurface) => void;
+}
+
+export interface RepositoryWorkspaceServicePort extends RepositoryBrowserClientPort {
+  createDirectoryMention(
+    sessionToken: string,
+    input: CreateDirectoryMentionHttpInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<DirectoryMentionReceipt>>;
+}
+
+export function repositoryDirectoryEntryKey(entry: DirectoryEntry): string {
+  return entry.kind === "AGENT"
+    ? `AGENT:${entry.profileId}`
+    : `HUMAN:${entry.member.memberId}`;
 }
 
 export function repositorySessionIdentity(
@@ -93,13 +157,24 @@ export function repositoryAuthorityLabel(authority: IssueRevisionProvenance["aut
   return "Human edit";
 }
 
-function agentIdentity(actor: Extract<IssueActorSnapshot, { actorType: "AGENT" }>): string {
+function agentIdentity(
+  actor: Extract<IssueActorSnapshot, { actorType: "AGENT" }>,
+  directory: readonly ManagedAgentDirectoryEntry[] = [],
+): string {
+  const managed = directory.find((entry) =>
+    entry.identitySource === "DEMO_DIRECTORY"
+    && entry.principal.memberId === actor.member.memberId
+    && entry.displayName === actor.agentLabel);
+  if (managed) return `${managed.displayName} · managed agent`;
   return `${actor.agentLabel} · ${actor.member.displayName}`;
 }
 
-export function repositoryProvenanceSummary(provenance: IssueRevisionProvenance): string {
-  if (provenance.authority === "DIRECT") return `${agentIdentity(provenance.author)} changed the document`;
-  if (provenance.authority === "REVIEW") return `${agentIdentity(provenance.author)} authored · ${provenance.approvedBy.displayName} applied`;
+export function repositoryProvenanceSummary(
+  provenance: IssueRevisionProvenance,
+  directory: readonly ManagedAgentDirectoryEntry[] = [],
+): string {
+  if (provenance.authority === "DIRECT") return `${agentIdentity(provenance.author, directory)} changed the document`;
+  if (provenance.authority === "REVIEW") return `${agentIdentity(provenance.author, directory)} authored · ${provenance.approvedBy.displayName} applied`;
   if (provenance.authority === "RESTORE") return `${provenance.author.displayName} restored r${provenance.restoredRevision}`;
   return `${provenance.author.displayName} edited the document`;
 }
@@ -184,7 +259,7 @@ function formatDateTime(value: string): string {
   return REPOSITORY_DATE_FORMATTER.format(date).replace(",", " ·") + " UTC";
 }
 
-function failureMessage(failure: RepositoryFailure): string {
+function failureMessage(failure: Pick<RepositoryFailure, "message">): string {
   return failure.message || "The document could not be updated.";
 }
 
@@ -192,8 +267,11 @@ function isSelectionAnchor(anchor: IssueAnchor): anchor is IssueSelectionAnchor 
   return anchor.scope === "SELECTION";
 }
 
-function actorLabel(actor: IssueActorSnapshot): string {
-  return actor.actorType === "AGENT" ? agentIdentity(actor) : actor.displayName;
+function actorLabel(
+  actor: IssueActorSnapshot,
+  directory: readonly ManagedAgentDirectoryEntry[] = [],
+): string {
+  return actor.actorType === "AGENT" ? agentIdentity(actor, directory) : actor.displayName;
 }
 
 function statusLabel(task: IssueTask): string {
@@ -243,6 +321,7 @@ function ChangeDiff({ before, after }: { before: string; after: string }) {
 interface CollaborationCardProps {
   thread: IssueThread;
   task: IssueTask | null;
+  directory: readonly ManagedAgentDirectoryEntry[];
   replyOpen: boolean;
   replyBody: string;
   busy: boolean;
@@ -253,7 +332,7 @@ interface CollaborationCardProps {
   onRestoreBeforeTask: () => void;
 }
 
-function CollaborationCard({ thread, task, replyOpen, replyBody, busy, onReplyOpen, onReplyBody, onReplySubmit, onClose, onRestoreBeforeTask }: CollaborationCardProps) {
+function CollaborationCard({ thread, task, directory, replyOpen, replyBody, busy, onReplyOpen, onReplyBody, onReplySubmit, onClose, onRestoreBeforeTask }: CollaborationCardProps) {
   const root = thread.comments[0];
   const replies = thread.comments.slice(1);
   const anchor = thread.anchor;
@@ -265,7 +344,7 @@ function CollaborationCard({ thread, task, replyOpen, replyBody, busy, onReplyOp
     <article className={styles.commentCard} data-kind={task ? "agent" : "human"} data-status={task?.status.toLowerCase() ?? thread.status.toLowerCase()}>
       <header>
         <span className={styles.actorAvatar} data-agent={root?.author.actorType === "AGENT" ? "true" : "false"}>{initials(root?.author.displayName ?? thread.createdBy.displayName)}</span>
-        <div><strong>{root ? actorLabel(root.author) : thread.createdBy.displayName}</strong><small>{formatDateTime(root?.createdAt ?? thread.createdAt)}</small></div>
+        <div><strong>{root ? actorLabel(root.author, directory) : thread.createdBy.displayName}</strong><small>{formatDateTime(root?.createdAt ?? thread.createdAt)}</small></div>
         <span className={styles.threadState}>{task ? statusLabel(task) : thread.status === "OPEN" ? "Open" : "Closed"}</span>
       </header>
 
@@ -276,7 +355,7 @@ function CollaborationCard({ thread, task, replyOpen, replyBody, busy, onReplyOp
       {replies.length ? (
         <ol className={styles.replyList}>
           {replies.map((comment) => (
-            <li key={comment.commentId}><span>{initials(comment.author.displayName)}</span><div><strong>{actorLabel(comment.author)}</strong><p>{comment.body}</p><small>{formatDateTime(comment.createdAt)}</small></div></li>
+            <li key={comment.commentId}><span>{initials(comment.author.displayName)}</span><div><strong>{actorLabel(comment.author, directory)}</strong><p>{comment.body}</p><small>{formatDateTime(comment.createdAt)}</small></div></li>
           ))}
         </ol>
       ) : null}
@@ -352,6 +431,11 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const [agentPanelOpen, setAgentPanelOpen] = useState(true);
   const [agentSetupName, setAgentSetupName] = useState("");
   const [agentPromptCopied, setAgentPromptCopied] = useState(false);
+  const [relayState, setRelayState] = useState<RelayWorkspaceState | null>(null);
+  const [relayRuntimeStatus, setRelayRuntimeStatus] = useState<RelayBrowserRuntimeStatus | null>(null);
+  const [relayWakeSignal, setRelayWakeSignal] = useState(0);
+  const [relayRetrySignal, setRelayRetrySignal] = useState(0);
+  const [selectedDirectoryKey, setSelectedDirectoryKey] = useState<string | null>(null);
 
   const surfaceRef = useRef(surface);
   const draftRef = useRef(draft);
@@ -367,7 +451,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const sessionIdentity = repositorySessionIdentity(session);
   const isActiveSession = useCallback(() => activeSessionIdentityRef.current === sessionIdentity, [sessionIdentity]);
 
-  const handleFailure = useCallback((failure: RepositoryFailure) => {
+  const handleFailure = useCallback((failure: RepositoryFailure | RelayFailure) => {
     if (failure.code === "UNAUTHORIZED" || failure.code === "NOT_FOUND") return onSessionUnavailable?.(failureMessage(failure));
     setStatusMessage(failureMessage(failure));
   }, [onSessionUnavailable]);
@@ -424,6 +508,11 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setAgentPanelOpen(true);
     setAgentSetupName("");
     setAgentPromptCopied(false);
+    setRelayState(null);
+    setRelayRuntimeStatus(null);
+    setRelayWakeSignal(0);
+    setRelayRetrySignal(0);
+    setSelectedDirectoryKey(null);
   }, [publishSurface, session.surface, sessionIdentity]);
 
   useEffect(() => {
@@ -526,7 +615,72 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     } });
     setCommentText("");
     setSelectedAgentId(null);
+    setSelectedDirectoryKey(null);
   }, []);
+
+  const directory = relayState?.directory ?? [];
+  const managedDirectory = directory.filter(
+    (entry): entry is ManagedAgentDirectoryEntry =>
+      entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY",
+  );
+  const guided = MANAGED_RELAY_EXAMPLE_OVERLAYS[surface.document.kind].guidedWork;
+  const primarySpecialty = guided.agentHandle === "code" ? "CODE" : "DATA";
+  const primaryRunCompleted = relayState?.runs.some(
+    (run) => run.specialty === primarySpecialty && run.status === "COMPLETED",
+  ) ?? false;
+  const suggestedHandle = primaryRunCompleted ? "general" : guided.agentHandle;
+  const suggestedDisplayName = suggestedHandle === "general"
+    ? "General"
+    : suggestedHandle === "code" ? "Code" : "Data";
+  const suggestedDirectoryTarget = directory.find(
+    (entry): entry is ManagedAgentDirectoryEntry => entry.kind === "AGENT"
+      && entry.identitySource === "DEMO_DIRECTORY"
+      && entry.handle === suggestedHandle,
+  ) ?? null;
+  const suggestedPrompt = primaryRunCompleted
+    ? surface.document.kind === "POSTMORTEM"
+      ? "@General Reword this entire Root cause section for clarity using the company style guide. Preserve every date, quantity, source reference, and the distinction between external trigger and internal amplifier, then replace only this section."
+      : "@General Reword this entire Success measures section for clarity using the company style guide. Preserve every date, quantity, source reference, and launch-stage label, then replace only this section."
+    : guided.prompt;
+
+  const openGuidedSelection = () => {
+    if (!suggestedDirectoryTarget) {
+      setStatusMessage("The demo directory is still loading. Try the guided action again in a moment.");
+      return;
+    }
+    const mapped = primaryRunCompleted
+      ? repositorySectionBodySelection(surface.document.body, guided.sectionHeading)
+      : (() => {
+          const startUtf16 = surface.document.body.indexOf(guided.selectionText);
+          if (startUtf16 < 0) return null;
+          const endUtf16 = startUtf16 + guided.selectionText.length;
+          return {
+            field: "BODY" as const,
+            rangeStart: Array.from(surface.document.body.slice(0, startUtf16)).length,
+            rangeEnd: Array.from(surface.document.body.slice(0, endUtf16)).length,
+            selectedText: guided.selectionText,
+          };
+        })();
+    if (!mapped) {
+      setStatusMessage("That suggested section is no longer available. Select any passage to run a specialist.");
+      return;
+    }
+    const normalizedNeedle = mapped.selectedText
+      .replace(/[`*_#]/gu, "")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .slice(0, 64);
+    const target = [...document.querySelectorAll<HTMLElement>('[data-source-start][data-source-end]')]
+      .find((element) => (element.textContent ?? "").replace(/\s+/gu, " ").includes(normalizedNeedle));
+    target?.scrollIntoView({ block: "center" });
+    const rect = target?.getBoundingClientRect();
+    openSelection({
+      ...mapped,
+      rect: rect ?? { left: 24, top: 100, bottom: 140, width: 320, height: 40 },
+    });
+    setCommentText(suggestedPrompt);
+    setSelectedDirectoryKey(repositoryDirectoryEntryKey(suggestedDirectoryTarget));
+  };
 
   const captureTitleSelection = (event: MouseEvent<HTMLHeadingElement> | KeyboardEvent<HTMLHeadingElement>) => {
     const root = titleReadRef.current;
@@ -538,6 +692,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     event.stopPropagation();
   };
 
+  const selectedDirectoryTarget = directory.find((entry) => repositoryDirectoryEntryKey(entry) === selectedDirectoryKey) ?? null;
   const selectedAgent = surface.agents.find((agent) => agent.profileId === selectedAgentId) ?? null;
   const mentionMatch = commentText.match(/^@([^\t\r\n ]*)/u);
   const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase() ?? null;
@@ -550,12 +705,24 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     const remainder = commentText.slice(tokenLength);
     setCommentText(repositoryClampCodePoints(`@${agent.name}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
     setSelectedAgentId(agent.profileId);
+    setSelectedDirectoryKey(null);
+  };
+
+  const chooseDirectoryTarget = (entry: DirectoryEntry) => {
+    const tokenLength = mentionMatch?.[0].length ?? 0;
+    const remainder = commentText.slice(tokenLength);
+    setCommentText(repositoryClampCodePoints(`@${entry.displayName}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
+    setSelectedDirectoryKey(repositoryDirectoryEntryKey(entry));
+    setSelectedAgentId(null);
   };
 
   const changeCommentText = (value: string) => {
     const next = repositoryClampCodePoints(value, ISSUE_COMMENT_MAX_LENGTH);
     setCommentText(next);
     if (selectedAgent && !repositoryCommentStartsWithAgent(next, selectedAgent.name)) setSelectedAgentId(null);
+    if (selectedDirectoryTarget && !repositoryCommentStartsWithAgent(next, selectedDirectoryTarget.displayName)) {
+      setSelectedDirectoryKey(null);
+    }
   };
 
   const closeComposer = () => {
@@ -563,12 +730,51 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setSelection(null);
     setCommentText("");
     setSelectedAgentId(null);
+    setSelectedDirectoryKey(null);
   };
 
   const submitComment = async () => {
     if (!selection || !commentText.trim() || commentBusy) return;
     setCommentBusy(true);
     const anchor = { scope: "SELECTION" as const, field: selection.field, rangeStart: selection.rangeStart, rangeEnd: selection.rangeEnd };
+    if (selectedDirectoryTarget && repositoryCommentStartsWithAgent(commentText, selectedDirectoryTarget.displayName)) {
+      try {
+        const mentionInput: CreateDirectoryMentionHttpInput = selectedDirectoryTarget.kind === "AGENT" ? {
+          expectedRevision: selection.expectedRevision,
+          comment: commentText,
+          target: { kind: "AGENT", profileId: selectedDirectoryTarget.profileId },
+          anchor,
+        } : {
+          expectedRevision: selection.expectedRevision,
+          comment: commentText,
+          target: { kind: "HUMAN", memberId: selectedDirectoryTarget.member.memberId },
+          anchor,
+        };
+        const result = await service.createDirectoryMention(session.humanSessionToken, mentionInput);
+        if (!isActiveSession()) return;
+        if (!result.ok) return handleFailure(result);
+        setRelayWakeSignal((current) => current + 1);
+        const inspected = await service.inspect(session.humanSessionToken);
+        if (!isActiveSession()) return;
+        if (inspected.ok) publishSurface(inspected.data);
+        else handleFailure(inspected);
+        const managed = result.data.outcome === "MANAGED_TASK_QUEUED";
+        setRailTab(managed ? "RELAY" : "COMMENTS");
+        setRailOpen(true);
+        setStatusMessage(managed
+          ? relayAvailable
+            ? `@${selectedDirectoryTarget.displayName} queued. This page is starting the relay now.`
+            : `@${selectedDirectoryTarget.displayName} queued. Open this document in a WebMCP-enabled browser to run it.`
+          : `Discussion opened with @${selectedDirectoryTarget.displayName}.`);
+        closeComposer();
+        return;
+      } catch {
+        setStatusMessage("The directory mention could not be posted. Please try again.");
+        return;
+      } finally {
+        setCommentBusy(false);
+      }
+    }
     const result = selectedAgent && repositoryCommentStartsWithAgent(commentText, selectedAgent.name)
       ? await service.createMentionTask(session.humanSessionToken, {
           expectedRevision: selection.expectedRevision, comment: commentText, mentionedAgentName: selectedAgent.name,
@@ -685,7 +891,21 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const agentToolsReady = Boolean(webMCPStatus?.supported && !webMCPStatus.error && REPOSITORY_TOOL_NAMES.every((name) => webMCPStatus.registeredTools.includes(name)));
   const selfMember = surface.members.find((member) => member.memberId === session.selfMemberId) ?? null;
   const selfDisplayName = selfMember?.displayName ?? "this collaborator";
-  const agentContextLabel = activeAgentTool
+  const activeRelayRun = relayState?.runs.find((run) => !TERMINAL_RELAY_RUNS.has(run.status))
+    ?? relayState?.runs.at(-1)
+    ?? null;
+  const activeRelayAgent = activeRelayRun
+    ? managedDirectory.find((entry) => entry.profileId === activeRelayRun.profileId) ?? null
+    : null;
+  const managedAgentCount = managedDirectory.length;
+  const relayAvailable = relayRuntimeStatus?.webMcpAvailable === true;
+  const agentContextLabel = activeRelayAgent && activeRelayRun && !TERMINAL_RELAY_RUNS.has(activeRelayRun.status)
+    ? `@${activeRelayAgent.displayName} working`
+    : managedAgentCount
+      ? relayAvailable
+        ? `${managedAgentCount} managed agents ready`
+        : `${managedAgentCount} agents · WebMCP off`
+      : activeAgentTool
     ? "Agent working"
     : connectedAgent
       ? `${connectedAgent.name} connected`
@@ -696,7 +916,11 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
           : webMCPStatus?.error
             ? "Agent tools need a reload"
             : "Checking agent tools";
-  const agentContextDetail = connectedAgent
+  const agentContextDetail = managedAgentCount
+    ? relayAvailable
+      ? "Managed agents can claim mentions while this document page remains open."
+      : "The directory is available, but this browser is not currently exposing WebMCP. Mentions remain durable until an eligible page opens."
+    : connectedAgent
     ? `${connectedAgent.name} is connected on this page and owned by ${selfDisplayName}.`
     : agentToolsReady
       ? `No agent is connected on this page for ${selfDisplayName}.`
@@ -708,7 +932,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
 
   const composerStyle = selection ? {
     "--comment-x": `${Math.max(12, Math.min(selection.rect.left, typeof window === "undefined" ? 700 : window.innerWidth - 350))}px`,
-    "--comment-y": `${Math.max(72, Math.min(selection.rect.bottom + 10, typeof window === "undefined" ? 500 : window.innerHeight - 330))}px`,
+    "--comment-y": `${Math.max(72, Math.min(selection.rect.bottom + 10, typeof window === "undefined" ? 188 : window.innerHeight - 532))}px`,
   } as CSSProperties : undefined;
 
   const receiveMarkdownSelection = useCallback((mapped: MarkdownSelectionEvent) => openSelection(mapped), [openSelection]);
@@ -716,15 +940,25 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const changeRailTabFromKeyboard = (event: KeyboardEvent<HTMLButtonElement>, current: RailTab) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const next: RailTab = event.key === "ArrowLeft" || event.key === "Home"
-      ? "COMMENTS"
-      : event.key === "ArrowRight" || event.key === "End"
-        ? "HISTORY"
-        : current;
+    const currentIndex = RAIL_TABS.indexOf(current);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? RAIL_TABS.length - 1
+        : event.key === "ArrowLeft"
+          ? (currentIndex - 1 + RAIL_TABS.length) % RAIL_TABS.length
+          : (currentIndex + 1) % RAIL_TABS.length;
+    const next = RAIL_TABS[nextIndex] ?? current;
     setRailTab(next);
-    const index = next === "COMMENTS" ? 0 : 1;
-    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
   };
+  const livingDocumentSheets = useMemo(
+    () => repositoryLivingDocumentSheets(surface.document.kind, surface.document.body),
+    [surface.document.body, surface.document.kind],
+  );
+  const secondSheetOffset = livingDocumentSheets
+    ? Array.from(`${livingDocumentSheets[0].markdown}\n`).length
+    : 0;
 
   return (
     <div className={styles.shell} data-rail-open={railOpen ? "true" : "false"} data-testid="repository-workspace">
@@ -737,15 +971,15 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
         <div className={styles.topbarActions}>
           <button
             className={styles.agentState}
-            data-connected={connectedAgent ? "true" : "false"}
-            data-ready={agentToolsReady ? "true" : "false"}
+            data-connected={activeRelayAgent || connectedAgent ? "true" : "false"}
+            data-ready={relayAvailable || agentToolsReady ? "true" : "false"}
             type="button"
             aria-controls="repository-agent-setup"
             aria-expanded={agentPanelOpen}
-            aria-label={`${agentContextLabel}. Open agent setup.`}
+            aria-label={`${agentContextLabel}. Open agent guide.`}
             title={agentContextDetail}
             onClick={() => setAgentPanelOpen((current) => !current)}
-          ><i /><span className={styles.agentStateLong}>{agentContextLabel}</span><span className={styles.agentStateShort}>{connectedAgent?.name ?? (webMCPStatus?.supported === false ? "Human" : "Agent")}</span></button>
+          ><i /><span className={styles.agentStateLong}>{agentContextLabel}</span><span className={styles.agentStateShort}>{activeRelayAgent ? `@${activeRelayAgent.displayName}` : connectedAgent?.name ?? "Relay"}</span></button>
           {editMode ? <><button className={styles.quietButton} type="button" disabled={saving} onClick={cancelEdit}>Cancel</button><button className={styles.primaryButton} data-testid="save-revision" type="button" disabled={!dirty || saving || Boolean(conflict)} onClick={() => void saveDraft()}>{saving ? "Saving…" : "Save"}</button></> : <button className={styles.quietButton} type="button" onClick={() => setEditMode(true)}>Edit</button>}
           <button className={styles.quietButton} type="button" onClick={() => void copyShareLink()}>{shareCopied ? "Copied" : "Share"}</button>
           <button className={styles.commentsButton} type="button" aria-expanded={railOpen} aria-controls="repository-collaboration-rail" onClick={() => { setRailTab("COMMENTS"); setRailOpen((current) => !current); }}>Comments {openCount ? <b>{openCount}</b> : null}</button>
@@ -757,71 +991,73 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
           {agentPanelOpen ? (
             <section
               id="repository-agent-setup"
-              className={styles.agentSetup}
-              data-state={connectedAgent ? "connected" : agentToolsReady ? "ready" : webMCPStatus?.supported === false ? "unsupported" : webMCPStatus?.error ? "error" : "loading"}
+              className={`${styles.agentSetup} ${styles.managedCoach}`}
+              data-state={relayAvailable ? "ready" : webMCPStatus?.error ? "error" : "unsupported"}
               aria-labelledby="repository-agent-setup-title"
             >
               <header>
                 <div>
-                  <p>Workspace setup · {selfDisplayName}</p>
-                  <h2 id="repository-agent-setup-title">
-                    {connectedAgent
-                      ? "Your agent is ready to mention."
-                      : agentToolsReady
-                        ? "Bring your agent into this document."
-                        : webMCPStatus?.supported === false
-                          ? "Keep working in human mode."
-                          : webMCPStatus?.error
-                            ? "Agent setup needs a reload."
-                            : "Checking agent support…"}
-                  </h2>
+                  <p>Live demo · {selfDisplayName}</p>
+                  <h2 id="repository-agent-setup-title">Select a passage. Mention a specialist. Watch the proof.</h2>
                 </div>
                 <button type="button" aria-label="Close agent setup" onClick={() => setAgentPanelOpen(false)}>×</button>
               </header>
 
-              {connectedAgent ? (
-                <div className={styles.connectedAgent}>
-                  <span aria-hidden="true">{initials(connectedAgent.name)}</span>
-                  <div><strong>{connectedAgent.name}</strong><p>Connected for this page · owned by {selfDisplayName}</p></div>
-                  <small>Select a passage and type <code>@{connectedAgent.name}</code> to assign it.</small>
-                </div>
-              ) : agentToolsReady ? (
-                <form className={styles.agentSetupForm} onSubmit={(event) => { event.preventDefault(); void copyAgentPrompt(); }}>
-                  <p>Name the agent you are bringing, copy the instruction, and send it in this WebMCP-capable client. The agent appears in the <code>@</code> menu only after it connects.</p>
-                  <label htmlFor="repository-agent-setup-name">Agent name</label>
-                  <div>
-                    <input
-                      id="repository-agent-setup-name"
-                      autoComplete="off"
-                      maxLength={ISSUE_AGENT_NAME_MAX_LENGTH}
-                      placeholder="e.g. Researchbot"
-                      value={agentSetupName}
-                      onChange={(event) => setAgentSetupName(repositoryClampCodePoints(event.target.value.replace(/[@\r\n\u2028\u2029]/gu, ""), ISSUE_AGENT_NAME_MAX_LENGTH))}
-                    />
-                    <button type="submit" disabled={!agentSetupName.trim()}>{agentPromptCopied ? "Copied" : "Copy agent prompt"}</button>
-                  </div>
-                  <code>Connect to this Ratiflow document as &quot;{agentSetupName.trim() || "Researchbot"}&quot;. Call connect_agent first, then inspect_document.</code>
-                  <small>Preparing this prompt does not register a profile; the agent self-declares its name through the page tool.</small>
-                </form>
-              ) : webMCPStatus?.supported === false ? (
-                <div className={styles.agentSetupMessage}>
-                  <strong>No agent is connected.</strong>
-                  <p>This browser does not expose WebMCP agent tools. You can edit, comment, share, and inspect history normally. To bring an agent, open or join the document from a WebMCP-capable client.</p>
-                </div>
-              ) : webMCPStatus?.error ? (
-                <div className={styles.agentSetupMessage} role="alert"><strong>The page could not register its agent tools.</strong><p>{webMCPStatus.error}</p></div>
-              ) : (
-                <div className={styles.agentSetupMessage} aria-live="polite"><strong>Checking this client…</strong><p>The document remains available while agent support is detected.</p></div>
-              )}
+              <div className={styles.managedCoachBody}>
+                <ol className={styles.coachSteps}>
+                  <li><b>1</b><span><strong>{primaryRunCompleted ? "Continue with a clarity pass" : "Prepare the guided specialist run"}</strong><small>One click selects the exact section and loads the full prompt.</small><button type="button" data-testid="guided-selection" disabled={!suggestedDirectoryTarget} onClick={openGuidedSelection}>Load @{suggestedDisplayName} on {guided.sectionHeading.replace(/^## /u, "")}</button></span></li>
+                  <li><b>2</b><span><strong>Review, then assign @{suggestedDisplayName}</strong><small>The agent can change only the selected passage; you still choose when to run it.</small></span></li>
+                  <li><b>3</b><span><strong>Watch the Flight Recorder</strong><small>See WebMCP discovery, Luna&apos;s calls, evidence, diff, and revision.</small><button type="button" onClick={() => { setRailTab("RELAY"); setRailOpen(true); }}>Open Flight Recorder</button></span></li>
+                </ol>
+                <aside className={styles.coachDirectory} aria-label="Company directory preview">
+                  {directory.length ? <><ManagedDirectory directory={directory} showHumans={false} /><small>{managedAgentCount} managed agents · {directory.filter((entry) => entry.kind === "HUMAN").length} people appear in the <code>@</code> menu</small></> : <div className={styles.directoryLoading}><strong>Loading the directory…</strong><span>The document stays fully editable while this page checks its relay state.</span></div>}
+                  <p data-ready={relayAvailable ? "true" : "false"}><i />{relayAvailable ? "WebMCP is ready. Mentions wake immediately; 15 seconds is recovery only." : "WebMCP is not exposed in this browser. Mentions stay durable until an eligible page opens."}</p>
+                </aside>
+              </div>
 
               <footer>
-                <p>One current agent identity per collaborator. Teammates connect their own.</p>
-                <button type="button" onClick={() => setAgentPanelOpen(false)}>{connectedAgent ? "Done" : "Continue without an agent"}</button>
+                <p>Managed runs send the task, selected passage, bounded document and collaboration context, and labeled synthetic fixture results to OpenAI. The API key stays server-side.</p>
+                <button type="button" onClick={() => setAgentPanelOpen(false)}>Got it</button>
               </footer>
+
+              <details className={styles.advancedAgentSetup}>
+                <summary>Advanced: {connectedAgent ? `${connectedAgent.name} connected` : "bring your own agent"}</summary>
+                {connectedAgent ? (
+                  <div className={styles.connectedAgent}>
+                    <span aria-hidden="true">{initials(connectedAgent.name)}</span>
+                    <div><strong>{connectedAgent.name}</strong><p>Connected for this page · owned by {selfDisplayName}</p></div>
+                    <small>Select a passage and type <code>@{connectedAgent.name}</code> to assign it.</small>
+                  </div>
+                ) : agentToolsReady ? (
+                  <form className={styles.agentSetupForm} onSubmit={(event) => { event.preventDefault(); void copyAgentPrompt(); }}>
+                    <p>Name the agent you are bringing, copy the instruction, and send it in this WebMCP-capable client. The agent appears in the <code>@</code> menu only after it connects.</p>
+                    <label htmlFor="repository-agent-setup-name">Agent name</label>
+                    <div>
+                      <input
+                        id="repository-agent-setup-name"
+                        autoComplete="off"
+                        maxLength={ISSUE_AGENT_NAME_MAX_LENGTH}
+                        placeholder="e.g. Researchbot"
+                        value={agentSetupName}
+                        onChange={(event) => setAgentSetupName(repositoryClampCodePoints(event.target.value.replace(/[@\r\n\u2028\u2029]/gu, ""), ISSUE_AGENT_NAME_MAX_LENGTH))}
+                      />
+                      <button type="submit" disabled={!agentSetupName.trim()}>{agentPromptCopied ? "Copied" : "Copy agent prompt"}</button>
+                    </div>
+                    <code>Connect to this Ratiflow document as &quot;{agentSetupName.trim() || "Researchbot"}&quot;. Call connect_agent first, then inspect_document.</code>
+                    <small>Preparing this prompt does not register a profile; the agent self-declares its name through the page tool.</small>
+                  </form>
+                ) : webMCPStatus?.supported === false ? (
+                  <div className={styles.agentSetupMessage}><strong>BYOA tools are not exposed.</strong><p>You can still edit, comment, share, and inspect history normally. Reopen this document in a WebMCP-capable client to connect your own agent.</p></div>
+                ) : webMCPStatus?.error ? (
+                  <div className={styles.agentSetupMessage} role="alert"><strong>The page could not register its BYOA tools.</strong><p>{webMCPStatus.error}</p></div>
+                ) : (
+                  <div className={styles.agentSetupMessage} aria-live="polite"><strong>Checking this client…</strong><p>The document remains available while agent support is detected.</p></div>
+                )}
+              </details>
             </section>
           ) : null}
-          <article className={styles.documentPaper} data-testid="writing-surface">
-            {editMode ? (
+          {editMode ? (
+            <article className={styles.documentPaper} data-testid="writing-surface">
               <div className={styles.sourceEditor}>
                 <label htmlFor="repository-document-title">Document title</label>
                 <input id="repository-document-title" autoFocus value={draft.title} onChange={(event) => setDraftField("title", event.target.value)} />
@@ -829,53 +1065,77 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
                 <textarea id="repository-document-body" value={draft.body} spellCheck onChange={(event) => setDraftField("body", event.target.value)} />
                 <p>Tables, task lists, and chart fences render after you save.</p>
               </div>
-            ) : (
+              <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author, managedDirectory)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
+            </article>
+          ) : livingDocumentSheets ? (
+            <div className={styles.documentStack} data-testid="writing-surface" data-sheet-count="2">
+              <div className={styles.documentStackPages} data-testid="rendered-document-body">
+              <article className={`${styles.documentPaper} ${styles.documentSheet}`} aria-label={livingDocumentSheets[0].ariaLabel}>
+                <div className={styles.readingView}>
+                  <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · r{surface.document.revision}</p>
+                  <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} data-commented={titleCommented ? "true" : undefined} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}>{surface.document.title}</h1>
+                  <MarkdownDocument source={livingDocumentSheets[0].markdown} testId={null} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
+                </div>
+                <footer className={styles.documentFooter}><span>Living document · Page 1 of 2</span><span>Revision {surface.document.revision}</span></footer>
+              </article>
+              <article className={`${styles.documentPaper} ${styles.documentSheet}`} aria-label={livingDocumentSheets[1].ariaLabel}>
+                <div className={styles.readingView}>
+                  <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · Page 2 of 2</p>
+                  <MarkdownDocument source={livingDocumentSheets[1].markdown} sourceCodePointOffset={secondSheetOffset} testId={null} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
+                </div>
+                <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author, managedDirectory)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
+              </article>
+              </div>
+            </div>
+          ) : (
+            <article className={styles.documentPaper} data-testid="writing-surface">
               <div className={styles.readingView}>
                 <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · r{surface.document.revision}</p>
                 <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} data-commented={titleCommented ? "true" : undefined} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}>{surface.document.title}</h1>
                 <MarkdownDocument source={surface.document.body} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
               </div>
-            )}
-            <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
-          </article>
+              <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author, managedDirectory)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
+            </article>
+          )}
         </main>
 
-        <aside id="repository-collaboration-rail" className={styles.rail} aria-label="Comments and history">
+        <aside id="repository-collaboration-rail" className={styles.rail} aria-label="Comments, history, and relay">
           <header className={styles.railHeader}>
             <div className={styles.railTabs} role="tablist" aria-label="Document context">
               <button type="button" role="tab" aria-selected={railTab === "COMMENTS"} tabIndex={railTab === "COMMENTS" ? 0 : -1} onClick={() => setRailTab("COMMENTS")} onKeyDown={(event) => changeRailTabFromKeyboard(event, "COMMENTS")}>Comments <span>{comments.length}</span></button>
               <button type="button" role="tab" aria-selected={railTab === "HISTORY"} tabIndex={railTab === "HISTORY" ? 0 : -1} onClick={() => setRailTab("HISTORY")} onKeyDown={(event) => changeRailTabFromKeyboard(event, "HISTORY")}>History <span>{surface.document.revision}</span></button>
+              <button type="button" role="tab" aria-selected={railTab === "RELAY"} tabIndex={railTab === "RELAY" ? 0 : -1} onClick={() => setRailTab("RELAY")} onKeyDown={(event) => changeRailTabFromKeyboard(event, "RELAY")}>Relay <span>{relayState?.runs.length ?? 0}</span></button>
             </div>
-            <button className={styles.railClose} type="button" aria-label="Close comments and history" onClick={() => setRailOpen(false)}>×</button>
+            <button className={styles.railClose} type="button" aria-label="Close collaboration rail" onClick={() => setRailOpen(false)}>×</button>
           </header>
           <div className={styles.railBody}>
             {railTab === "COMMENTS" ? (
               <section aria-label="Comment stream" className={styles.commentStream}>
                 {comments.length ? comments.map((thread) => {
                   const task = thread.taskId ? taskById.get(thread.taskId) ?? null : null;
-                  return <CollaborationCard key={thread.threadId} thread={thread} task={task} replyOpen={replyThreadId === thread.threadId} replyBody={replyThreadId === thread.threadId ? replyBody : ""} busy={threadBusy || historyBusy} onReplyOpen={() => { setReplyThreadId(thread.threadId); setReplyBody(""); }} onReplyBody={setReplyBody} onReplySubmit={() => void postReply()} onClose={() => void closeThread(thread.threadId)} onRestoreBeforeTask={() => {
+                  return <CollaborationCard key={thread.threadId} thread={thread} task={task} directory={managedDirectory} replyOpen={replyThreadId === thread.threadId} replyBody={replyThreadId === thread.threadId ? replyBody : ""} busy={threadBusy || historyBusy} onReplyOpen={() => { setReplyThreadId(thread.threadId); setReplyBody(""); }} onReplyBody={setReplyBody} onReplySubmit={() => void postReply()} onClose={() => void closeThread(thread.threadId)} onRestoreBeforeTask={() => {
                     if (task?.status === "COMPLETED" && task.result?.outcome === "COMMITTED") void restoreRevision(Math.max(1, task.result.resultRevision - 1), `Reverted ${task.taskKey}: ${task.result.resultSummary}`);
                   }} />;
                 }) : <div className={styles.railEmpty}><strong>No comments yet</strong><span>Select a passage to discuss it or type @ to delegate.</span></div>}
               </section>
-            ) : selectedRevision ? (
+            ) : railTab === "HISTORY" && selectedRevision ? (
               <section className={styles.revisionDetail}>
                 <button className={styles.backButton} type="button" onClick={() => { selectedRevisionRef.current = null; setSelectedRevision(null); setRevisionSnapshot(null); }}>← All history</button>
                 <header><span>r{selectedRevision.revision}</span><time>{formatDateTime(selectedRevision.createdAt)}</time></header>
-                <h2>{selectedRevision.changeSummary}</h2><p>{repositoryProvenanceSummary(selectedRevision.provenance)}</p>
+                <h2>{selectedRevision.changeSummary}</h2><p>{repositoryProvenanceSummary(selectedRevision.provenance, managedDirectory)}</p>
                 <RevisionDiff revision={selectedRevision} /><Evidence refs={selectedRevision.evidenceRefs} />
                 {revisionSnapshot ? <p className={styles.snapshotNote}>Immutable snapshot · {revisionSnapshot.title}</p> : <p className={styles.snapshotNote}>Loading immutable snapshot…</p>}
                 {selectedRevision.revision !== surface.document.revision ? <button className={styles.restoreRevision} type="button" disabled={historyBusy} onClick={() => void restoreRevision(selectedRevision.revision, `Restored r${selectedRevision.revision}.`)}>Restore r{selectedRevision.revision}</button> : null}
               </section>
-            ) : (
+            ) : railTab === "HISTORY" ? (
               <section aria-label="Revision history" className={styles.historyStream}>
                 <div className={styles.historyIntro}><strong>Document history</strong><span>Prompts, context, people, agents, and every change stay connected.</span></div>
                 <ol>{allHistory.map((revision) => <li key={revision.revision} data-testid="revision-card" data-revision={revision.revision} data-authority={revision.provenance.authority.toLowerCase()}><button type="button" onClick={() => void inspectRevision(revision)}><i /><span><b>r{revision.revision}</b><strong>{revision.changeSummary}</strong><small>{repositoryRevisionLineageLabel(revision)}</small></span><time>{formatDateTime(revision.createdAt)}</time></button></li>)}</ol>
                 {historyHasMore ? <button className={styles.loadOlder} type="button" disabled={historyBusy} onClick={() => void loadOlderHistory()}>{historyBusy ? "Loading…" : "Load older"}</button> : null}
               </section>
-            )}
+            ) : <section className={styles.relayStream} aria-label="Managed relay evidence"><RelayFlightRecorder state={relayState} runtime={relayRuntimeStatus} onRetry={() => setRelayRetrySignal((current) => current + 1)} /></section>}
           </div>
-          <footer className={styles.railFooter} data-ready={agentToolsReady ? "true" : "false"}><i /><span><strong>{agentContextLabel}</strong><small>History is available to connected agents.</small></span></footer>
+          <footer className={styles.railFooter} data-ready={relayAvailable || agentToolsReady ? "true" : "false"}><i /><span><strong>{agentContextLabel}</strong><small>{relayAvailable ? "Page-bound relay · 15s recovery heartbeat" : "Comments and History remain available"}</small></span></footer>
         </aside>
       </div>
 
@@ -884,12 +1144,13 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
           <header><span>Comment on</span><button type="button" aria-label="Close comment" onClick={closeComposer}>×</button></header>
           <blockquote>{compactExcerpt(selection.selectedText, 130)}</blockquote>
           <label htmlFor="repository-selection-comment">Comment or @ an agent</label>
-          <textarea id="repository-selection-comment" autoFocus maxLength={ISSUE_COMMENT_MAX_LENGTH} placeholder="@Databot pull the latest numbers…" value={commentText} onChange={(event) => changeCommentText(event.target.value)} onKeyDown={(event) => {
+          <textarea id="repository-selection-comment" autoFocus maxLength={ISSUE_COMMENT_MAX_LENGTH} placeholder="Type @ to choose a person or managed agent…" value={commentText} onChange={(event) => changeCommentText(event.target.value)} onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void submitComment(); }
           }} />
-          {mentionQuery !== null && !selectedAgent ? <div className={styles.agentAutocomplete} role="listbox" aria-label="Available agents">{agentSuggestions.length ? agentSuggestions.map((agent) => <button key={agent.profileId} type="button" role="option" aria-selected="false" onClick={() => chooseAgent(agent)}><span>{initials(agent.name)}</span><b>{agent.name}</b><small>{agent.member.displayName}</small></button>) : <p>No matching connected agent. Unselected @ text will stay a human comment.</p>}</div> : null}
+          {mentionQuery !== null && !selectedAgent && !selectedDirectoryTarget ? <div className={styles.agentAutocomplete} role="listbox" aria-label="Company directory"><ManagedDirectory directory={directory} query={mentionQuery} onChoose={chooseDirectoryTarget} />{agentSuggestions.length ? <section className={styles.selfDeclaredSuggestions} aria-label="Advanced connected agents"><header>Advanced · connected on this page</header>{agentSuggestions.map((agent) => <button key={agent.profileId} type="button" role="option" aria-selected="false" onClick={() => chooseAgent(agent)}><span>{initials(agent.name)}</span><b>{agent.name}</b><small>{agent.member.displayName}</small></button>)}</section> : null}{directory.length || agentSuggestions.length ? null : <p>No matching directory entry. Unselected @ text will stay a human comment.</p>}</div> : null}
+          {selectedDirectoryTarget ? <p className={styles.selectedAgent}>{selectedDirectoryTarget.kind === "AGENT" ? "Assigned to" : "Discussion with"} <strong>@{selectedDirectoryTarget.displayName}</strong> · {selectedDirectoryTarget.kind === "AGENT" ? `${selectedDirectoryTarget.specialty.toLowerCase()} specialist` : "human collaborator"}</p> : null}
           {selectedAgent ? <p className={styles.selectedAgent}>Assigned to <strong>{selectedAgent.name}</strong> · {selectedAgent.member.displayName}</p> : null}
-          <footer><small>{selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim()} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedAgent ? "Assign" : "Comment"}</button></footer>
+          <footer><small>{selectedDirectoryTarget?.kind === "AGENT" || selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim()} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedDirectoryTarget?.kind === "AGENT" ? "Assign & run" : selectedDirectoryTarget?.kind === "HUMAN" ? "Mention" : selectedAgent ? "Assign" : "Comment"}</button></footer>
         </aside>
       ) : null}
 
@@ -898,7 +1159,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
       <div className={styles.mobileScrim} aria-hidden="true" onClick={() => setRailOpen(false)} />
       <button className={styles.newDocumentButton} type="button" onClick={() => { if (onNewDocument) onNewDocument(); else router.push("/new"); }}>New document</button>
 
-      <RepositoryWebMCPBridge surface={surface} sessionInstanceId={session.sessionInstanceId} agentSessionToken={session.agentSessionToken} selfMemberId={session.selfMemberId} service={service} onStatusChange={(next) => { if (isActiveSession()) setWebMCPStatus(next); }} onAuthoritativeSurface={receiveAgentSurface} onAgentConnectionChange={(profile) => { if (!isActiveSession()) return; setConnectedAgent(profile); setAgentPanelOpen(profile === null); }} onToolExecutionChange={(tool) => { if (isActiveSession()) setActiveAgentTool(tool); }} />
+      <RepositoryWebMCPBridge surface={surface} sessionInstanceId={session.sessionInstanceId} agentSessionToken={session.agentSessionToken} selfMemberId={session.selfMemberId} service={service} relaySessionToken={session.humanSessionToken} relayWakeSignal={relayWakeSignal} relayRetrySignal={relayRetrySignal} onRelayStateChange={(next) => { if (isActiveSession()) setRelayState(next); }} onRelayRuntimeStatus={(next) => { if (isActiveSession()) setRelayRuntimeStatus(next); }} onStatusChange={(next) => { if (isActiveSession()) setWebMCPStatus(next); }} onAuthoritativeSurface={receiveAgentSurface} onAgentConnectionChange={(profile) => { if (!isActiveSession()) return; setConnectedAgent(profile); }} onToolExecutionChange={(tool) => { if (isActiveSession()) setActiveAgentTool(tool); }} />
     </div>
   );
 }

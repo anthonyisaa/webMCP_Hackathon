@@ -26,13 +26,16 @@ traffic plus queue growth from 420 to 18,240. It must not call provider latency 
 root cause.
 
 The visible Flight Recorder must show one consistent task/run/attempt lineage and the
-ordered WebMCP proof: idle catalog withdrawn, Code catalog registered, `toolchange`, Luna
-client `tool_search`, `getTools()`, tool selection, `executeTool()`, result digest,
+ordered application-observed relay trace: idle catalog withdrawn, Code catalog registered,
+`toolchange`, Luna client `tool_search`, `getTools()`, the server-pinned function call
+returned by Luna, `executeTool()`, result digest,
 revision, Code catalog withdrawn, and idle catalog restored. A later `@General` run on a
 selected section must expose `read_company_style_guide` and
 `check_document_consistency` instead of Code's two specialist tools. History keeps the
 human grantor, managed agent, `gpt-5.6-luna`, runtime
 `OPENAI_LUNA_WEBMCP_RELAY`, synthetic evidence, exact diff, and Restore.
+This readable trace is not native browser attestation; dated supported-client evidence
+against the exact deployed SHA remains the native WebMCP proof class.
 
 This overlay is independently frozen in
 `evals/goldens/repo-document-v4.2/managed-relay.json`. The detailed v4.1 graph below is

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { canonicalJson } from "@/agent-relay/browser/canonical-json";
+
 type Namespace = "document.modelContext" | "navigator.modelContext" | "unsupported";
 type ProbePhase =
   | "INITIALIZING"
@@ -59,12 +61,16 @@ interface ProbeCounters {
 }
 
 interface ProbeEvidence {
-  schemaVersion: 1;
+  schemaVersion: 2;
   kind: "RATIFLOW_WEBMCP_RELAY_LIFECYCLE_PROBE";
   evidenceClass: "UNCLASSIFIED_PAGE_OBSERVATION";
   overall: "PASSED" | "FAILED";
   namespace: Namespace;
-  standardInputEncoding: "OBJECT";
+  observedInputEncoding: "NOT_OBSERVED" | "OBJECT" | "JSON_STRING_COMPAT";
+  cancellationTransport:
+    | "NATIVE_CALLBACK_SIGNAL"
+    | "APPLICATION_PROPAGATED"
+    | "UNAVAILABLE";
   startedAt: string;
   completedAt: string;
   runId: string;
@@ -287,9 +293,33 @@ function decodeNativeResult(raw: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-function assertRelayDescriptorShape(descriptor: WebMCPRegisteredTool): void {
-  if (JSON.stringify(descriptor.inputSchema) !== JSON.stringify(relaySchema)) {
+function relayDescriptorSchema(descriptor: WebMCPRegisteredTool): {
+  schema: Record<string, unknown>;
+  encoding: Exclude<ProbeEvidence["observedInputEncoding"], "NOT_OBSERVED">;
+} {
+  const encoding = typeof descriptor.inputSchema === "string"
+    ? "JSON_STRING_COMPAT"
+    : "OBJECT";
+  let schema: unknown = descriptor.inputSchema;
+  if (typeof schema === "string") {
+    try {
+      schema = JSON.parse(schema) as unknown;
+    } catch {
+      throw new Error("The Relay descriptor exposed an invalid stringified JSON Schema.");
+    }
+  }
+  if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
     throw new Error("The Relay descriptor did not expose the registered JSON Schema object.");
+  }
+  return { schema: schema as Record<string, unknown>, encoding };
+}
+
+function assertRelayDescriptorShape(
+  descriptor: WebMCPRegisteredTool,
+): ProbeEvidence["observedInputEncoding"] {
+  const normalized = relayDescriptorSchema(descriptor);
+  if (canonicalJson(normalized.schema) !== canonicalJson(relaySchema)) {
+    throw new Error("The Relay descriptor did not preserve the registered JSON Schema.");
   }
   if (
     descriptor.annotations?.readOnlyHint !== true
@@ -297,6 +327,7 @@ function assertRelayDescriptorShape(descriptor: WebMCPRegisteredTool): void {
   ) {
     throw new Error("The Relay descriptor did not expose the registered standard annotations.");
   }
+  return normalized.encoding;
 }
 
 function makeIdleTool(): WebMCPTool {
@@ -320,7 +351,10 @@ async function executeAndDecode(
   options?: { signal?: AbortSignal },
 ): Promise<Record<string, unknown>> {
   if (!context.executeTool) throw new Error("document.modelContext.executeTool is unavailable.");
-  return decodeNativeResult(await context.executeTool(descriptor, input, options));
+  const nativeInput = typeof descriptor.inputSchema === "string"
+    ? canonicalRelayInput(input)
+    : input;
+  return decodeNativeResult(await context.executeTool(descriptor, nativeInput, options));
 }
 
 export function WebMCPProbe() {
@@ -346,6 +380,8 @@ export function WebMCPProbe() {
     cancellationObservedByCallback: 0,
   });
   const waitStartedResolverRef = useRef<(() => void) | null>(null);
+  const consumerExecutionSignalRef = useRef<AbortSignal | null>(null);
+  const cancellationTransportRef = useRef<ProbeEvidence["cancellationTransport"]>("UNAVAILABLE");
   const namespace = useSyncExternalStore(
     () => () => undefined,
     detectNamespace,
@@ -480,6 +516,8 @@ export function WebMCPProbe() {
       authorizedEchoes: 0,
       cancellationObservedByCallback: 0,
     };
+    consumerExecutionSignalRef.current = null;
+    cancellationTransportRef.current = "UNAVAILABLE";
     permitRef.current = null;
     const runChecks = makeChecks();
     const mark = (id: ProbeCheckId, status: CheckStatus, detail: string) => {
@@ -499,6 +537,7 @@ export function WebMCPProbe() {
     let relayCatalog: string[] = [];
     let finalCatalog: string[] = [];
     let relayDescriptor: WebMCPRegisteredTool | null = null;
+    let observedInputEncoding: ProbeEvidence["observedInputEncoding"] = "NOT_OBSERVED";
     let relayController: AbortController | null = null;
     let relayRemoved = false;
     let failure: unknown = null;
@@ -592,7 +631,12 @@ export function WebMCPProbe() {
               };
             }
 
-            const signal = options?.signal;
+            const signal = options?.signal ?? consumerExecutionSignalRef.current ?? undefined;
+            cancellationTransportRef.current = options?.signal
+              ? "NATIVE_CALLBACK_SIGNAL"
+              : signal
+                ? "APPLICATION_PROPAGATED"
+                : "UNAVAILABLE";
             if (!signal) {
               return { ok: false, code: "CANCELLATION_SIGNAL_UNAVAILABLE", generation };
             }
@@ -622,11 +666,11 @@ export function WebMCPProbe() {
       mark("get_tools_relay_descriptor", "RUNNING", "Resolving the exact discovered descriptor.");
       relayDescriptor = relayTools.find((tool) => tool.name === relayPhysicalName) ?? null;
       if (!relayDescriptor) throw new Error("The Relay descriptor was not returned by getTools().");
-      assertRelayDescriptorShape(relayDescriptor);
+      observedInputEncoding = assertRelayDescriptorShape(relayDescriptor);
       mark(
         "get_tools_relay_descriptor",
         "PASSED",
-        `${relayDescriptor.name} from ${relayDescriptor.origin}, with the registered schema and standard annotations.`,
+        `${relayDescriptor.name} from ${relayDescriptor.origin}, with the registered schema, standard annotations, and ${observedInputEncoding} input encoding.`,
       );
       if (mountedRef.current) setRegisteredTools(relayCatalog);
 
@@ -691,6 +735,7 @@ export function WebMCPProbe() {
         resolveWaitStarted = resolve;
       });
       waitStartedResolverRef.current = resolveWaitStarted;
+      consumerExecutionSignalRef.current = cancellationController.signal;
       const pendingWait = executeAndDecode(
         context,
         relayDescriptor,
@@ -725,10 +770,11 @@ export function WebMCPProbe() {
       if (countersRef.current.cancellationObservedByCallback !== 1) {
         throw new Error("executeTool rejected, but cancellation never reached the page callback.");
       }
+      consumerExecutionSignalRef.current = null;
       mark(
         "execution_cancellation",
         "PASSED",
-        "The callback observed the execution signal and executeTool rejected with AbortError.",
+        `The callback observed cancellation via ${cancellationTransportRef.current} and executeTool rejected with AbortError.`,
       );
 
       setPhase("RESTORING_IDLE");
@@ -793,6 +839,7 @@ export function WebMCPProbe() {
     } finally {
       permitRef.current = null;
       waitStartedResolverRef.current = null;
+      consumerExecutionSignalRef.current = null;
       lifecycleRef.current = "IDLE";
       if (!relayRemoved) {
         relayController?.abort(abortError("Relay proof stopped"));
@@ -832,12 +879,13 @@ export function WebMCPProbe() {
       }
 
       const evidence: ProbeEvidence = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         kind: "RATIFLOW_WEBMCP_RELAY_LIFECYCLE_PROBE",
         evidenceClass: "UNCLASSIFIED_PAGE_OBSERVATION",
         overall: failure ? "FAILED" : "PASSED",
         namespace: "document.modelContext",
-        standardInputEncoding: "OBJECT",
+        observedInputEncoding,
+        cancellationTransport: cancellationTransportRef.current,
         startedAt,
         completedAt: new Date().toISOString(),
         runId,

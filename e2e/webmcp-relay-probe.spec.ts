@@ -2,10 +2,15 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 type ProbeCheck = { id: string; status: string };
 type ProbeEvidence = {
+  schemaVersion: 2;
   overall: "PASSED" | "FAILED";
   evidenceClass: "UNCLASSIFIED_PAGE_OBSERVATION";
   namespace: string;
-  standardInputEncoding: string;
+  observedInputEncoding: "NOT_OBSERVED" | "OBJECT" | "JSON_STRING_COMPAT";
+  cancellationTransport:
+    | "NATIVE_CALLBACK_SIGNAL"
+    | "APPLICATION_PROPAGATED"
+    | "UNAVAILABLE";
   generation: number;
   relayPhysicalName: string;
   initialCatalog: string[];
@@ -157,9 +162,11 @@ async function readEvidence(page: Page): Promise<ProbeEvidence> {
 
 function expectPassingEvidence(evidence: ProbeEvidence): void {
   expect(evidence.overall).toBe("PASSED");
+  expect(evidence.schemaVersion).toBe(2);
   expect(evidence.evidenceClass).toBe("UNCLASSIFIED_PAGE_OBSERVATION");
   expect(evidence.namespace).toBe("document.modelContext");
-  expect(evidence.standardInputEncoding).toBe("OBJECT");
+  expect(evidence.observedInputEncoding).toBe("OBJECT");
+  expect(evidence.cancellationTransport).toBe("NATIVE_CALLBACK_SIGNAL");
   expect(evidence.initialCatalog).toEqual(["ratiflow_probe_idle"]);
   expect(evidence.relayCatalog).toEqual([evidence.relayPhysicalName]);
   expect(evidence.relayPhysicalName).toMatch(/^ratiflow_probe_relay_g_[a-f0-9]{32}$/u);

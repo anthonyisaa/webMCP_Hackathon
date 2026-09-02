@@ -116,6 +116,286 @@ export type ManagedAgentLogicalToolName =
   | ManagedAgentCommonToolName
   | ManagedAgentSpecialistToolName;
 
+const MODEL_TEXT_SCHEMA = { type: "string", maxLength: 8_000 } as const;
+const MODEL_SHORT_TEXT_SCHEMA = { type: "string", maxLength: 1_000 } as const;
+const MODEL_EVIDENCE_REFS_SCHEMA = {
+  type: "array",
+  minItems: 1,
+  maxItems: 12,
+  items: { type: "string", minLength: 1, maxLength: 240 },
+} as const;
+
+function modelSuccessSchema(data: Readonly<Record<string, unknown>>) {
+  return {
+    type: "object",
+    properties: {
+      ok: { const: true },
+      data,
+    },
+    required: ["ok", "data"],
+    additionalProperties: false,
+  } as const;
+}
+
+/**
+ * Exact, privacy-minimized envelopes that may cross the OpenAI boundary.
+ * Browser tool results remain richer and are projected into these shapes server-side.
+ */
+export const MANAGED_AGENT_MODEL_OUTPUT_SCHEMAS = {
+  read_assignment: modelSuccessSchema({
+    type: "object",
+    properties: {
+      specialty: { type: "string", enum: MANAGED_AGENT_SPECIALTIES },
+      documentTitle: { type: "string", minLength: 1, maxLength: 160 },
+      instruction: { type: "string", minLength: 1, maxLength: 1_000 },
+      selectedText: MODEL_TEXT_SCHEMA,
+      contextBefore: { type: "string", maxLength: 600 },
+      contextAfter: { type: "string", maxLength: 600 },
+      basedOnRevision: { type: "integer", minimum: 1 },
+      syntheticSourceLabels: {
+        type: "array",
+        minItems: 1,
+        maxItems: 12,
+        items: { type: "string", minLength: 1, maxLength: 240 },
+      },
+    },
+    required: [
+      "specialty",
+      "documentTitle",
+      "instruction",
+      "selectedText",
+      "contextBefore",
+      "contextAfter",
+      "basedOnRevision",
+      "syntheticSourceLabels",
+    ],
+    additionalProperties: false,
+  }),
+  read_document_context: modelSuccessSchema({
+    type: "object",
+    properties: {
+      documentKind: { type: "string", enum: ["POSTMORTEM", "PRODUCT_DOCUMENT"] },
+      documentTitle: { type: "string", minLength: 1, maxLength: 160 },
+      currentRevision: { type: "integer", minimum: 1 },
+      selectedText: MODEL_TEXT_SCHEMA,
+      documentExcerpt: MODEL_TEXT_SCHEMA,
+      recentChanges: {
+        type: "array",
+        maxItems: 5,
+        items: {
+          type: "object",
+          properties: {
+            revision: { type: "integer", minimum: 1 },
+            summary: { type: "string", minLength: 1, maxLength: 240 },
+          },
+          required: ["revision", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: [
+      "documentKind",
+      "documentTitle",
+      "currentRevision",
+      "selectedText",
+      "documentExcerpt",
+      "recentChanges",
+    ],
+    additionalProperties: false,
+  }),
+  read_collaboration_context: modelSuccessSchema({
+    type: "object",
+    properties: {
+      tasks: {
+        type: "array",
+        maxItems: 20,
+        items: {
+          type: "object",
+          properties: {
+            status: { type: "string" },
+            category: { type: "string" },
+            instruction: MODEL_SHORT_TEXT_SCHEMA,
+          },
+          required: ["status", "category", "instruction"],
+          additionalProperties: false,
+        },
+      },
+      comments: {
+        type: "array",
+        maxItems: 20,
+        items: {
+          type: "object",
+          properties: {
+            body: { type: "string", minLength: 1, maxLength: 2_000 },
+            evidenceRefs: {
+              type: "array",
+              maxItems: 12,
+              items: { type: "string", minLength: 1, maxLength: 240 },
+            },
+          },
+          required: ["body", "evidenceRefs"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["tasks", "comments"],
+    additionalProperties: false,
+  }),
+  comment_on_assignment: modelSuccessSchema({
+    type: "object",
+    properties: {
+      status: { const: "COMMENTED" },
+      body: { type: "string", minLength: 1, maxLength: 2_000 },
+      evidenceRefs: {
+        type: "array",
+        maxItems: 12,
+        items: { type: "string", minLength: 1, maxLength: 240 },
+      },
+    },
+    required: ["status", "body", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+  submit_scoped_revision: modelSuccessSchema({
+    type: "object",
+    properties: {
+      status: { const: "COMMITTED" },
+      resultRevision: { type: "integer", minimum: 1 },
+      resultSummary: { type: "string", minLength: 1, maxLength: 240 },
+      evidenceRefs: MODEL_EVIDENCE_REFS_SCHEMA,
+    },
+    required: ["status", "resultRevision", "resultSummary", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+  query_demo_metrics: modelSuccessSchema({
+    type: "object",
+    properties: {
+      sourceLabel: { const: "Synthetic demo data" },
+      dataset: {
+        type: "string",
+        enum: ["northstar_launch_capacity", "inc_482_checkout_impact"],
+      },
+      question: { type: "string", minLength: 1, maxLength: 500 },
+      findings: {
+        type: "array",
+        minItems: 1,
+        maxItems: 12,
+        items: { type: "string", minLength: 1, maxLength: 1_000 },
+      },
+      evidenceRefs: MODEL_EVIDENCE_REFS_SCHEMA,
+    },
+    required: ["sourceLabel", "dataset", "question", "findings", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+  search_demo_code: modelSuccessSchema({
+    type: "object",
+    properties: {
+      sourceLabel: { const: "Synthetic demo data" },
+      query: { type: "string", minLength: 1, maxLength: 300 },
+      searchScope: { type: "string", minLength: 1, maxLength: 240 },
+      matches: {
+        type: "array",
+        maxItems: 4,
+        items: {
+          type: "object",
+          properties: {
+            path: { type: "string", minLength: 1, maxLength: 240 },
+            kind: { type: "string", enum: ["CODE", "LOG"] },
+            evidenceRef: { type: "string", minLength: 1, maxLength: 240 },
+            sourceLabel: { type: "string", minLength: 1, maxLength: 240 },
+            summary: { type: "string", minLength: 1, maxLength: 1_000 },
+          },
+          required: ["path", "kind", "evidenceRef", "sourceLabel", "summary"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["sourceLabel", "query", "searchScope", "matches"],
+    additionalProperties: false,
+  }),
+  read_demo_file: modelSuccessSchema({
+    type: "object",
+    properties: {
+      sourceLabel: { const: "Synthetic demo data" },
+      path: { type: "string", minLength: 1, maxLength: 240 },
+      kind: { type: "string", enum: ["CODE", "LOG"] },
+      evidenceRef: { type: "string", minLength: 1, maxLength: 240 },
+      content: MODEL_TEXT_SCHEMA,
+      findings: {
+        type: "array",
+        minItems: 1,
+        maxItems: 12,
+        items: { type: "string", minLength: 1, maxLength: 1_000 },
+      },
+      evidenceRefs: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "string",
+          enum: ["checkout.log", "commit:7d3c9e1"],
+        },
+      },
+    },
+    required: ["sourceLabel", "path", "kind", "evidenceRef", "content", "findings", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+  read_company_style_guide: modelSuccessSchema({
+    type: "object",
+    properties: {
+      sourceLabel: { const: "Synthetic demo data" },
+      guide: { type: "string", minLength: 1, maxLength: 240 },
+      rules: {
+        type: "array",
+        minItems: 1,
+        maxItems: 12,
+        items: {
+          type: "object",
+          properties: {
+            label: { type: "string", minLength: 1, maxLength: 120 },
+            instruction: { type: "string", minLength: 1, maxLength: 1_000 },
+          },
+          required: ["label", "instruction"],
+          additionalProperties: false,
+        },
+      },
+      evidenceRefs: MODEL_EVIDENCE_REFS_SCHEMA,
+    },
+    required: ["sourceLabel", "guide", "rules", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+  check_document_consistency: modelSuccessSchema({
+    type: "object",
+    properties: {
+      sourceLabel: { const: "Synthetic demo data" },
+      status: { type: "string", enum: ["NEEDS_REVISION", "REVIEW", "PASS"] },
+      issues: {
+        type: "array",
+        maxItems: 12,
+        items: {
+          type: "object",
+          properties: {
+            severity: { type: "string", enum: ["ERROR", "WARNING"] },
+            message: { type: "string", minLength: 1, maxLength: 1_000 },
+          },
+          required: ["severity", "message"],
+          additionalProperties: false,
+        },
+      },
+      evidenceRefs: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "string",
+          enum: ["Ratiflow company style guide", "Ratiflow consistency rules"],
+        },
+      },
+    },
+    required: ["sourceLabel", "status", "issues", "evidenceRefs"],
+    additionalProperties: false,
+  }),
+} as const satisfies Record<ManagedAgentLogicalToolName, Readonly<Record<string, unknown>>>;
+
 export interface ManagedAgentToolDefinition {
   logicalName: ManagedAgentLogicalToolName;
   providerKey: string;
@@ -226,6 +506,7 @@ export const MANAGED_AGENT_TOOL_DEFINITIONS = {
         replacementText: { type: "string", minLength: 1, maxLength: 50_000 },
         evidenceRefs: {
           type: "array",
+          minItems: 1,
           maxItems: 12,
           items: { type: "string", minLength: 1, maxLength: 240 },
         },
@@ -274,15 +555,16 @@ export const MANAGED_AGENT_TOOL_DEFINITIONS = {
     logicalName: "read_demo_file",
     providerKey: "code_read",
     description:
-      "Read a bounded line range from an allowlisted synthetic checkout source file or log returned by code search. No live filesystem is exposed.",
+      "Read one complete, bounded, allowlisted synthetic checkout source or log returned by code search. No live filesystem is exposed.",
     inputSchema: {
       type: "object",
       properties: {
-        path: { type: "string", minLength: 1, maxLength: 240 },
-        startLine: { type: "integer", minimum: 1, maximum: 500 },
-        endLine: { type: "integer", minimum: 1, maximum: 500 },
+        path: {
+          type: "string",
+          enum: ["src/checkout/retry-middleware.ts", "checkout.log"],
+        },
       },
-      required: ["path", "startLine", "endLine"],
+      required: ["path"],
       additionalProperties: false,
     },
     outputSchema: RELAY_RESULT_ENVELOPE_SCHEMA,
@@ -358,6 +640,7 @@ export const RELAY_ERROR_CODES = [
   "RELAY_EXECUTION_NOT_ARMED",
   "RELAY_MANIFEST_MISMATCH",
   "RELAY_RESULT_INVALID",
+  "RELAY_PROVIDER_OUTCOME_UNKNOWN",
 ] as const;
 export type RelayErrorCode = (typeof RELAY_ERROR_CODES)[number];
 
@@ -492,6 +775,24 @@ export interface RelayTraceEvent {
   resultDigest: `sha256:${string}` | null;
   detail: Readonly<Record<string, string | number | boolean | null>>;
   createdAt: string;
+}
+
+export const RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS = [
+  "IDLE_CATALOG_WITHDRAWN",
+  "RELAY_CATALOG_REGISTERED",
+  "RELAY_CATALOG_WITHDRAWN",
+  "IDLE_CATALOG_RESTORED",
+] as const;
+export type RelayBrowserObservedCatalogTransition =
+  (typeof RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS)[number];
+
+/**
+ * Application trace submitted only after the page observes a catalog transition.
+ * This is audit evidence, not cryptographic proof of native consumer execution.
+ */
+export interface RelayBrowserTraceInput {
+  kind: RelayBrowserObservedCatalogTransition | "WEBMCP_TOOLCHANGE_OBSERVED";
+  detail: { transition: RelayBrowserObservedCatalogTransition };
 }
 
 export interface RelayWorkspaceState {
@@ -708,9 +1009,7 @@ export interface SearchDemoCodeInput {
 }
 
 export interface ReadDemoFileInput {
-  path: string;
-  startLine: number;
-  endLine: number;
+  path: "src/checkout/retry-middleware.ts" | "checkout.log";
 }
 
 export interface CheckDocumentConsistencyInput {
@@ -739,13 +1038,22 @@ export interface SpecialistFixturePort {
 
 export interface RelayBrowserClientPort {
   readState(signal?: AbortSignal): Promise<RelayResult<RelayWorkspaceState>>;
-  claim(pageSessionId: string, signal?: AbortSignal): Promise<RelayResult<RelayClaimOutcome>>;
+  claim(
+    pageSessionId: string,
+    retryRunId?: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayClaimOutcome>>;
   renewLease(
     grant: RelayGrant,
     expectedLeaseId: string,
     signal?: AbortSignal,
   ): Promise<RelayResult<RelayClaimedAttemptView>>;
   releaseLease(grant: RelayGrant, signal?: AbortSignal): Promise<RelayResult<RelayRun>>;
+  recordTrace(
+    grant: RelayGrant,
+    input: RelayBrowserTraceInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<RelayTraceEvent>>;
   step(
     grant: RelayGrant,
     input: RelayStepInput,
@@ -760,20 +1068,60 @@ export interface RelayBrowserClientPort {
   ): Promise<RelayResult<{ resultReceiptId: string; output: string }>>;
 }
 
+export interface RelayAuthorizedAttemptContext {
+  run: RelayRun;
+  attempt: RelayAttempt;
+  agent: ManagedAgentDirectoryEntry;
+  /** Private provider cursor loaded only inside the server-side step route. */
+  previousProviderResponseId: string | null;
+  /** Reconstructed prior outcome used to validate the next call/result binding. */
+  previousOutcome: RelayStepOutcome | null;
+}
+
+export interface RelayStepReservationInput {
+  /** Stable server-derived UUID for this private transport idempotency key. */
+  requestId: string;
+  inputDigest: `sha256:${string}`;
+  attemptId: string;
+  expectedStep: number;
+}
+
+export type RelayBeginStepResult =
+  | {
+      disposition: "AUTHORIZED";
+      context: RelayAuthorizedAttemptContext;
+    }
+  | {
+      disposition: "IN_PROGRESS";
+      retryAfterMs: number;
+    }
+  | {
+      disposition: "RECORDED";
+      result: RelayResult<RelayStepOutcome>;
+    };
+
+export interface RelayStepRecordInput extends RelayStepReservationInput {
+  /** Null only when no provider response was obtained and a failure is persisted. */
+  providerResponseId: string | null;
+  /** Persist both success and failure so an exact retry never repeats provider spend. */
+  result: RelayResult<RelayStepOutcome>;
+}
+
 export interface RelayAttemptAuthorizationPort {
-  loadAuthorizedAttempt(
+  /**
+   * Atomically replays, observes, or reserves one step before any provider request.
+   * AUTHORIZED is returned only to the caller that created the durable reservation.
+   */
+  beginStep(
     grant: RelayGrant,
-    attemptId: string,
-    expectedStep: number,
+    reservation: RelayStepReservationInput,
     signal?: AbortSignal,
-  ): Promise<
-    RelayResult<{ run: RelayRun; attempt: RelayAttempt; agent: ManagedAgentDirectoryEntry }>
-  >;
-  recordStepOutcome(
+  ): Promise<RelayResult<RelayBeginStepResult>>;
+  recordStepResult(
     grant: RelayGrant,
-    outcome: RelayStepOutcome,
+    record: RelayStepRecordInput,
     signal?: AbortSignal,
-  ): Promise<RelayResult<RelayAttempt>>;
+  ): Promise<RelayResult<{ attempt: RelayAttempt; result: RelayResult<RelayStepOutcome> }>>;
   loadVerifiedToolResult(
     grant: RelayGrant,
     resultReceiptId: string,
@@ -788,12 +1136,15 @@ export type LunaProviderInput =
       previousResponseId: string;
       callId: string;
       tools: RelayProviderFunctionTool[];
+      nextTool: RelayProviderFunctionTool;
     }
   | {
       kind: "FUNCTION_CALL_OUTPUT";
       previousResponseId: string;
       callId: string;
       output: string;
+      completedToolName: ManagedAgentLogicalToolName;
+      nextTool: RelayProviderFunctionTool | null;
     };
 
 export type LunaProviderResult =

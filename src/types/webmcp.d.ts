@@ -25,7 +25,8 @@ interface WebMCPRegisteredTool {
   name: string;
   title?: string;
   description: string;
-  inputSchema?: WebMCPJsonSchema;
+  /** Draft shape plus the temporary stringified-schema shape in Chrome 152. */
+  inputSchema?: WebMCPJsonSchema | string;
   annotations?: WebMCPAnnotations;
   origin: string;
   window: Window;
@@ -39,7 +40,7 @@ interface WebMCPModelContext {
   getTools?(options?: { fromOrigins?: string[] }): Promise<WebMCPRegisteredTool[]>;
   executeTool?(
     tool: WebMCPRegisteredTool,
-    input?: Record<string, unknown>,
+    input?: Record<string, unknown> | string,
     options?: { signal?: AbortSignal },
   ): Promise<string>;
   addEventListener?(type: "toolchange", listener: EventListener): void;

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { test } from "vitest";
 
 import type { IssueRevisionProvenance, IssueWorkspaceSurface } from "@/repository/contracts";
+import type { ManagedAgentDirectoryEntry } from "@/agent-relay/contracts";
 
 import { RepositoryLanding } from "./RepositoryLanding";
 import {
@@ -11,28 +12,56 @@ import {
   repositoryCanReceiveSessionResult,
   repositoryClampCodePoints,
   repositoryCommentStartsWithAgent,
+  repositoryDirectoryEntryKey,
   repositoryDraftMatchesDocument,
   repositoryNextHistoryHasMore,
+  repositoryLivingDocumentSheets,
   repositoryProvenanceSummary,
   repositoryRevisionLineageLabel,
+  repositorySectionBodySelection,
   repositorySessionIdentity,
   repositoryShouldAdoptRevisionMutation,
 } from "./RepositoryWorkspace";
+import { POSTMORTEM_EXAMPLE } from "@/domain/repository-examples";
 
-test("landing makes human identity and the one-agent handoff explicit before its two templates", () => {
+test("landing makes nickname, managed directory, and the two guided demos explicit", () => {
   const markup = renderToStaticMarkup(createElement(RepositoryLanding, {
     onCreate() {},
     onOpenExample() {},
   }));
   assert.match(markup, /What should collaborators call you\?/u);
   assert.match(markup, /Choose the nickname collaborators will see\./u);
-  assert.match(markup, /Connect the agent you’re bringing\./u);
-  assert.match(markup, /Each collaborator connects one current agent/u);
+  assert.match(markup, /@Data/u);
+  assert.match(markup, /@Code/u);
+  assert.match(markup, /@General/u);
+  assert.match(markup, /No agent setup is required/u);
+  assert.match(markup, /15-second check is recovery/u);
   assert.match(markup, /data-document-kind="POSTMORTEM"/u);
   assert.match(markup, /data-document-kind="PRODUCT_DOCUMENT"/u);
   assert.equal((markup.match(/data-document-kind=/gu) ?? []).length, 2);
-  assert.match(markup, /Explore postmortem/u);
-  assert.match(markup, /Explore product document/u);
+  assert.match(markup, /Open live postmortem/u);
+  assert.match(markup, /Open live product document/u);
+  assert.match(markup, /Application-owned WebMCP relay · GPT-5.6 Luna/u);
+});
+
+test("seeded examples become exactly two lossless visual sheets", () => {
+  const sheets = repositoryLivingDocumentSheets("POSTMORTEM", POSTMORTEM_EXAMPLE.body);
+  assert.ok(sheets);
+  assert.equal(sheets.length, 2);
+  assert.equal(`${sheets[0].markdown}\n${sheets[1].markdown}`, POSTMORTEM_EXAMPLE.body);
+  assert.equal(repositoryLivingDocumentSheets("POSTMORTEM", "A blank user document"), null);
+});
+
+test("guided whole-section selection stays exact after a specialist revision", () => {
+  const body = "## Summary\n\nBefore 😀\n\n## Root cause\n\nTrigger first.\nAmplifier second.\n\n## Actions\n\nFix it.";
+  const selection = repositorySectionBodySelection(body, "## Root cause");
+  assert.deepEqual(selection, {
+    field: "BODY",
+    rangeStart: Array.from(body.slice(0, body.indexOf("Trigger first."))).length,
+    rangeEnd: Array.from(body.slice(0, body.indexOf("\n\n## Actions"))).length,
+    selectedText: "Trigger first.\nAmplifier second.",
+  });
+  assert.equal(repositorySectionBodySelection(body, "## Missing"), null);
 });
 
 test("same-session collaboration updates do not reset workspace identity", () => {
@@ -70,6 +99,37 @@ test("bounded text counts code points and delegation requires an explicit agent 
   assert.equal(repositoryCommentStartsWithAgent("prefix @Databot build it", "Databot"), false);
 });
 
+test("directory selections keep human and agent authority keyed by canonical IDs", () => {
+  assert.equal(repositoryDirectoryEntryKey({
+    kind: "HUMAN",
+    member: { memberId: "member-1", displayName: "Nadia Chen" },
+    handle: "nadia",
+    displayName: "Nadia Chen",
+  }), "HUMAN:member-1");
+  assert.equal(repositoryDirectoryEntryKey({
+    kind: "AGENT",
+    profileId: "profile-code",
+    principal: { memberId: "managed-code", displayName: "Code" },
+    handle: "code",
+    displayName: "Code",
+    scope: "COMPANY",
+    readiness: "READY",
+    syntheticSourceLabels: ["Synthetic demo data"],
+    identitySource: "DEMO_DIRECTORY",
+    specialty: "CODE",
+    runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+    logicalToolNames: [
+      "read_assignment",
+      "read_document_context",
+      "read_collaboration_context",
+      "comment_on_assignment",
+      "submit_scoped_revision",
+      "search_demo_code",
+      "read_demo_file",
+    ],
+  }), "AGENT:profile-code");
+});
+
 test("history provenance names the self-declared agent and human owner", () => {
   const member = { memberId: "member-1", displayName: "Nadia" };
   const agent = {
@@ -93,4 +153,51 @@ test("history provenance names the self-declared agent and human owner", () => {
   };
   assert.equal(repositoryProvenanceSummary(direct), "Databot · Nadia changed the document");
   assert.equal(repositoryRevisionLineageLabel({ parentRevision: 4, provenance: direct }), "Databot · Direct from r3, safely rebased");
+  const managedCode: ManagedAgentDirectoryEntry = {
+    kind: "AGENT",
+    profileId: "profile-code",
+    principal: { memberId: "managed-code", displayName: "Code · managed agent" },
+    handle: "code",
+    displayName: "Code",
+    scope: "TEAM",
+    readiness: "READY",
+    syntheticSourceLabels: ["Synthetic demo data"],
+    identitySource: "DEMO_DIRECTORY",
+    specialty: "CODE",
+    runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+    logicalToolNames: [
+      "read_assignment",
+      "read_document_context",
+      "read_collaboration_context",
+      "comment_on_assignment",
+      "submit_scoped_revision",
+      "search_demo_code",
+      "read_demo_file",
+    ],
+  };
+  const managedProvenance: IssueRevisionProvenance = {
+    ...direct,
+    author: {
+      ...agent,
+      displayName: "Code",
+      agentLabel: "Code",
+      member: { memberId: "managed-code", displayName: "Code · managed agent" },
+    },
+  };
+  assert.equal(
+    repositoryProvenanceSummary(managedProvenance, [managedCode]),
+    "Code · managed agent changed the document",
+  );
+  assert.equal(
+    repositoryProvenanceSummary({
+      ...direct,
+      author: {
+        ...agent,
+        displayName: "Code",
+        agentLabel: "Code",
+        member: { memberId: "attacker", displayName: "Code · managed agent" },
+      },
+    }, [managedCode]),
+    "Code · Code · managed agent changed the document",
+  );
 });

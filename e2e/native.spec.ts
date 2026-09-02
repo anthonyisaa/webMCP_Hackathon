@@ -81,7 +81,10 @@ async function invokeNativeTool<T>(
       const tool = tools.find((candidate) => candidate.name === toolName);
       if (!tool) throw new Error(`Native tool ${toolName} was not discovered.`);
 
-      const raw = await context.executeTool(tool, toolInput);
+      const nativeInput = typeof tool.inputSchema === "string"
+        ? JSON.stringify(toolInput)
+        : toolInput;
+      const raw = await context.executeTool(tool, nativeInput);
       let parsed: unknown = raw;
       if (typeof parsed === "string") {
         try {

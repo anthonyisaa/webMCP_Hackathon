@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import { TOOL_NAMES, type CompiledCapabilities } from "../contracts/index";
-import { registeredToolNames, resolveWebMCPRegistrationMode } from "./mode";
+import {
+  registeredToolNames,
+  repositoryCatalogForMode,
+  resolveWebMCPRegistrationMode,
+} from "./mode";
 
 const contested = {
   state: "CONTESTED",
@@ -26,4 +30,11 @@ test("static-superset registers exactly the existing catalog and never ratificat
   assert.deepEqual(registeredToolNames("dynamic", contested), contested.availableTools);
   assert.deepEqual(registeredToolNames("static-superset", contested), TOOL_NAMES);
   assert.equal(registeredToolNames("static-superset", contested).includes("ratify_decision" as never), false);
+});
+
+test("repository mode exposes exactly one of the idle and managed catalogs", () => {
+  const idle = ["connect_agent", "inspect_document"];
+  const relay = ["rf_code_scope_g1_assignment"];
+  assert.deepEqual(repositoryCatalogForMode("IDLE_BYOA", idle, relay), idle);
+  assert.deepEqual(repositoryCatalogForMode("MANAGED_RELAY", idle, relay), relay);
 });

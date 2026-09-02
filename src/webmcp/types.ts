@@ -29,12 +29,43 @@ export interface WebMCPToolLike {
   execute: (input: unknown, options?: WebMCPExecutionOptionsLike) => Promise<unknown>;
 }
 
+/** Consumer descriptor returned by `getTools()`. Its object identity is executable. */
+export interface WebMCPRegisteredToolLike {
+  name: string;
+  title?: string;
+  description: string;
+  /** The current draft exposes an object; some native clients still return its JSON string form. */
+  inputSchema?: Record<string, unknown> | string;
+  annotations?: WebMCPToolLike["annotations"];
+  origin: string;
+  window?: Window;
+}
+
 export interface WebMCPModelContextLike {
   registerTool(
     tool: WebMCPToolLike,
     options?: { signal?: AbortSignal; exposedTo?: string[] },
   ): Promise<void> | void;
+  getTools?(options?: { fromOrigins?: string[] }): Promise<WebMCPRegisteredToolLike[]>;
+  executeTool?(
+    tool: WebMCPRegisteredToolLike,
+    input?: Record<string, unknown> | string,
+    options?: WebMCPExecutionOptionsLike,
+  ): Promise<string>;
+  addEventListener?(type: "toolchange", listener: EventListener): void;
+  removeEventListener?(type: "toolchange", listener: EventListener): void;
 }
+
+export type WebMCPConsumerModelContext = WebMCPModelContextLike & {
+  getTools(options?: { fromOrigins?: string[] }): Promise<WebMCPRegisteredToolLike[]>;
+  executeTool(
+    tool: WebMCPRegisteredToolLike,
+    input?: Record<string, unknown> | string,
+    options?: WebMCPExecutionOptionsLike,
+  ): Promise<string>;
+  addEventListener(type: "toolchange", listener: EventListener): void;
+  removeEventListener(type: "toolchange", listener: EventListener): void;
+};
 
 export interface WebMCPRuntimeState {
   compiled: CompiledCapabilities;

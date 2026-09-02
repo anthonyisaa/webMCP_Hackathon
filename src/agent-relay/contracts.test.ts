@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 
 import { REPOSITORY_PROTOCOL_VERSION, REPOSITORY_TOOL_NAMES } from "@/repository/contracts";
+import { relayResponse } from "@/app/api/repository-v4/_response";
 
 import {
   AGENT_DIRECTORY_IDENTITY_SOURCES,
@@ -18,6 +19,7 @@ import {
   MANAGED_AGENT_TOOL_DEFINITIONS,
   RELAY_ATTEMPT_STATUSES,
   RELAY_BOUNDS,
+  RELAY_ERROR_CODES,
   RELAY_EXECUTION_PERMIT_AUDIENCE,
   RELAY_EXECUTION_PERMIT_SIGNING_DOMAIN,
   RELAY_EXECUTION_PERMIT_TOKEN_PREFIX,
@@ -140,6 +142,17 @@ test("freezes directory identities and role-scoped catalogs", () => {
     assert.equal(schema.additionalProperties, false);
     assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort());
   }
+  assert.deepEqual(MANAGED_AGENT_TOOL_DEFINITIONS.read_demo_file.inputSchema, {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        enum: ["src/checkout/retry-middleware.ts", "checkout.log"],
+      },
+    },
+    required: ["path"],
+    additionalProperties: false,
+  });
 });
 
 test("freezes bounded lease, retry, permit, and trace state machines", () => {
@@ -175,6 +188,23 @@ test("freezes bounded lease, retry, permit, and trace state machines", () => {
     "FAILED",
     "REVOKED",
   ]);
+  assert.deepEqual(RELAY_ERROR_CODES, [
+    "STALE_MENTION_TARGET",
+    "RELAY_UNAVAILABLE",
+    "RELAY_LEASE_LOST",
+    "RELAY_STATE_CONFLICT",
+    "RELAY_EXECUTION_NOT_ARMED",
+    "RELAY_MANIFEST_MISMATCH",
+    "RELAY_RESULT_INVALID",
+    "RELAY_PROVIDER_OUTCOME_UNKNOWN",
+  ]);
+  assert.equal(relayResponse({
+    ok: false,
+    code: "RELAY_PROVIDER_OUTCOME_UNKNOWN",
+    message: "The managed agent provider response was lost after dispatch.",
+    retryable: false,
+    nextAction: "Wait for authoritative reconciliation before retrying.",
+  }).status, 409);
   assert.equal(RELAY_BOUNDS.recoveryHeartbeatMs, 15_000);
   assert.equal(RELAY_BOUNDS.leaseRenewalMs * 3, RELAY_BOUNDS.leaseTtlMs);
   assert.equal(RELAY_BOUNDS.maxAttemptsPerRun, 2);
@@ -232,8 +262,8 @@ test("freezes the independent managed-relay oracle", () => {
     "WEBMCP_GET_TOOLS_COMPLETED",
     "MODEL_TOOL_SELECTED",
     "WEBMCP_EXECUTE_STARTED",
-    "WEBMCP_EXECUTE_COMPLETED",
     "REVISION_COMMITTED",
+    "WEBMCP_EXECUTE_COMPLETED",
     "RELAY_CATALOG_WITHDRAWN",
     "WEBMCP_TOOLCHANGE_OBSERVED",
     "IDLE_CATALOG_RESTORED",

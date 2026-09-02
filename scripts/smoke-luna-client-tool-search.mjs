@@ -87,6 +87,21 @@ if (process.env.RATIFLOW_LIVE_LUNA_SMOKE !== "1") {
       assert.equal(searchCall.status, "completed");
       assert.ok(searchCall.call_id, "Client tool search must return call_id.");
 
+      const activeTool = {
+        type: "function",
+        name: "read_demo_signal",
+        description: "Read the fixed synthetic Ratiflow relay smoke signal.",
+        parameters: {
+          type: "object",
+          properties: {
+            topic: { type: "string", enum: ["relay"] },
+          },
+          required: ["topic"],
+          additionalProperties: false,
+        },
+        strict: true,
+      };
+
       const discovered = await client.responses.create({
         model,
         instructions,
@@ -99,24 +114,14 @@ if (process.env.RATIFLOW_LIVE_LUNA_SMOKE !== "1") {
             status: "completed",
             tools: [
               {
-                type: "function",
-                name: "read_demo_signal",
-                description: "Read the fixed synthetic Ratiflow relay smoke signal.",
+                ...activeTool,
                 defer_loading: true,
-                parameters: {
-                  type: "object",
-                  properties: {
-                    topic: { type: "string", enum: ["relay"] },
-                  },
-                  required: ["topic"],
-                  additionalProperties: false,
-                },
-                strict: true,
               },
             ],
           },
         ],
-        tool_choice: "required",
+        tools: [activeTool],
+        tool_choice: { type: "function", name: activeTool.name },
         parallel_tool_calls: false,
         reasoning: { effort: "low" },
         max_output_tokens: 400,
@@ -144,6 +149,8 @@ if (process.env.RATIFLOW_LIVE_LUNA_SMOKE !== "1") {
             }),
           },
         ],
+        tools: [],
+        tool_choice: "none",
         parallel_tool_calls: false,
         reasoning: { effort: "low" },
         max_output_tokens: 200,

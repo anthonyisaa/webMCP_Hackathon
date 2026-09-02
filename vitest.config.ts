@@ -12,6 +12,7 @@ export default defineConfig({
       "evals/agent/**/*.test.ts",
       "evals/protocol/**/*.test.ts",
       "evals/release/**/*.test.ts",
+      "src/app/deck/**/*.test.ts",
       "src/app/api/document-v3/**/*.test.ts",
       "src/app/api/repository-v4/**/*.test.ts",
       "src/agent-relay/**/*.test.ts",

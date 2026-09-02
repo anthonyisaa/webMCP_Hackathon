@@ -1,0 +1,31 @@
+import {
+  MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH,
+  RELAY_PHYSICAL_TOOL_NAME_PATTERN,
+  type ManagedAgentLogicalToolName,
+  type ManagedAgentSpecialty,
+} from "../contracts";
+import { RelayBrowserError } from "./errors";
+
+export function makeRelayPhysicalToolName(input: {
+  specialty: ManagedAgentSpecialty;
+  registrationScope: string;
+  registrationGeneration: number;
+  logicalName: ManagedAgentLogicalToolName;
+}): string {
+  if (!/^[a-f0-9]{16}$/u.test(input.registrationScope)) {
+    throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The registration scope is invalid.");
+  }
+  if (!Number.isSafeInteger(input.registrationGeneration) || input.registrationGeneration < 1) {
+    throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The registration generation is invalid.");
+  }
+  const providerKey = MANAGED_AGENT_TOOL_DEFINITIONS[input.logicalName].providerKey;
+  const name = `rf_${input.specialty.toLowerCase()}_${input.registrationScope}_g${input.registrationGeneration}_${providerKey}`;
+  if (
+    name.length > RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH
+    || !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(name)
+  ) {
+    throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The physical tool name is invalid.");
+  }
+  return name;
+}

@@ -12,11 +12,14 @@ known human or one of three managed demo agents: `@Data`, `@Code`, or `@General`
 
 An agent mention becomes durable work. While the document is open, an application-owned
 in-page relay uses the WebMCP consumer APIs to discover the active specialist's live
-role-scoped catalog, lets GPT-5.6 Luna select tools through the Responses API, executes
-every selected tool through `document.modelContext.executeTool()`, and commits a bounded,
-reversible revision through the existing ledger. A visible flight recorder proves the
-catalog delta, discovery, execution, evidence, model/runtime, exact diff, and resulting
-revision without exposing hidden reasoning.
+role-scoped catalog, pins the exact next function in a bounded role workflow, has
+GPT-5.6 Luna compose its strict arguments through the Responses API, executes every
+returned call through
+`document.modelContext.executeTool()`, and commits a bounded,
+reversible revision through the existing ledger. A visible flight recorder records the
+application-observed catalog delta, discovery, execution, evidence, model/runtime, exact
+diff, and resulting revision without exposing hidden reasoning. Dated supported-client
+evidence remains the separate native WebMCP proof boundary.
 
 This is an ambitious model-independent agent-runtime extension, not another AI rewrite
 button. Preserve the ordinary human experience and the existing top-level eight-tool
@@ -26,8 +29,10 @@ daemon falsely described as WebMCP. Data and code sources are deterministic synt
 fixtures and visibly labeled. Managed agents run only while an eligible document page is
 open; immediate dispatch is backed by a 15-second recovery heartbeat, not a cron promise.
 Ship a public, keyboard-navigable 12-slide HTML deck at `/deck` as part of the application,
-using the product's own visual system and verified screenshots to make the judge story
-understandable even when the entry is reviewed from submission materials alone.
+using the product's own visual system, truthfully labeled rendered product visuals, and
+exact-SHA screenshots where available to make the judge story understandable even when
+the entry is reviewed from submission materials alone. Rendered visuals communicate the
+product flow but never substitute for live Luna or native WebMCP evidence.
 
 ## Chokepoint — freeze and prove first
 
@@ -109,8 +114,10 @@ Freeze these decisions:
    fixed developer prompt and only client-executed `tool_search`; Luna's
    `tool_search_call` returns to the browser. The browser then calls `getTools()`, creates
    a normalized manifest, and returns the exact requested `tool_search_output`. The
-   server validates it against the attempt/role allowlist and forwards it to fixed model
-   `gpt-5.6-luna`. Luna function calls return to the browser for `executeTool()`; parsed,
+   server validates it against the attempt/role allowlist. On every nonterminal
+   continuation it exposes only the exact next physical function and pins that name with
+   a named `tool_choice` for fixed model `gpt-5.6-luna`; Luna composes the strict arguments
+   and must return that function call. Calls return to the browser for `executeTool()`; parsed,
    schema-checked results return as `function_call_output` until a scoped revision lands
    or the bounded loop stops. Developer instructions repeat on continuation. The client
    cannot supply model, developer prompt, arbitrary definitions, or credentials.
@@ -172,9 +179,11 @@ Freeze these decisions:
     Its cumulative arc is problem -> document-as-runtime thesis -> judge workflow ->
     WebMCP/Luna mechanism -> dynamic role proof -> trust/revisions -> Postmortem evidence
     -> Product/Data transfer -> architecture -> leverage/impact -> future -> closing
-    claim. Use real application screenshots captured after integration, not mockups or
-    invented results; every external claim/source has a visible or accessible source
-    note, and every slide has one clear audience-facing takeaway.
+    claim. Use truthfully labeled rendered product visuals and/or real application
+    screenshots captured after integration, never invented results. A rendered visual is
+    explanatory material, not live/native proof; every external claim/source has a
+    visible or accessible source note, and every slide has one clear audience-facing
+    takeaway.
 14. **Submission truth.** A dated supported-client capture must distinguish the native
     idle Site Tools surface from the mutually exclusive Luna in-page Relay mode. The
     public submission must use a public repository with an open-source license and a
@@ -202,7 +211,7 @@ Freeze these decisions:
   exits as a named green scaffold commit plus an explicit evidence boundary; final native
   capture remains an I1 release gate rather than a claim inferred from the adapter.
 
-### S1 — directory principals, tasks, leases, and persistence — pending
+### S1 — directory principals, tasks, leases, and persistence — locally implemented; production migration pending
 - Owner / worktree: dedicated Codex-managed worktree after C0.
 - Scope and key files: `src/domain/repository-service.ts`, repository runtime and focused
   tests, Supabase adapter/tests, exactly one additive migration, protocol-4 non-relay route
@@ -224,7 +233,7 @@ Freeze these decisions:
   revision attribution, old v4.1 reads, RLS/grants, and a real PostgreSQL migration
   compile/rehearsal rather than static SQL alone.
 
-### S2 — in-page WebMCP relay runtime — pending
+### S2 — in-page WebMCP relay runtime — locally implemented; deployed native capture pending
 - Owner / worktree: dedicated Codex-managed worktree after C0.
 - Scope and key files: `src/webmcp/types.ts`, `src/webmcp/repository-registration.ts`,
   `RepositoryWebMCPBridge.tsx`, new `src/agent-relay/browser/**`, feature detection,
@@ -239,11 +248,12 @@ Freeze these decisions:
   managed persona catalog at a time, actual `getTools`/`executeTool`, `toolchange`, strict
   same-origin/manifest filtering, generation-distinct physical names, stale-descriptor
   rejection, unarmed native-call denial versus an armed in-page success, one-shot permit
-  clearing, result-envelope decoding, 15-second recovery plus immediate wake, abort
+  clearing, both descriptor-bound `OBJECT` and `JSON_STRING_COMPAT` argument encodings
+  without speculative retry, result-envelope decoding, 15-second recovery plus immediate wake, abort
   cleanup, hidden-tab
   truthfulness, and WebMCP-off fail-closed behavior.
 
-### S3 — bounded Luna Responses stepper — pending
+### S3 — bounded Luna Responses stepper — locally implemented; current-SHA provider closure pending
 - Owner / worktree: dedicated Codex-managed worktree after C0.
 - Scope and key files: new `src/agent-relay/server/**`,
   `/api/repository-v4/relay/step`, provider adapter, fetch-mocked tests, `package.json`, and
@@ -260,7 +270,7 @@ Freeze these decisions:
   smoke with response ID retained
   only in sanitized evidence.
 
-### S4 — specialist fixtures and two living documents — pending
+### S4 — specialist fixtures and two living documents — locally implemented; local golden closure verified
 - Owner / worktree: dedicated Codex-managed worktree after C0.
 - Scope and key files: `src/domain/repository-examples.ts`, new deterministic metrics,
   code-repository, and writing-guide fixture modules/tests, two-page source fixtures,
@@ -275,7 +285,7 @@ Freeze these decisions:
   exact code fact/evidence, exact product metrics, synthetic badges, and independent
   golden parity.
 
-### S5 — judge NUX, directory, and flight recorder — pending
+### S5 — judge NUX, directory, and flight recorder — locally implemented; local browser closure verified
 - Owner / worktree: dedicated Codex-managed worktree after C0; sole owner of high-conflict
   workspace surfaces.
 - Scope and key files: `RepositoryLanding.tsx`, `RepositoryWorkspace.tsx`, new directory,
@@ -291,7 +301,7 @@ Freeze these decisions:
   human mention remains discussion; desktop and 390px layouts, keyboard/screen-reader
   semantics, reduced motion, retry, API-key-unavailable, and WebMCP-off states are clear.
 
-### S6 — 12-slide HTML submission deck — pending
+### S6 — 12-slide HTML submission deck — locally implemented; local deck closure verified
 - Owner / worktree: dedicated Codex-managed worktree after C0.
 - Scope and key files: new `src/app/deck/**`, new `src/components/deck/**`, deck-scoped
   styles/tests, and new `public/deck/**` final assets. Use the existing Ratiflow brand as
@@ -302,12 +312,16 @@ Freeze these decisions:
   shot list, source notes, and reduced-motion/keyboard/print behaviors.
 - Verification: all 12 direct URLs and next/previous/keyboard controls work; 1440x900,
   1280x720, and mobile captures have no clipping or accidental scrolling; titles remain
-  one line; copy is low-density; source notes are accessible; screenshot crops are sharp
-  and truthful. Placeholder frames are allowed only until I1 supplies final verified app
-  captures. The final deck receives its own fresh `$dev-visual-review`.
+  one line; copy is low-density; source notes are accessible; rendered product visuals
+  are clearly labeled and any screenshot crops are sharp, truthful, and exact-SHA.
+  Rendered visuals cannot carry live/native labels. The final deck receives its own fresh
+  `$dev-visual-review`.
 
-### I1 — serialized integration, adversarial proof, and release — pending
+### I1 — serialized integration, adversarial proof, and release — local closure in progress; production release pending
 - Owner / worktree: coordinating task after S1-S6 return focused diffs and evidence.
+- Release authority: application promotion is authorized in principle. The exact v4.2
+  Supabase migration still requires explicit database-project approval; the matching
+  v4.2 production deployment and exact-SHA native capture follow only after that apply.
 - Scope and key files: shared app/runtime seams, top-level Relay-mode wiring and wake,
   route composition, release/eval scripts, README/submission copy, deployment configuration,
   and new sanitized final evidence. Do not absorb unrelated dirty files.
@@ -317,7 +331,7 @@ Freeze these decisions:
   rehearsal, `pnpm build`, deployed top-level page, production browser e2e,
   two-tab lease/retry, role-catalog comparison, WebMCP ablation, live Luna run, native
   external-client idle-catalog run, supported-client capture, responsive/accessibility pass,
-  final screenshot capture/injection and full-deck review, fresh workspace and deck
+  final product-visual/screenshot audit and full-deck review, fresh workspace and deck
   `$dev-visual-review`s, security/privacy review, three-minute judge rehearsal, public
   repository/license check after authorization, and requirement-by-requirement audit.
   One mandatory composed oracle links one human mention to exactly one lease/run/attempt
@@ -335,7 +349,7 @@ Freeze these decisions:
 - Luna cannot complete the documented client-executed tool-search loop with the available
   API account -> continue mockable implementation only, but block live-demo completion
   and every claim that Luna is connected.
-- A model-selected mutation can bypass `executeTool()`, choose its identity/authority, or
+- Model-authored mutation arguments can bypass `executeTool()`, choose identity/authority, or
   reuse a stale/cross-task grant or unarmed execution permit -> block integration.
 - Switching Data/Code/General does not change the discovered catalog -> the core novelty
   has failed; fix dynamic registration before UI polish.
@@ -381,8 +395,11 @@ substitute for an observed native run.
 
 - WebMCP is a Community Group draft, browser implementation details are moving, and the
   installed Chrome is 152 while some current documentation describes 153 behavior. The
-  C0 probe must freeze the observed argument/result/unregistration shapes for supported
-  judging clients without weakening the standards path.
+  C0 probe freezes the observed argument/result/unregistration shapes for supported
+  judging clients without weakening the standards path. Chrome 152 currently exposes
+  stringified consumer schemas and cancels the consumer promise without forwarding the
+  callback signal; Ratiflow records those facts and uses exact-descriptor encoding plus
+  same-page caller-signal propagation rather than UA sniffing or a second invocation.
 - WebMCP supplies no verified caller identity. Relay and BYOA modes are therefore
   mutually exclusive, managed physical tool names are run/generation-unique, and server
   authority remains task/lease/range bound. The C0 probe must establish the precise

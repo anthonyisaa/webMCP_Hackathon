@@ -20,20 +20,26 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
   title: string;
   description: string;
   sections: readonly string[];
+  specialist: string;
+  guidedAction: string;
 }> = [
   {
     kind: "POSTMORTEM",
     eyebrow: "Incidents",
     title: "Postmortem",
-    description: "Understand what happened, delegate investigations, and keep each decision beside the final record.",
+    description: "A two-sheet incident record with prior human and agent revisions—and one root-cause question left for you.",
     sections: ["Impact", "Timeline", "Root cause", "Corrective actions"],
+    specialist: "@Code",
+    guidedAction: "Verify the failure against a synthetic repository",
   },
   {
     kind: "PRODUCT_DOCUMENT",
     eyebrow: "Product",
     title: "Product document",
-    description: "Turn evidence, trade-offs, and decisions into one document that remembers how it got there.",
+    description: "A two-sheet launch decision with prior collaboration—and one capacity question left for you.",
     sections: ["Problem", "Options", "Decisions", "Success measures"],
+    specialist: "@Data",
+    guidedAction: "Check the launch plan against synthetic metrics",
   },
 ];
 
@@ -51,13 +57,13 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
       <section className={styles.landing} aria-labelledby="repository-landing-title">
         <header className={styles.header}>
           <Link className={styles.brand} href="/" aria-label="Ratiflow home"><span aria-hidden="true">R</span>Ratiflow</Link>
-          <span className={styles.headerNote}>Documents for people and their agents</span>
+          <div className={styles.headerActions}><span className={styles.headerNote}>The document is the agent runtime</span><Link className={styles.deckLink} href="/deck">View the 12-slide story</Link></div>
         </header>
 
         <div className={styles.intro}>
-          <p className={styles.eyebrow}>Collaborative documents, with memory</p>
-          <h1 id="repository-landing-title">A document that remembers why.</h1>
-          <p>Set up how you will appear, open a document, then connect the agent you want to mention with <code>@</code>.</p>
+          <p className={styles.eyebrow}>A living document for humans + agents</p>
+          <h1 id="repository-landing-title">Mention the expert.<br />Keep the proof.</h1>
+          <p>Choose a nickname and open either working demo. Select a passage and mention a specialist. In a WebMCP-enabled browser, this open page supplies role-specific tools to GPT-5.6 Luna; the resulting change lands as a reversible revision.</p>
         </div>
 
         <section className={styles.setupCard} aria-labelledby="repository-identity-heading">
@@ -76,14 +82,19 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
                   value={displayName}
                   onChange={(event) => setDisplayName(clampDisplayName(event.target.value))}
                 />
-                <small>This name labels your edits and owns the agent you connect.</small>
+                <small>This name labels your edits, comments, and approvals.</small>
               </div>
             </div>
           </div>
-          <aside className={styles.agentHandoff} aria-label="Agent setup comes after opening a document">
-            <span>After the document opens</span>
-            <strong>Connect the agent you’re bringing.</strong>
-            <p>Ask a WebMCP-capable agent to connect with the name it should use. It will then appear in the <code>@</code> menu. Each collaborator connects one current agent; working without one is fine.</p>
+          <aside className={styles.agentHandoff} aria-label="Managed demo agent directory">
+            <span>Listed in every demo copy</span>
+            <strong>Your specialist directory</strong>
+            <div className={styles.agentPreview}>
+              <span><i data-agent="data">D</i><b>@Data</b><small>Metrics</small></span>
+              <span><i data-agent="code">C</i><b>@Code</b><small>Repository</small></span>
+              <span><i data-agent="general">G</i><b>@General</b><small>Writing</small></span>
+            </div>
+            <p>No agent setup is required. Managed agents run only in a WebMCP-enabled browser while this document page is open; the 15-second check is recovery, not background cron.</p>
           </aside>
         </section>
 
@@ -101,30 +112,36 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
                 disabled={busy || !name}
                 key={template.kind}
                 type="button"
-                onClick={() => onCreate(template.kind, name)}
+                onClick={() => (onOpenExample ?? onCreate)(template.kind, name)}
               >
                 <span className={styles.templateIcon} aria-hidden="true">{template.kind === "POSTMORTEM" ? "↯" : "◇"}</span>
                 <span className={styles.templateCopy}><small>{template.eyebrow}</small><strong>{template.title}</strong><span>{template.description}</span></span>
                 <span className={styles.sectionPreview} aria-hidden="true">{template.sections.map((section) => <i key={section}>{section}</i>)}</span>
-                <span className={styles.createLabel}>{busy ? "Opening…" : `Start ${template.title.toLowerCase()}`}<b aria-hidden="true">→</b></span>
+                <span className={styles.guidedAction}><b>{template.specialist}</b><span>{template.guidedAction}</span></span>
+                <span className={styles.createLabel}>{busy ? "Opening…" : `Open live ${template.title.toLowerCase()}`}<b aria-hidden="true">→</b></span>
               </button>
             ))}
           </div>
         </section>
 
-        {onOpenExample ? (
-          <section className={styles.examples} aria-label="Completed examples">
-            <div><strong>See the history in action</strong><span>Explore a completed document with human and agent revisions.</span></div>
-            <div>
-              <button type="button" disabled={busy || !name} onClick={() => onOpenExample("POSTMORTEM", name)}>Explore postmortem</button>
-              <button type="button" disabled={busy || !name} onClick={() => onOpenExample("PRODUCT_DOCUMENT", name)}>Explore product document</button>
-            </div>
-          </section>
-        ) : null}
+        <section className={styles.runtimeNote} aria-label="How the managed relay works">
+          <span className={styles.runtimePulse} aria-hidden="true" />
+          <div><strong>Page-bound, visible, reversible.</strong><span>The Flight Recorder shows the discovered catalog, every tool call, its synthetic evidence, and the exact revision.</span></div>
+          <code>Application-owned WebMCP relay · GPT-5.6 Luna</code>
+        </section>
+
+        <details className={styles.blankTemplates}>
+          <summary>Prefer a blank document?</summary>
+          <div>
+            <p>Blank templates keep ordinary editing, comments, history, and Restore.</p>
+            <button type="button" disabled={busy || !name} onClick={() => onCreate("POSTMORTEM", name)}>Blank postmortem</button>
+            <button type="button" disabled={busy || !name} onClick={() => onCreate("PRODUCT_DOCUMENT", name)}>Blank product document</button>
+          </div>
+        </details>
 
         {error ? <div className={styles.error} role="alert"><strong>Couldn’t open the document.</strong><span>{error}</span></div> : null}
 
-        <footer className={styles.footer}><span>No account required for this prototype.</span><span>Anyone with a document link can join.</span></footer>
+        <footer className={styles.footer}><span>No account required for this prototype.</span><span>Synthetic demo sources are always labeled.</span><span>Anyone with a document link can join.</span></footer>
       </section>
     </main>
   );

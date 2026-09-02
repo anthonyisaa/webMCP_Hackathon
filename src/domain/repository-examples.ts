@@ -181,3 +181,80 @@ Complete the remaining four export days after the beta checkpoint and launch **f
   alternative: "Ship CSV to every customer on October 15 and treat that date as general availability. Finish reliability and support follow-up after launch; the November 1 renewal date remains unchanged.",
   restoreSummary: "Restored the staged design-partner beta and November 1 GA decision.",
 } as const;
+
+/**
+ * Additive v4.2 presentation metadata for the seeded living-document examples.
+ *
+ * The document remains one immutable Markdown source. `sheetBreakHeading` is only a
+ * deterministic visual split point, while `guidedWork` describes the one managed-agent
+ * action deliberately left for the judge. Historical self-declared agents retain their
+ * original provenance; the pending action is the managed Relay overlay.
+ */
+export const MANAGED_RELAY_EXAMPLE_OVERLAYS = {
+  POSTMORTEM: {
+    title: POSTMORTEM_EXAMPLE.title,
+    sheetBreakHeading: "## Detection and response",
+    sheetHeadings: [
+      ["## Summary", "## Impact", "## Timeline", "## Root cause"],
+      [
+        "## Detection and response",
+        "## Contributing factors",
+        "## Corrective actions",
+        "## Learnings",
+      ],
+    ],
+    guidedWork: {
+      agentHandle: "code",
+      sectionHeading: "## Root cause",
+      selectionText: POSTMORTEM_EXAMPLE.tasks.clarification.replacement,
+      prompt:
+        "@Code Check this root-cause section against the synthetic repository and checkout log. Separate the external trigger from the internal amplifier, quantify the retry behavior and queue growth, then replace only this section.",
+      evidenceRefs: ["checkout.log", "commit:7d3c9e1"],
+      syntheticSourceLabels: [
+        "Synthetic demo data · checkout.log",
+        "Synthetic demo data · commit:7d3c9e1",
+      ],
+    },
+    seededHistory: {
+      headRevision: 5,
+      hasHumanRevision: true,
+      hasAgentRevision: true,
+      historicalAgentIdentitySource: "SELF_DECLARED",
+      hasClosedHumanDiscussion: true,
+      liveManagedActionPending: true,
+    },
+  },
+  PRODUCT_DOCUMENT: {
+    title: PRODUCT_DOCUMENT_EXAMPLE.title,
+    sheetBreakHeading: "## Scope",
+    sheetHeadings: [
+      [
+        "## Decision summary",
+        "## Customer and business context",
+        "## Capacity and constraints",
+        "## Options and trade-offs",
+        "## Milestones",
+      ],
+      ["## Scope", "## Success measures", "## Risks and guardrails"],
+    ],
+    guidedWork: {
+      agentHandle: "data",
+      sectionHeading: "## Success measures",
+      selectionText: `- Reliability work completes before beta.
+- Design partners can export correct CSV files on October 15.
+- Full GA support and the renewal-critical commitment are ready by November 1.`,
+      prompt:
+        "@Data Check these success measures against the synthetic Northstar capacity plan. Show which October 15 scope fits 14 engineering days and preserve the November 1 renewal commitment, then replace only this section.",
+      evidenceRefs: ["northstar_launch_capacity"],
+      syntheticSourceLabels: ["Synthetic demo data · northstar_launch_capacity"],
+    },
+    seededHistory: {
+      headRevision: 6,
+      hasHumanRevision: true,
+      hasAgentRevision: true,
+      historicalAgentIdentitySource: "SELF_DECLARED",
+      hasClosedHumanDiscussion: true,
+      liveManagedActionPending: true,
+    },
+  },
+} as const;

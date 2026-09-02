@@ -276,6 +276,66 @@ describe("SupabaseRepositoryService strict normalization", () => {
 });
 
 describe("SupabaseRepositoryService RPC adapter", () => {
+  it("routes ordinary task creation through the managed-principal guard without blocking humans or BYOA", async () => {
+    const f = await fixture();
+    const managedIds = new Map<string, string>([
+      [randomUUID(), "Data"],
+      [randomUUID(), "Code"],
+      [randomUUID(), "General"],
+    ]);
+    const requests: Array<{ name: string; body: Record<string, unknown> }> = [];
+    const service = new SupabaseRepositoryService({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable",
+      fetch: async (url, init) => {
+        const name = String(url).split("/").at(-1)!;
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        requests.push({ name, body });
+        const input = body.p_input as { assignedToMemberId?: string } | undefined;
+        if (input?.assignedToMemberId && managedIds.has(input.assignedToMemberId)) {
+          return Response.json({
+            ok: false,
+            code: "STALE_AGENT_PROFILE",
+            message: "Managed directory agents require the directory mention flow.",
+            retryable: false,
+          });
+        }
+        return Response.json({ ok: true, data: f.bundle.surface });
+      },
+    });
+    const createInput = (assignedToMemberId: string, label: string) => ({
+      requestId: randomUUID(),
+      expectedRevision: f.bundle.surface.document.revision,
+      title: `${label} review`,
+      category: "GENERAL" as const,
+      instruction: "Review the issue and report one finding.",
+      agentLabel: label,
+      mode: "COMMENT" as const,
+      assignedToMemberId,
+      anchor: { scope: "DOCUMENT" as const },
+    });
+
+    for (const [memberId, label] of managedIds) {
+      await expect(service.createTask(
+        "h".repeat(64), createInput(memberId, label),
+      )).resolves.toMatchObject({ ok: false, code: "STALE_AGENT_PROFILE" });
+    }
+    const byoaMemberId = f.bundle.surface.agents[0]?.member.memberId;
+    const humanMemberId = f.bundle.surface.members.find((member) =>
+      member.memberId !== byoaMemberId)?.memberId;
+    if (!byoaMemberId || !humanMemberId) throw new Error("missing human/BYOA fixture members");
+    await expect(service.createTask(
+      "h".repeat(64), createInput(humanMemberId, "Human"),
+    )).resolves.toMatchObject({ ok: true });
+    await expect(service.createTask(
+      "h".repeat(64), createInput(byoaMemberId, "BYOA"),
+    )).resolves.toMatchObject({ ok: true });
+
+    expect(requests).toHaveLength(5);
+    expect(requests.every(({ name }) => name === "ratiflow_create_issue_task_v4")).toBe(true);
+    expect(requests.every(({ body }) => body.p_response_contract === "v4.1")).toBe(true);
+  });
+
   it("rejects tampered direct submit and history provenance responses", async () => {
     const f = await fixture();
     const otherMember = f.bundle.surface.members.find((member) =>

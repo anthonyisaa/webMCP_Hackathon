@@ -1,10 +1,21 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
+  MANAGED_AGENT_MODEL,
+  MANAGED_AGENT_RUNTIME,
+  MANAGED_AGENT_TOOL_CATALOGS,
+  RELAY_BOUNDS,
+  type ManagedAgentDirectoryEntry,
+  type RelayRun,
+  type RelayTraceEvent,
+  type RelayWorkspaceState,
+} from "../src/agent-relay/contracts";
+import {
   POSTMORTEM_TEMPLATE_BODY,
   POSTMORTEM_TEMPLATE_TITLE,
   PRODUCT_DOCUMENT_TEMPLATE_BODY,
   PRODUCT_DOCUMENT_TEMPLATE_TITLE,
+  REPOSITORY_TOOL_NAMES,
   REPOSITORY_SESSION_STORAGE_PREFIX,
   type IssueAgentProfile,
   type IssueDocumentKind,
@@ -15,6 +26,12 @@ import {
 const PERSON_NAME = "Quinn Patel";
 const POSTMORTEM_SELECTION =
   "Describe what happened, when it started, and when service recovered.";
+const MANAGED_CODE_PROFILE_ID = "00000000-0000-4000-8000-000000004202";
+const MANAGED_RELAY_RUN_ID = "00000000-0000-4000-8000-000000004212";
+const MANAGED_RELAY_TASK_ID = "00000000-0000-4000-8000-000000004222";
+const MANAGED_RELAY_THREAD_ID = "00000000-0000-4000-8000-000000004232";
+const MANAGED_RELAY_COMMENT_ID = "00000000-0000-4000-8000-000000004242";
+const MANAGED_RELAY_TIMESTAMP = "2026-09-03T09:00:00.000Z";
 
 const TEMPLATE_CASES: ReadonlyArray<{
   kind: IssueDocumentKind;
@@ -55,6 +72,97 @@ const TEMPLATE_CASES: ReadonlyArray<{
   },
 ];
 
+function managedAgent(
+  specialty: ManagedAgentDirectoryEntry["specialty"],
+  profileId: string,
+  principalId: string,
+): ManagedAgentDirectoryEntry {
+  const displayName = specialty === "DATA"
+    ? "Data"
+    : specialty === "CODE"
+      ? "Code"
+      : "General";
+  return {
+    kind: "AGENT",
+    profileId,
+    principal: {
+      memberId: principalId,
+      displayName: `${displayName} · managed agent`,
+    },
+    handle: displayName.toLocaleLowerCase(),
+    displayName,
+    scope: specialty === "DATA" ? "COMPANY" : specialty === "CODE" ? "TEAM" : "PERSONAL",
+    readiness: "READY",
+    identitySource: "DEMO_DIRECTORY",
+    specialty,
+    runtime: MANAGED_AGENT_RUNTIME,
+    logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[specialty]],
+    syntheticSourceLabels: [`Synthetic demo data · ${specialty.toLocaleLowerCase()} smoke fixture`],
+  };
+}
+
+const MANAGED_DIRECTORY = [
+  managedAgent(
+    "DATA",
+    "00000000-0000-4000-8000-000000004201",
+    "00000000-0000-4000-8000-000000004301",
+  ),
+  managedAgent(
+    "CODE",
+    MANAGED_CODE_PROFILE_ID,
+    "00000000-0000-4000-8000-000000004302",
+  ),
+  managedAgent(
+    "GENERAL",
+    "00000000-0000-4000-8000-000000004203",
+    "00000000-0000-4000-8000-000000004303",
+  ),
+] as const satisfies readonly ManagedAgentDirectoryEntry[];
+
+const MANAGED_QUEUED_RUN: RelayRun = {
+  runId: MANAGED_RELAY_RUN_ID,
+  taskId: MANAGED_RELAY_TASK_ID,
+  profileId: MANAGED_CODE_PROFILE_ID,
+  specialty: "CODE",
+  runtime: MANAGED_AGENT_RUNTIME,
+  model: MANAGED_AGENT_MODEL,
+  status: "QUEUED",
+  attemptCount: 0,
+  maxAttempts: RELAY_BOUNDS.maxAttemptsPerRun,
+  terminalReason: null,
+  createdAt: MANAGED_RELAY_TIMESTAMP,
+  updatedAt: MANAGED_RELAY_TIMESTAMP,
+  completedAt: null,
+};
+
+const MANAGED_QUEUED_TRACE: RelayTraceEvent = {
+  relayEventId: "00000000-0000-4000-8000-000000004252",
+  relayEventVersion: 1,
+  documentId: "00000000-0000-4000-8000-000000004262",
+  runId: MANAGED_RELAY_RUN_ID,
+  attemptId: null,
+  kind: "RUN_QUEUED",
+  logicalToolName: null,
+  physicalToolName: null,
+  manifestDigest: null,
+  argumentsDigest: null,
+  resultDigest: null,
+  detail: {},
+  createdAt: MANAGED_RELAY_TIMESTAMP,
+};
+
+function managedRelayState(queued: boolean): RelayWorkspaceState {
+  return {
+    directory: [...MANAGED_DIRECTORY],
+    runs: queued ? [MANAGED_QUEUED_RUN] : [],
+    activeAttempt: null,
+    trace: queued ? [MANAGED_QUEUED_TRACE] : [],
+    currentRelayEventVersion: queued ? 1 : 0,
+    webMcpRequired: true,
+    recoveryHeartbeatMs: RELAY_BOUNDS.recoveryHeartbeatMs,
+  };
+}
+
 async function nameLanding(page: Page, name = PERSON_NAME): Promise<void> {
   await expect(page.getByLabel("What should collaborators call you?")).toBeVisible();
   await page.getByLabel("What should collaborators call you?").fill(name);
@@ -67,11 +175,13 @@ async function launchTemplate(
 ): Promise<void> {
   await page.goto("/");
   await nameLanding(page, name);
-  const card = page.getByTestId("template-picker").locator(
-    `[data-document-kind="${kind}"]`,
-  );
-  await expect(card).toBeEnabled();
-  await card.click();
+  await page.getByText("Prefer a blank document?", { exact: true }).click();
+  const label = kind === "POSTMORTEM"
+    ? "Blank postmortem"
+    : "Blank product document";
+  const button = page.getByRole("button", { name: label, exact: true });
+  await expect(button).toBeEnabled();
+  await button.click();
   await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/u);
   await expect(page.getByTestId("repository-workspace")).toBeVisible();
 }
@@ -83,12 +193,11 @@ async function launchExample(
 ): Promise<void> {
   await page.goto("/");
   await nameLanding(page, name);
-  const label = kind === "POSTMORTEM"
-    ? "Explore postmortem"
-    : "Explore product document";
-  const button = page.getByRole("button", { name: label });
-  await expect(button).toBeEnabled();
-  await button.click();
+  const card = page.getByTestId("template-picker").locator(
+    `[data-document-kind="${kind}"]`,
+  );
+  await expect(card).toBeEnabled();
+  await card.click();
   await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/u);
   await expect(page.getByTestId("repository-workspace")).toBeVisible();
 }
@@ -227,7 +336,9 @@ function waitForSuccessfulMutation(page: Page, path: string) {
 }
 
 async function openCommentsRail(page: Page): Promise<Locator> {
-  const rail = page.getByRole("complementary", { name: "Comments and history" });
+  const rail = page.getByRole("complementary", {
+    name: "Comments, history, and relay",
+  });
   if (!(await rail.isVisible())) {
     await page.getByRole("button", { name: /^Comments(?: \d+)?$/u }).first().click();
   }
@@ -248,7 +359,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
     document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
-test("v4.1 landing gates its two templates on a human name and renders both Markdown documents", async ({
+test("v4.2 landing gates its two blank templates on a human name and renders both Markdown documents", async ({
   browser,
   baseURL,
 }) => {
@@ -261,10 +372,17 @@ test("v4.1 landing gates its two templates on a human name and renders both Mark
       await expect(picker.locator("[data-document-kind]")).toHaveCount(2);
       await expect(picker.locator('[data-document-kind="POSTMORTEM"]')).toBeDisabled();
       await expect(picker.locator('[data-document-kind="PRODUCT_DOCUMENT"]')).toBeDisabled();
-      await expect(page.getByRole("button", { name: "Explore postmortem" })).toBeDisabled();
+      await page.getByText("Prefer a blank document?", { exact: true }).click();
+      await expect(page.getByRole("button", {
+        name: "Blank postmortem",
+        exact: true,
+      })).toBeDisabled();
 
       await nameLanding(page);
-      await picker.locator(`[data-document-kind="${template.kind}"]`).click();
+      const blankLabel = template.kind === "POSTMORTEM"
+        ? "Blank postmortem"
+        : "Blank product document";
+      await page.getByRole("button", { name: blankLabel, exact: true }).click();
       await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/u);
 
       const bundle = await readTabSession(page);
@@ -290,7 +408,7 @@ test("v4.1 landing gates its two templates on a human name and renders both Mark
   }
 });
 
-test("v4.1 setup guides one page-scoped agent from a named prompt to a truthful connected state", async ({
+test("v4.2 Advanced BYOA guides one page-scoped agent from a named prompt to a truthful connected state", async ({
   browser,
   baseURL,
 }) => {
@@ -331,9 +449,9 @@ test("v4.1 setup guides one page-scoped agent from a named prompt to a truthful 
   try {
     await launchTemplate(page, "POSTMORTEM");
     await expect(page.getByRole("heading", {
-      name: "Bring your agent into this document.",
+      name: "Select a passage. Mention a specialist. Watch the proof.",
     })).toBeVisible();
-    await expect(page.getByText("One current agent identity per collaborator.")).toBeVisible();
+    await page.getByText("Advanced: bring your own agent", { exact: true }).click();
     await expect.poll(() => page.evaluate(() => {
       const harness = (window as unknown as {
         __ratiflowRepositorySetupHarness: { names: () => string[] };
@@ -364,26 +482,32 @@ test("v4.1 setup guides one page-scoped agent from a named prompt to a truthful 
       },
     });
 
-    const status = page.getByRole("button", { name: /Contextbot connected/u });
+    await expect(page.getByText("Advanced: Contextbot connected", {
+      exact: true,
+    })).toBeVisible();
+    await expect(page.getByText("Connected for this page · owned by Quinn Patel")).toBeVisible();
+    await page.getByRole("button", { name: "Close agent setup" }).click();
+    const status = page.getByRole("button", { name: /Open agent guide\.$/u });
     await expect(status).toBeVisible();
     await status.click();
     await expect(page.getByRole("heading", {
-      name: "Your agent is ready to mention.",
+      name: "Select a passage. Mention a specialist. Watch the proof.",
     })).toBeVisible();
+    await page.getByText("Advanced: Contextbot connected", { exact: true }).click();
     await expect(page.getByText("Connected for this page · owned by Quinn Patel")).toBeVisible();
   } finally {
     await context.close();
   }
 });
 
-test("v4.1 Home and /new always show setup while the issue URL resumes its document", async ({ page }) => {
+test("v4.2 Home and /new always show setup while the issue URL resumes its document", async ({ page }) => {
   await launchExample(page, "POSTMORTEM");
   const issueUrl = page.url();
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/$/u);
   await expect(page.getByLabel("What should collaborators call you?")).toBeVisible();
-  await expect(page.getByText("Connect the agent you’re bringing.")).toBeVisible();
+  await expect(page.getByText("Your specialist directory")).toBeVisible();
 
   await page.goto(issueUrl);
   await expect(page.getByRole("heading", {
@@ -402,7 +526,7 @@ test("v4.1 Home and /new always show setup while the issue URL resumes its docum
   await expect(page.getByLabel("What should collaborators call you?")).toBeVisible();
 });
 
-test("v4.1 completed Postmortem exposes r5/av11 rendered evidence, agent diffs, Restore, comments, and history", async ({ page }) => {
+test("v4.2 completed Postmortem exposes r5/av11 rendered evidence, agent diffs, Restore, comments, and history", async ({ page }) => {
   await launchExample(page, "POSTMORTEM");
   const bundle = await readTabSession(page);
   expect(bundle.surface.document).toMatchObject({ revision: 5, activityVersion: 11 });
@@ -457,7 +581,7 @@ test("v4.1 completed Postmortem exposes r5/av11 rendered evidence, agent diffs, 
   await expect(rail.getByRole("button", { name: /All history/u })).toBeVisible();
 });
 
-test("v4.1 completed Product document exposes r6/av11 analysis, closed discussion, and the r5→r6 Restore", async ({ page }) => {
+test("v4.2 completed Product document exposes r6/av11 analysis, closed discussion, and the r5→r6 Restore", async ({ page }) => {
   await launchExample(page, "PRODUCT_DOCUMENT");
   const bundle = await readTabSession(page);
   expect(bundle.surface.document).toMatchObject({ revision: 6, activityVersion: 11 });
@@ -502,7 +626,7 @@ test("v4.1 completed Product document exposes r6/av11 analysis, closed discussio
   await expect(rail.locator("ins")).toContainText("invite-only CSV beta");
 });
 
-test("v4.1 exact rendered-source selection creates an anchored human comment", async ({ page }) => {
+test("v4.2 exact rendered-source selection creates an anchored human comment", async ({ page }) => {
   await launchTemplate(page, "POSTMORTEM");
   await selectRenderedText(page, POSTMORTEM_SELECTION);
   const composer = page.getByTestId("selection-comment-composer");
@@ -536,7 +660,7 @@ test("v4.1 exact rendered-source selection creates an anchored human comment", a
   await expect(card.getByRole("button", { name: "Close" })).toBeVisible();
 });
 
-test("v4.1 literal @ text stays a human comment until an autocomplete agent is explicitly selected", async ({ page }) => {
+test("v4.2 literal @ text stays a human comment until an autocomplete agent is explicitly selected", async ({ page }) => {
   await launchTemplate(page, "POSTMORTEM");
   await connectCurrentAgent(page, "Databot");
   await page.reload();
@@ -546,7 +670,7 @@ test("v4.1 literal @ text stays a human comment until an autocomplete agent is e
   const composer = page.getByTestId("selection-comment-composer");
   const literal = "@Databot should a person verify this wording first?";
   await composer.getByLabel("Comment or @ an agent").fill(literal);
-  await expect(composer.getByRole("listbox", { name: "Available agents" })).toBeVisible();
+  await expect(composer.getByRole("listbox", { name: "Company directory" })).toBeVisible();
   await expect(composer.getByRole("option", { name: /Databot.*Quinn Patel/u })).toBeVisible();
   await expect(composer.getByText(/^Assigned to/u)).toHaveCount(0);
 
@@ -561,7 +685,272 @@ test("v4.1 literal @ text stays a human comment until an autocomplete agent is e
   await expect(rail.locator('article[data-kind="human"]')).toContainText(literal);
 });
 
-test("v4.1 selected @ agent creates Direct TASK-n, commits immediately with rationale/evidence, and can be restored", async ({ page }) => {
+test("v4.2 guided @Code selection posts canonical profile authority and opens the Flight Recorder without Luna", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({ baseURL });
+  await context.addInitScript(() => {
+    type RegisteredTool = {
+      name: string;
+      title?: string;
+      description: string;
+      inputSchema?: Record<string, unknown>;
+      annotations?: Record<string, boolean>;
+      execute: (
+        input: unknown,
+        options?: { signal?: AbortSignal },
+      ) => Promise<unknown>;
+    };
+    type ToolDescriptor = Omit<RegisteredTool, "execute"> & {
+      origin: string;
+      window: Window;
+    };
+    const active = new Map<string, RegisteredTool>();
+    const listeners = new Set<EventListenerOrEventListenerObject>();
+    let toolchangeCount = 0;
+    let getToolsCalls = 0;
+    let executeToolCalls = 0;
+    const dispatchToolchange = () => {
+      toolchangeCount += 1;
+      const event = new Event("toolchange");
+      for (const listener of listeners) {
+        if (typeof listener === "function") listener.call(modelContext, event);
+        else listener.handleEvent(event);
+      }
+    };
+    const modelContext = {
+      registerTool(tool: RegisteredTool, options?: { signal?: AbortSignal }) {
+        active.set(tool.name, tool);
+        dispatchToolchange();
+        options?.signal?.addEventListener("abort", () => {
+          if (active.get(tool.name) !== tool) return;
+          active.delete(tool.name);
+          dispatchToolchange();
+        }, { once: true });
+      },
+      async getTools(): Promise<ToolDescriptor[]> {
+        getToolsCalls += 1;
+        return [...active.values()]
+          .sort((left, right) => left.name.localeCompare(right.name))
+          .map((tool) => {
+            const descriptor: ToolDescriptor = {
+              name: tool.name,
+              description: tool.description,
+              origin: window.location.origin,
+              window,
+            };
+            if (tool.title !== undefined) descriptor.title = tool.title;
+            if (tool.inputSchema !== undefined) descriptor.inputSchema = tool.inputSchema;
+            if (tool.annotations !== undefined) descriptor.annotations = tool.annotations;
+            return descriptor;
+          });
+      },
+      async executeTool(
+        descriptor: ToolDescriptor,
+        input: Record<string, unknown> = {},
+        options?: { signal?: AbortSignal },
+      ): Promise<string> {
+        executeToolCalls += 1;
+        const registered = active.get(descriptor.name);
+        if (!registered) throw new Error(`Tool is no longer registered: ${descriptor.name}`);
+        const output = await registered.execute(input, options);
+        return typeof output === "string" ? output : JSON.stringify(output);
+      },
+      addEventListener(type: "toolchange", listener: EventListenerOrEventListenerObject) {
+        if (type === "toolchange") listeners.add(listener);
+      },
+      removeEventListener(type: "toolchange", listener: EventListenerOrEventListenerObject) {
+        if (type === "toolchange") listeners.delete(listener);
+      },
+    };
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: modelContext,
+    });
+    Object.defineProperty(window, "__ratiflowFullWebMCPHarness", {
+      configurable: true,
+      value: {
+        snapshot: () => ({
+          names: [...active.keys()].sort(),
+          toolchangeCount,
+          getToolsCalls,
+          executeToolCalls,
+        }),
+        invoke: async (name: string, input: Record<string, unknown>) => {
+          const descriptor = (await modelContext.getTools()).find((tool) => tool.name === name);
+          if (!descriptor) throw new Error(`Registered descriptor was absent: ${name}`);
+          return JSON.parse(await modelContext.executeTool(descriptor, input)) as unknown;
+        },
+      },
+    });
+  });
+  const page = await context.newPage();
+  let mentionQueued = false;
+  let claimRequests = 0;
+  let relayStepRequests = 0;
+
+  await page.route("**/api/repository-v4/relay/state", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, data: managedRelayState(mentionQueued) }),
+    });
+  });
+  await page.route("**/api/repository-v4/relay/claim", async (route) => {
+    claimRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          outcome: "NO_WORK",
+          retryAfterMs: RELAY_BOUNDS.recoveryHeartbeatMs,
+        },
+      }),
+    });
+  });
+  await page.route("**/api/repository-v4/relay/step", async (route) => {
+    relayStepRequests += 1;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: false,
+        code: "RELAY_UNAVAILABLE",
+        message: "The deterministic browser smoke never dispatches Luna.",
+        retryable: false,
+      }),
+    });
+  });
+  await page.route("**/api/repository-v4/task/mention", async (route) => {
+    mentionQueued = true;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          outcome: "MANAGED_TASK_QUEUED",
+          target: { kind: "AGENT", profileId: MANAGED_CODE_PROFILE_ID },
+          threadId: MANAGED_RELAY_THREAD_ID,
+          commentId: MANAGED_RELAY_COMMENT_ID,
+          taskId: MANAGED_RELAY_TASK_ID,
+          runId: MANAGED_RELAY_RUN_ID,
+        },
+      }),
+    });
+  });
+
+  try {
+    await launchExample(page, "POSTMORTEM");
+    await expect.poll(() => page.evaluate(() => {
+      const harness = (window as unknown as {
+        __ratiflowFullWebMCPHarness: {
+          snapshot: () => { names: string[] };
+        };
+      }).__ratiflowFullWebMCPHarness;
+      return harness.snapshot().names;
+    })).toEqual([...REPOSITORY_TOOL_NAMES].sort());
+
+    const consumerResult = await page.evaluate(async () => {
+      const harness = (window as unknown as {
+        __ratiflowFullWebMCPHarness: {
+          invoke: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).__ratiflowFullWebMCPHarness;
+      return harness.invoke("connect_agent", { name: "Consumer probe" });
+    }) as { structuredContent: { ok: boolean } };
+    expect(consumerResult.structuredContent.ok).toBe(true);
+    const consumerSnapshot = await page.evaluate(() => {
+      const harness = (window as unknown as {
+        __ratiflowFullWebMCPHarness: {
+          snapshot: () => {
+            toolchangeCount: number;
+            getToolsCalls: number;
+            executeToolCalls: number;
+          };
+        };
+      }).__ratiflowFullWebMCPHarness;
+      return harness.snapshot();
+    });
+    expect(consumerSnapshot).toMatchObject({
+      getToolsCalls: 1,
+      executeToolCalls: 1,
+    });
+    expect(consumerSnapshot.toolchangeCount).toBeGreaterThanOrEqual(
+      REPOSITORY_TOOL_NAMES.length,
+    );
+
+    await page.getByTestId("guided-selection").click();
+    const composer = page.getByTestId("selection-comment-composer");
+    await expect(composer).toBeVisible();
+    await composer.getByLabel("Comment or @ an agent").fill("@");
+    const directory = composer.getByRole("listbox", { name: "Company directory" });
+    await expect(directory).toBeVisible();
+    await directory.getByRole("option", { name: /@Code\b/u }).click();
+    const instruction = "@Code verify this failure against the synthetic repository.";
+    await composer.getByLabel("Comment or @ an agent").fill(instruction);
+    await expect(composer.getByText(/Assigned to @Code · code specialist/u)).toBeVisible();
+    const mentionRequestPromise = page.waitForRequest((request) =>
+      request.url().endsWith("/api/repository-v4/task/mention")
+      && request.method() === "POST");
+    await composer.getByRole("button", { name: "Assign & run", exact: true }).click();
+
+    const mentionRequest = await mentionRequestPromise;
+    const mentionBody = mentionRequest.postDataJSON() as Record<string, unknown>;
+    expect(Object.keys(mentionBody).sort()).toEqual([
+      "anchor",
+      "comment",
+      "expectedRevision",
+      "target",
+    ]);
+    expect(mentionBody).toMatchObject({
+      expectedRevision: 5,
+      comment: instruction,
+      target: { kind: "AGENT", profileId: MANAGED_CODE_PROFILE_ID },
+      anchor: {
+        scope: "SELECTION",
+        field: "BODY",
+        rangeStart: 1150,
+        rangeEnd: 1603,
+      },
+    });
+    expect(mentionBody).not.toHaveProperty("mentionedAgentName");
+    expect(mentionBody).not.toHaveProperty("assignedToMemberId");
+    expect(mentionBody.target).not.toHaveProperty("displayName");
+    expect(mentionBody.target).not.toHaveProperty("handle");
+
+    const rail = page.getByRole("complementary", {
+      name: "Comments, history, and relay",
+    });
+    await expect(rail).toBeVisible();
+    await expect(rail.getByRole("tab", { name: /^Relay/u })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    const recorder = rail.getByTestId("relay-flight-recorder");
+    await expect(recorder).toBeVisible();
+    await expect(recorder.getByRole("heading", {
+      name: "The application trace stays with the document.",
+    })).toBeVisible();
+    await expect(recorder).toContainText("@Code");
+    await expect(recorder).toContainText(MANAGED_AGENT_MODEL);
+    await expect(recorder.getByRole("list", { name: "Code tool catalog" })).toBeVisible();
+    await expect(recorder).toContainText("Mention became durable work");
+    await expect(recorder).toContainText("Queued for this open page");
+    await expect(page.getByRole("status")).toContainText(
+      "@Code queued. This page is starting the relay now.",
+    );
+    await expect.poll(() => claimRequests).toBeGreaterThan(0);
+    expect(relayStepRequests).toBe(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rationale/evidence, and can be restored", async ({ page }) => {
   await launchTemplate(page, "POSTMORTEM");
   const profile = await connectCurrentAgent(page, "Databot");
   expect(profile.member.displayName).toBe(PERSON_NAME);
@@ -624,14 +1013,14 @@ test("v4.1 selected @ agent creates Direct TASK-n, commits immediately with rati
   await expect(page.getByTestId("rendered-document-body")).toContainText(POSTMORTEM_SELECTION);
 });
 
-test("v4.1 quiet Edit saves without public changeSummary and survives reload without WebMCP", async ({ page }) => {
+test("v4.2 quiet Edit saves without public changeSummary and survives reload without WebMCP", async ({ page }) => {
   await launchTemplate(page, "PRODUCT_DOCUMENT");
   expect(await page.evaluate(() => ({
     documentModelContext: "modelContext" in document,
     navigatorModelContext: "modelContext" in navigator,
   }))).toEqual({ documentModelContext: false, navigatorModelContext: false });
   await expect(page.getByRole("button", {
-    name: /Human mode\. Open agent setup\./u,
+    name: /Open agent guide\.$/u,
   })).toBeVisible();
   await expect(page.getByLabel("Change summary")).toHaveCount(0);
 
@@ -669,7 +1058,7 @@ test("v4.1 quiet Edit saves without public changeSummary and survives reload wit
   await expect(page.getByLabel("Markdown source")).toHaveCount(0);
 });
 
-test("v4.1 clean shared URL joins a named human and preserves their draft across a remote revision", async ({
+test("v4.2 clean shared URL joins a named human and preserves their draft across a remote revision", async ({
   browser,
   baseURL,
 }) => {
@@ -732,7 +1121,7 @@ test("v4.1 clean shared URL joins a named human and preserves their draft across
   }
 });
 
-test("v4.1 390×844 keeps the rendered document, comment rail, history, and tap targets usable", async ({
+test("v4.2 390×844 keeps the rendered document, comment rail, history, and tap targets usable", async ({
   browser,
   baseURL,
 }) => {
@@ -751,7 +1140,9 @@ test("v4.1 390×844 keeps the rendered document, comment rail, history, and tap 
     const commentsButton = page.getByRole("button", { name: /^Comments(?: \d+)?$/u }).first();
     await expectMinimumTarget(commentsButton);
 
-    const rail = page.getByRole("complementary", { name: "Comments and history" });
+    const rail = page.getByRole("complementary", {
+      name: "Comments, history, and relay",
+    });
     await expect(rail).toBeHidden();
     await commentsButton.click();
     await expect(rail).toBeVisible();
@@ -761,8 +1152,8 @@ test("v4.1 390×844 keeps the rendered document, comment rail, history, and tap 
     await expectMinimumTarget(history);
     await history.click();
     await expect(rail.locator('[data-testid="revision-card"][data-revision="1"]')).toBeVisible();
-    await expectMinimumTarget(rail.getByRole("button", { name: "Close comments and history" }));
-    await rail.getByRole("button", { name: "Close comments and history" }).click();
+    await expectMinimumTarget(rail.getByRole("button", { name: "Close collaboration rail" }));
+    await rail.getByRole("button", { name: "Close collaboration rail" }).click();
 
     await selectRenderedText(page, POSTMORTEM_SELECTION);
     const composer = page.getByTestId("selection-comment-composer");

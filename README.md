@@ -1,80 +1,84 @@
 # Ratiflow
 
-> **Git-grade history and task-scoped autonomy for important documents.**
+> **Mention the expert. The page supplies the tools. The document keeps the proof.**
 
-Ratiflow is a shared issue document where people and the agents they bring work on one
-durable artifact. Anyone with the link can read and edit through the ordinary web UI.
-Select a passage and leave a comment; `@Databot check these figures` becomes durable
-agent work, while an ordinary comment remains a human discussion. There is no authority
-form and no pre-approval queue in the flagship interaction.
+Ratiflow turns a shared document into a dynamic agent workspace. A judge enters a
+nickname, opens a completed two-page Postmortem or Product document, selects a passage,
+and writes a normal comment beginning with `@Code`, `@Data`, or `@General`. The page then
+exposes only that specialist's WebMCP tools, GPT-5.6 Luna composes the required calls
+and arguments in a bounded role workflow, and the result lands as a reversible document
+revision scoped to the selected passage.
 
-A compatible browser agent gets a page-native WebMCP surface for its assigned work,
-discussion, and complete collaboration history—without a proprietary bot runtime or an
-integration for each model. Agent changes commit directly inside the exact stored range.
-The completed comment shows the prompt, source context, owner-bound agent identity,
-rationale, evidence, highlighted diff, and revision, and a person can restore it.
+The novelty is not another chat box. It is a page-owned capability switch:
 
-Every content change becomes an immutable, reconstructable revision. History records
-the author, committer, task, grantor, source revision, evidence, summary, complete
-snapshot, and diff. An agent self-declares its name once per page; the server binds that
-profile to the authenticated human owner. Agents cannot forge their owner or write
-outside a task's anchor.
+```text
+@mention → role-scoped WebMCP catalog → Luna tool search → exact page tool
+         → synthetic evidence → scoped revision → immutable history
+```
 
-Ratiflow deliberately supports exactly two document types:
+Ratiflow uses an **application-owned Luna↔WebMCP relay**. Luna supports client-executed
+tool search through the Responses API; the browser maps that request to the current
+`document.modelContext` catalog and invokes the exact returned descriptor with
+`executeTool()`. This is a forward-looking composition, not a claim that Luna natively
+supports OpenAI Site Tools. The API credential remains server-side.
 
-1. **Incident postmortem** — impact, timeline, root cause, contributing factors,
-   resolution, and follow-up actions.
-2. **Product document** — problem, users, proposal, constraints, success measures,
-   rollout, and open questions.
+Every run leaves a readable application trace next to the document. Every content
+change records the author, task, source revision, bounded source labels, full snapshot,
+and server-computed diff. Native WebMCP execution is validated separately as dated,
+supported-client observational evidence; the application trace is not presented as
+cryptographic browser attestation.
 
-It is a focused WebMCP Challenge proof, not a general Git host, rich-text editor, CRDT,
-account system, or background agent runner.
+## The 90-second judge path
 
-## The flagship interaction
+1. Enter a nickname and choose **Postmortem** or **Product doc**.
+2. Follow the three-step coach to select the suggested passage and load the suggested
+   specialist prompt.
+3. Assign `@Code` to verify the Postmortem's retry regression, or `@Data` to check the
+   Product document's launch-capacity arithmetic.
+4. Watch the Flight Recorder show the role catalog, Luna's required tool calls, labeled
+   synthetic sources, and the committed revision.
+5. Mention `@General` on a section to reword it while preserving facts.
+6. Open **History** to inspect the prompt, sources, authorship, diff, and Restore action.
 
-The deterministic example is **INC-482 · Checkout outage postmortem**.
+The completed **INC-482 · Checkout outage postmortem** begins at r5 with human and agent
+history. Its guided `@Code` run verifies `commit:7d3c9e1` and `checkout.log`, then commits
+r6. A follow-up `@General` run can reword the revised Root cause as r7.
 
-1. Priya selects the Impact, Timeline, and Root cause placeholders and leaves three
-   comments: `@Databot …`, `@Logbot …`, and `@Builder …`.
-2. Those comments atomically become `TASK-1` through `TASK-3`, each with its exact r1
-   source passage and the coordination context that existed when it was created.
-3. Databot adds verified totals, a GFM table, and a revisioned bar chart as r2. Logbot's
-   disjoint stale-r1 timeline safely lands as r3. Builder separates the provider trigger
-   from the retry amplifier in r4.
-4. Priya leaves a normal human comment challenging that wording. The discussion closes;
-   it is not an approval event. She then assigns `TASK-4` to Builder from the revised
-   passage, and Builder's evidence-backed clarification commits as r5.
-5. A genuinely new `Contextbot` reads the activity ledger and recovers the prompts,
-   closed discussion, evidence, revisions, and the decision that changed the final text.
+The completed **Northstar · CSV export launch decision** begins at r6. Its guided
+`@Data` run queries a synthetic capacity fixture, demonstrates that 10 + 4 = 14 fits
+while 10 + 8 = 18 does not, and commits Success measures as r7.
 
-The Product document example is equally complete: a corrected capacity assumption,
-Databot comparison table and chart, ChatGPT synthesis, a closed launch-language
-discussion, an intentionally broadened r5 edit, and a new r6 Restore that preserves r5.
+Ratiflow deliberately supports exactly two document types. It is a focused WebMCP
+Challenge proof, not a general Git host, CRDT, identity provider, or unattended
+background-agent service.
 
-The public examples create fresh completed Postmortem r5/av11 or Product r6/av11
-workspaces. The protected reset retains its executable Postmortem r1/av4 starting state
-with four isolated collaborator bootstrap paths.
+## One page, two mutually exclusive tool surfaces
 
-## Eight page-native tools
+When no managed run is active, the top-level page exposes eight bring-your-own-agent
+tools: `connect_agent`, `inspect_document`, `read_document_history`,
+`read_collaboration_context`, `list_my_tasks`, `wait_for_my_tasks`, `comment_on_task`,
+and `submit_task_result`.
 
-The top-level v4.1 issue page registers exactly eight tools through
-`document.modelContext`. The page captures its current document, session, and ephemeral
-page identity; the server remains authoritative for every read and mutation.
+During a managed mention, the page withdraws that idle catalog and registers one
+generation-scoped specialist catalog:
 
-| Tool | Purpose |
-| --- | --- |
-| `connect_agent` | Self-declare the page's agent name; the server binds it to the authenticated human owner. |
-| `inspect_document` | Read the authoritative document, collaborators, tasks, comments, and current counters. |
-| `read_document_history` | Read newest-first revision summaries or one complete immutable historical snapshot. |
-| `read_collaboration_context` | Page the immutable activity ledger with prompts, comments, revisions, rationale, evidence, and owner-bound profiles. |
-| `list_my_tasks` | List only this collaborator's delegated agent tasks, with complete bounded discussions. |
-| `wait_for_my_tasks` | Long-poll from explicit cursors for owned work or a document change. |
-| `comment_on_task` | Append an ownership-checked agent reply to its task discussion. |
-| `submit_task_result` | Commit a bounded agent result with rationale and evidence, or preserve compatibility behavior for legacy tasks. |
+| Specialist | Common tools | Specialist tools | Total |
+| --- | --- | --- | ---: |
+| `@Code` | assignment, document, collaboration, comment, submit | `search_demo_code`, `read_demo_file` | 7 |
+| `@Data` | assignment, document, collaboration, comment, submit | `query_demo_metrics` | 6 |
+| `@General` | assignment, document, collaboration, comment, submit | `read_company_style_guide`, `check_document_consistency` | 7 |
 
-There is no agent tool to create, reassign, cancel, accept, reject, or restore work.
-Tool presence guides the agent; server-bound ownership, page generation, revision
-checks, and exact source ranges enforce authority.
+The exact relay sequence is:
+
+```text
+toolchange → tool_search_call → getTools() → tool_search_output
+           → Luna function call → executeTool() → revision committed
+```
+
+Tool names are unique per registration generation; old descriptors and replayed
+one-shot permits fail closed. Server-side task scope, lease ownership, revision checks,
+evidence bindings, attempt limits, and spend quotas remain authoritative. Mentions wake
+the open page immediately; the 15-second timer is recovery only, not a cron service.
 
 ```text
 shared issue document
@@ -95,11 +99,11 @@ document is visually primary. Tables render as tables; validated `chart` fences 
 accessible static SVG plus a tabular fallback. A quiet Edit action reveals Markdown
 source only when someone needs it, and save summaries are derived rather than typed.
 
-After a document opens, a dismissible setup strip explains how to bring one current
-agent for that collaborator. In a WebMCP-capable client, name the agent locally, copy the
-generated instruction, and send it to the agent. The profile is not created until the
-agent itself calls `connect_agent`; the status then changes from tool-ready to the exact
-page-scoped `agent · owner` connection. Teammates connect their own agents.
+After a document opens, a dismissible coach shows the live demo in three moves: select
+the suggested passage, choose the suggested managed specialist, and open the Flight
+Recorder. The company directory is deliberately synthetic and labels each agent's
+scope and specialty. Bring-your-own-agent setup remains available in an Advanced
+section; self-declared profiles are separate from managed demo identities.
 
 A text or whole-block selection opens one compact anchored comment composer. Selecting
 an autocomplete result creates `@Agent` work; literal or unselected `@` text creates a
@@ -108,17 +112,17 @@ History is a quiet Git-like view with immutable snapshots, provenance, diffs, an
 Restore—useful to people, but primarily the durable context plane agents read.
 
 WebMCP is optional. With it absent, people can still create, read, edit, share, comment,
-reply, close discussions, inspect history, and restore a revision. A recorded agent
-profile is an assignment target, not a live-presence claim; Ratiflow never pretends it
-can wake a dormant external agent.
+reply, close discussions, inspect history, and restore a revision. Managed mentions
+remain durable but cannot execute until an eligible page opens; the UI says so.
 
 ## Why WebMCP matters
 
-Without a page-native contract, collaboration with a bring-your-own agent collapses
-into copied prompts, pasted findings, ad hoc permissions, and lost reasoning. Ratiflow
-turns the live document into a discoverable capability and context plane:
+Without a page-native contract, collaboration with agents collapses into copied prompts,
+pasted findings, bespoke integrations, and lost reasoning. Ratiflow turns the live
+document into a discoverable capability and context plane:
 
-- agents find assigned work and complete discussion without a vendor-specific adapter;
+- the page changes the available capabilities as `@Code`, `@Data`, and `@General` work;
+- Luna discovers those tools at run time instead of receiving one oversized static set;
 - new `@Agent` results commit only to the exact passage a person selected; legacy task
   modes remain readable for compatibility but are absent from the flagship UI;
 - concurrent disjoint work can land without a global approval queue;
@@ -134,14 +138,15 @@ evidence.
 ```text
 Next.js issue page
   ├─ ordinary human UI → authenticated repository-v4 routes
-  └─ document.modelContext → checked eight-tool WebMCP lifecycle
+  └─ document.modelContext → idle catalog ⇄ managed role catalog
                                     ↓
-                         authoritative service port
-                      ┌─────────────┴─────────────┐
-                 local reference service   Supabase RPC adapter
-                      └─────────────┬─────────────┘
-                full snapshots + revision/activity counters
-            profiles + tasks + discussions + replay/context ledger
+                 app-owned Responses API relay (gpt-5.6-luna)
+                                    ↓
+          lease + permit + exact-range repository authority
+                       ┌────────┴────────┐
+              local reference       Supabase RPC adapter
+                       └────────┬────────┘
+             snapshots + revisions + collaboration ledger
 ```
 
 - Next.js App Router, React, TypeScript, CSS Modules, pnpm, and Vercel provide the web
@@ -157,9 +162,11 @@ Next.js issue page
   waits use fetch-subscribe-refetch with one bounded deadline.
 - WebMCP registration and execution honor `AbortSignal`; route or session changes remove
   tools, waits, timers, listeners, and stale callbacks.
+- Managed runs use one active run per document, two attempts at most, short leases,
+  one-shot execution permits, provider-step reservations, and durable spend limits.
 
 The older `/document/[shareToken]` and `/decision-demo` paths remain isolated v3
-compatibility surfaces. They do not prove the v4 product or six-tool catalog.
+compatibility surfaces. They do not prove the v4.2 managed relay.
 
 ## Share and session safety
 
@@ -191,6 +198,8 @@ For Supabase-backed development, configure server-only values:
 ```bash
 RATIFLOW_SUPABASE_URL=https://your-project.supabase.co
 RATIFLOW_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+open_ai_api=your-openai-api-key
+RATIFLOW_RELAY_SIGNING_SECRET=at-least-32-random-bytes
 ```
 
 Apply checked migrations in filename order. The v4 issue-document migration is
@@ -214,33 +223,37 @@ pnpm eval:reset:v4
 ```
 
 Browser automation and adapter calls are never labeled native WebMCP evidence. Native
-proof requires a supported client discovering and invoking the eight tools on the
-top-level deployed issue page.
+proof requires a supported client observing the idle→role→idle lifecycle and invoking
+the exact returned descriptor on the top-level deployed issue page.
 
 ## Evaluation and release status
 
-The checked [evaluation contract](EVALS.md) defines 25 domain/persistence rows, 16
-ordinary-browser rows, 10 deployed-native rows, six five-run agent trajectories, four
-visual rows, five release gates, an ablation, and four independent competition judges.
+The checked [evaluation contract](EVALS.md) defines the domain, browser, native,
+live-agent, visual, release, ablation, and independent competition-judge gates. Its
+machine-checked row inventory is the source of truth; this README does not duplicate
+those fast-changing counts.
 
-The previous v4 implementation was a verified release candidate. The v4.1 comment-first
-redesign must re-run the complete local, browser, persistence, and native evidence gates
-before inheriting any of those claims. A supported-client run must discover exactly
-eight tools, begin with `connect_agent`, exercise collaboration context, and observe
-clean teardown on `/new`; adapter-only calls are not deployed native evidence.
+The v4.2 candidate has passed local protocol gates and repeated loopback Chrome 152
+`document.modelContext` trajectories with the live Luna API. That proves the candidate
+flow, but it is not deployed native evidence. A supported-client release run must still
+observe the idle→role→idle catalog transition and invoke the exact returned descriptors
+on the exact production SHA; adapter-only calls never count as native proof.
 
-Supabase remote apply/advisors, native write/authority matrices on the exact deployed
-SHA, real-agent trajectories and ablation, independent visual approval, public video,
-public package, and release manifest remain `PENDING`. The deployed v3 runtime at
-[ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) is dated compatibility
-evidence only; it must not be presented as v4 proof.
+The matching v4.2 application deployment is authorized in principle, but the exact
+additive Supabase migration still needs explicit production-database approval. Until
+the migration and deployment both land, the production URL at
+[ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) remains the prior v4.1
+release (`cf1cc80`) and must not be presented as v4.2 evidence. Exact-SHA deployed-native matrices,
+remote persistence checks, the public video/package, and the final release manifest also
+remain `PENDING`.
 
-Deployment, repository visibility, video publication, and Devpost submission are
-separate release actions and require explicit authorization.
+Repository visibility, video publication, and Devpost submission remain separate
+release actions. The source push and matching application deployment are authorized;
+the latter is sequenced after the approved database migration.
 
 ## Project documents
 
-- [Product specification](product_spec.md) — frozen v4.1 collaboration and authority contract.
+- [Product specification](product_spec.md) — frozen v4.2 collaboration and authority contract.
 - [Repository contract](docs/contracts/repository-contract.md) — checked entities,
   routes, lifecycle, replay, security, and concurrency behavior.
 - [Postmortem hero](docs/contracts/postmortem-hero-scenario.md) — exact INC-482 r1-r5
@@ -249,8 +262,8 @@ separate release actions and require explicit authorization.
   capacity-planning r1-r6 scenario, including the preserved broadened edit and Restore.
 - [Evaluation contract](EVALS.md) — automated, browser, native, trajectory, visual,
   rehearsal, and competition-judge gates.
-- [Current evidence ledger](EVAL_RESULTS.md) — observed proof; older v3 rows remain
-  compatibility evidence only.
+- [Legacy evidence ledger](EVAL_RESULTS.md) — prior-release observations only; it is not
+  v4.2 release proof.
 
 ## License
 

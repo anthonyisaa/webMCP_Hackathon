@@ -45,3 +45,23 @@ test("invalid chart JSON stays inert with an actionable inline error", () => {
   assert.match(markup, /Open Edit to correct the source/u);
   assert.doesNotMatch(markup, /<svg/u);
 });
+
+test("a rendered sheet maps absolute comment anchors through its source offset", () => {
+  const source = "## Detection\n\nThe alert arrived late.";
+  const markup = renderToStaticMarkup(createElement(MarkdownDocument, {
+    source,
+    sourceCodePointOffset: 120,
+    anchors: [{
+      scope: "SELECTION",
+      field: "BODY",
+      rangeStart: 120,
+      rangeEnd: 132,
+      selectedText: "## Detection",
+      createdRevision: 1,
+      anchorRevision: 1,
+      anchorState: "ACTIVE",
+    }],
+  }));
+
+  assert.match(markup, /<h2[^>]*data-commented="true"/u);
+});

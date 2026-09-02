@@ -24,9 +24,11 @@ design-partner beta; the remaining four export days lead to full GA by November 
 $180,000 renewal depends on that production-ready date. It must not describe October 15
 as general availability. Every fixture is visibly labeled **Synthetic demo data**.
 
-The visible proof uses one task/run/attempt lineage and records Luna client tool search,
-the Data-only catalog, WebMCP `getTools()` and `executeTool()`, verified result digests,
-the exact Success-measures diff, revision, and Restore. Switching to `@Code` or
+The visible application trace uses one task/run/attempt lineage and records Luna client
+tool search, the Data-only catalog, WebMCP `getTools()` and `executeTool()`, verified
+result digests, the exact Success-measures diff, revision, and Restore. It is not native
+browser attestation; dated supported-client evidence against the exact deployed SHA
+remains the native WebMCP proof class. Switching to `@Code` or
 `@General` must remove `query_demo_metrics` and expose only that role's specialist delta.
 
 This overlay is independently frozen in

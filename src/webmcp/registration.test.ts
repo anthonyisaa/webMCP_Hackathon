@@ -10,7 +10,11 @@ import type {
   ToolResult,
   WorkspaceView,
 } from "../contracts/index";
-import { detectModelContext, makeRegistrationContextKey } from "./detect";
+import {
+  asStandardWebMCPConsumer,
+  detectModelContext,
+  makeRegistrationContextKey,
+} from "./detect";
 import { captureCallbackContext, createToolCallback } from "./executor";
 import { WebMCPRegistrationManager } from "./registration";
 import type {
@@ -218,6 +222,27 @@ test("prefers document.modelContext, falls back to navigator, and is safely unsu
     context: navigatorContext,
   });
   assert.deepEqual(detectModelContext({}, {}), { namespace: "unsupported" });
+});
+
+test("managed Relay accepts only the complete standard document consumer surface", () => {
+  const complete = Object.assign(new FakeModelContext(), {
+    getTools: async () => [],
+    executeTool: async () => "{}",
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  });
+  assert.equal(asStandardWebMCPConsumer({
+    namespace: "document.modelContext",
+    context: complete,
+  }), complete);
+  assert.equal(asStandardWebMCPConsumer({
+    namespace: "navigator.modelContext",
+    context: complete,
+  }), null);
+  assert.equal(asStandardWebMCPConsumer({
+    namespace: "document.modelContext",
+    context: new FakeModelContext(),
+  }), null);
 });
 
 test("keeps callback identity on revision-only changes and removes exactly prepare_decision", async () => {

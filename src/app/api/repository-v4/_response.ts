@@ -1,4 +1,5 @@
 import type { RepositoryFailure, RepositoryResult } from "@/repository/contracts";
+import type { RelayResult } from "@/agent-relay/contracts";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -17,6 +18,20 @@ export function repositoryResponse<T>(
       : result.code === "NOT_FOUND" ? 404
         : result.code === "RATE_LIMITED" ? 429
           : 409;
+  return Response.json(result, { status });
+}
+
+export function relayResponse<T>(
+  result: RelayResult<T>,
+  successStatus = 200,
+): Response {
+  if (result.ok) return Response.json(result, { status: successStatus });
+  const status = result.code === "INVALID_INPUT" ? 400
+    : result.code === "UNAUTHORIZED" ? 401
+      : result.code === "NOT_FOUND" ? 404
+        : result.code === "RATE_LIMITED" ? 429
+          : result.code === "RELAY_UNAVAILABLE" ? 503
+            : 409;
   return Response.json(result, { status });
 }
 

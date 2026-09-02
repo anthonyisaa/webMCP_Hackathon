@@ -5,6 +5,7 @@ import type {
   ConnectIssueAgentOutcome,
   ConnectIssueAgentToolInput,
   CreateMentionTaskHttpInput,
+  CreateDirectoryMentionHttpInput,
   CreateIssueTaskHttpInput,
   CreateIssueThreadHttpInput,
   DecideIssueTaskHttpInput,
@@ -33,6 +34,7 @@ import type {
   WaitForMyIssueTasksInput,
   WaitForMyIssueTasksOutcome,
 } from "@/repository/contracts";
+import type { DirectoryMentionReceipt, RelayResult } from "@/agent-relay/contracts";
 
 const PAGE_SESSION_HEADER = "X-Ratiflow-Page-Session";
 const IDEMPOTENCY_HEADER = "Idempotency-Key";
@@ -202,6 +204,21 @@ export class RepositoryHttpService implements RepositoryBrowserClientPort {
       signal,
       extraHeaders: this.#mutationHeaders(),
     });
+  }
+
+  createDirectoryMention(
+    sessionToken: string,
+    input: CreateDirectoryMentionHttpInput,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<DirectoryMentionReceipt>> {
+    return authenticated({
+      path: "/api/repository-v4/task/mention",
+      method: "POST",
+      sessionToken,
+      body: input,
+      signal,
+      extraHeaders: this.#mutationHeaders(),
+    }) as Promise<RelayResult<DirectoryMentionReceipt>>;
   }
 
   createThread(
