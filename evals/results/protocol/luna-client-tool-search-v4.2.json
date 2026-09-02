@@ -1,0 +1,36 @@
+{
+  "evidenceSchemaVersion": "ratiflow.luna-client-tool-search-smoke/v1",
+  "capturedAt": "2026-09-02T15:33:43Z",
+  "sourceBaselineSha": "cbc78a06c6ded2160123d3847daf24e29161fe4a",
+  "candidateTreeState": "CLEAN_DETACHED_WORKTREE",
+  "sourceTreeClean": true,
+  "evidenceClass": "AUTOMATED",
+  "environment": "LOCAL_SERVER_SIDE_EXACT_SHA",
+  "model": "gpt-5.6-luna",
+  "openAiSdkVersion": "7.8.0",
+  "fixtureVersion": "ratiflow.luna-client-tool-search-smoke/v1",
+  "scenario": "client tool_search -> tool_search_output -> function_call -> function_call_output -> terminal message",
+  "durationMs": 4151,
+  "responseIdRepresentation": "sha256 prefix, 12 lowercase hexadecimal characters",
+  "responseHashes": [
+    "2abe8721e584",
+    "b446df761df6",
+    "b47254bf621e"
+  ],
+  "itemTypes": [
+    ["tool_search_call"],
+    ["function_call"],
+    ["message"]
+  ],
+  "usage": {
+    "inputTokens": 802,
+    "outputTokens": 77,
+    "totalTokens": 879
+  },
+  "terminalMarkerObserved": true,
+  "rawPromptStoredInEvidence": false,
+  "rawModelOutputStoredInEvidence": false,
+  "apiKeyStoredInEvidence": false,
+  "nativeWebMcpProven": false,
+  "result": "PASS"
+}
