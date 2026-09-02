@@ -1,6 +1,43 @@
-# INC-482 comment-first postmortem hero
+# INC-482 managed-relay Postmortem hero
 
-Version 2 · Protocol v4.1 deterministic scenario · 2026-09-02
+Version 3 · v4.2 product on protocol 4 · 2026-09-02
+
+## v4.2 judge-owned live overlay
+
+The public **Explore postmortem** path creates a fresh isolated two-sheet clone with the
+substantial history and synthetic evidence frozen below. It adds the judge only as a
+non-authoring viewer and highlights **Root cause** as the 90-second live path. The grouped
+@ directory shows Humans and the immutable managed agents `@Data`, `@Code`, and
+`@General`; legacy self-declared profiles remain under Advanced.
+
+The exact hero prompt is:
+
+> @Code Check this root-cause section against the synthetic repository and checkout log.
+> Separate the external trigger from the internal amplifier, quantify the retry behavior
+> and queue growth, then replace only this section.
+
+Selecting the canonical Code profile creates exactly one Direct task and one queued Relay
+run. The successful trajectory calls, through the page's live WebMCP surface,
+`read_assignment`, `search_demo_code`, `read_demo_file`, and
+`submit_scoped_revision`. The result must cite `checkout.log` and `commit:7d3c9e1`, state
+that provider 429 throttling was the external trigger, state that ignored `Retry-After`
+plus up to five zero-delay retries was the internal amplifier, and quantify 5.8× retry
+traffic plus queue growth from 420 to 18,240. It must not call provider latency alone the
+root cause.
+
+The visible Flight Recorder must show one consistent task/run/attempt lineage and the
+ordered WebMCP proof: idle catalog withdrawn, Code catalog registered, `toolchange`, Luna
+client `tool_search`, `getTools()`, tool selection, `executeTool()`, result digest,
+revision, Code catalog withdrawn, and idle catalog restored. A later `@General` run on a
+selected section must expose `read_company_style_guide` and
+`check_document_consistency` instead of Code's two specialist tools. History keeps the
+human grantor, managed agent, `gpt-5.6-luna`, runtime
+`OPENAI_LUNA_WEBMCP_RELAY`, synthetic evidence, exact diff, and Restore.
+
+This overlay is independently frozen in
+`evals/goldens/repo-document-v4.2/managed-relay.json`. The detailed v4.1 graph below is
+retained as seed and compatibility authority; its historical self-declared names are not
+presented as the managed directory.
 
 The independent machine-readable oracle is
 `evals/goldens/repo-document-v4.1/postmortem-comment-first.json`. Production example

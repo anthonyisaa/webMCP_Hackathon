@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.RATIFLOW_BASE_URL;
+const nativeBrowserChannel = process.env.RATIFLOW_NATIVE_BROWSER_CHANNEL;
 if (!baseURL) {
   throw new Error("RATIFLOW_BASE_URL is required; refusing to run browser evals without a deployed URL");
 }
@@ -22,5 +23,6 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     ...devices["Desktop Chrome"],
+    channel: nativeBrowserChannel,
   },
 });

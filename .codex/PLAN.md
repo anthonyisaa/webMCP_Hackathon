@@ -1,4 +1,409 @@
-# Plan — Comments that become agent work
+# Plan — The document is the agent runtime
+_Updated: 2026-09-02T22:40:47+08:00_
+
+## Goal and ambition mode
+
+Turn the shipped v4.1 collaboration document into a brownfield v4.2 flagship, retaining
+the literal repository wire/storage protocol `4`. Its winning claim is: **Mention the
+expert. The page supplies the tools. The document keeps the proof.** A judge enters a
+nickname, chooses a substantial two-sheet Incident
+postmortem or Product document, comments on an exact passage or section, and mentions a
+known human or one of three managed demo agents: `@Data`, `@Code`, or `@General`.
+
+An agent mention becomes durable work. While the document is open, an application-owned
+in-page relay uses the WebMCP consumer APIs to discover the active specialist's live
+role-scoped catalog, lets GPT-5.6 Luna select tools through the Responses API, executes
+every selected tool through `document.modelContext.executeTool()`, and commits a bounded,
+reversible revision through the existing ledger. A visible flight recorder proves the
+catalog delta, discovery, execution, evidence, model/runtime, exact diff, and resulting
+revision without exposing hidden reasoning.
+
+This is an ambitious model-independent agent-runtime extension, not another AI rewrite
+button. Preserve the ordinary human experience and the existing top-level eight-tool
+BYOA surface. Explicitly do not build production SSO/RBAC, arbitrary agent installation,
+real company connectors, a CRDT/live-cursor editor, unbounded autonomy, or a backend
+daemon falsely described as WebMCP. Data and code sources are deterministic synthetic
+fixtures and visibly labeled. Managed agents run only while an eligible document page is
+open; immediate dispatch is backed by a 15-second recovery heartbeat, not a cron promise.
+Ship a public, keyboard-navigable 12-slide HTML deck at `/deck` as part of the application,
+using the product's own visual system and verified screenshots to make the judge story
+understandable even when the entry is reviewed from submission materials alone.
+
+## Chokepoint — freeze and prove first
+
+Before feature streams start, freeze one v4.2 Agent Directory / Principal / Relay contract
+in `product_spec.md`, `docs/contracts/repository-contract.md`, a new
+`docs/contracts/webmcp-relay-contract.md`, `src/repository/contracts.ts`, a new
+`src/agent-relay/contracts.ts`, both hero scenario documents, an audience-facing deck
+storyboard, independent goldens, and `EVALS.md`. The release name is v4.2; this is an
+additive protocol-4 extension with
+optional relay/directory fields and new `/api/repository-v4/relay/**` routes, not a literal
+protocol 5 or a second repository route family. C0 must also prove the risky protocol
+seam with a tiny deployed top-level WebMCP probe and a minimal real Luna
+client-tool-search round trip. Documentation alone
+is enough to plan the feature, but not enough to claim the live integration works.
+
+Freeze these decisions:
+
+1. **Truthful runtime claim.** OpenAI Site Tools are its native WebMCP implementation and
+   currently disable GPT-5.6 Luna; Sol and Terra remain the supported native Site Tools
+   path. Ratiflow therefore claims an **application-owned WebMCP Relay powered by Luna**,
+   not native Luna WebMCP. Luna supports Responses, function calling, and client-executed
+   `tool_search`; remote MCP is a separate server protocol and is not this feature.
+2. **Actual WebMCP mediation.** The relay document calls `getTools()`, listens for
+   `toolchange`, and executes the exact returned `RegisteredTool` via `executeTool()`.
+   Tool callbacks, repository mutations, and synthetic source reads may not be called
+   directly as a shortcut. Removing `document.modelContext` must make a live run fail
+   closed; a compatibility adapter is separately labeled and cannot count as native
+   evidence.
+3. **Top-level runtime mode.** Keep all registrations on the top-level page, as required
+   by repository guidance. In idle/BYOA mode the current eight viewer-bound tools remain
+   exact. Claiming managed work atomically enters mutually exclusive Relay mode, aborts
+   the BYOA catalog after in-flight work settles, and registers only one specialist's
+   run-scoped catalog. The same top-level JavaScript calls `getTools()` and `executeTool()`.
+   Completion/failure restores the eight-tool idle catalog. The UI never claims BYOA and
+   the managed relay run concurrently, and the C0 supported-client probe must prove the
+   idle/relay/idle transition, cancellation, `toolchange`, and stale-descriptor behavior.
+4. **First-class principals and grant boundary.** Humans and agents are distinct
+   directory targets. Every managed demo agent has its own internal member principal, so
+   the current unique
+   profile-per-member invariant can remain. The server derives principal, handle,
+   specialty, scope, runtime, category, and authority from a canonical profile ID; model
+   JSON can never choose actor, owner, origin, credential, or permission. Existing
+   self-declared human-owned BYOA profiles remain available under an Advanced path and
+   cannot rename or connect as an immutable `DEMO_DIRECTORY` profile. Any authenticated
+   document member may claim the next queued managed task. Lease acquisition mints a
+   single-attempt bearer with audience `ratiflow-webmcp-relay`, a 120-second TTL, and
+   bindings to document/profile/task/run/attempt/page-session/lease. It lives only in
+   memory, is sent only in `Authorization: Bearer` to same-origin relay tool routes, is
+   revoked on lease loss/terminal state, and never reaches Luna. Unmount revocation is
+   best-effort; every `/relay/step` and `/relay/tool` request authoritatively revalidates
+   the renewable lease and TTL. Long-lived human and BYOA credentials never enter the
+   tool manifest, model input, trace, or evidence.
+5. **Directory and mention contract.** `AgentDirectoryEntry` freezes canonical profile
+   ID, unique handle, display name, `COMPANY | TEAM | PERSONAL` scope,
+   `DATA | CODE | GENERAL`
+   specialty, `DEMO_DIRECTORY | SELF_DECLARED` identity source, runtime, readiness, and
+   server-approved logical tool manifest. `COMPANY | TEAM | PERSONAL` is demo/display
+   metadata, not authorization. Autocomplete groups Humans and Agents and submits a
+   discriminated canonical target (`HUMAN` member ID or `AGENT` profile ID), never a name
+   as authority. A human mention atomically creates discussion only; a managed-agent
+   mention creates exactly one scoped task and immutable target snapshot. Handles are
+   ASCII, case-insensitively unique, reserved against system/tool words, immutable for
+   demo agents, and selected by ID; renamed/deleted/stale targets fail explicitly.
+6. **Run, attempt, lease, and replay lifecycle.** One mentioned task owns one `RelayRun`
+   lineage and one or more numbered `RelayAttempt`s. A run is `QUEUED | ACTIVE |
+   WAITING_RETRY | COMPLETED | EXHAUSTED`; an attempt failure moves the run to
+   `WAITING_RETRY` while budget remains, explicit Retry returns it to `ACTIVE` with a new
+   attempt, and only `COMPLETED`/`EXHAUSTED` are terminal. Retry never reuses provider or
+   mutation IDs. An attempt is `CLAIMED | DISCOVERING | AWAITING_MODEL | EXECUTING_TOOL |
+   RECONCILING | SUCCEEDED | FAILED | EXPIRED`. Lease acquisition precedes any paid call;
+   one task has one renewable live lease across tabs. Each Responses call and function
+   `call_id` derives its own stable non-model mutation ID over exact arguments; replays
+   return the stored outcome and changed arguments fail. A timeout after dispatch enters
+   `RECONCILING`, re-reads authoritative task/run state, and is never reported as a clean
+   cancellation. Task creation sends an immediate wake; the dispatcher checks again every
+   15 seconds while visible and never promises execution after navigation or page close.
+7. **Luna stepper boundary.** `open_ai_api` is server-only, with
+   `OPENAI_API_KEY` accepted as a conventional fallback. A start call sends Luna a
+   fixed developer prompt and only client-executed `tool_search`; Luna's
+   `tool_search_call` returns to the browser. The browser then calls `getTools()`, creates
+   a normalized manifest, and returns the exact requested `tool_search_output`. The
+   server validates it against the attempt/role allowlist and forwards it to fixed model
+   `gpt-5.6-luna`. Luna function calls return to the browser for `executeTool()`; parsed,
+   schema-checked results return as `function_call_output` until a scoped revision lands
+   or the bounded loop stops. Developer instructions repeat on continuation. The client
+   cannot supply model, developer prompt, arbitrary definitions, or credentials.
+   Each function call also returns a signed one-shot `RelayExecutionPermit` bound outside
+   model JSON to attempt, response/call ID, physical name, exact argument digest,
+   registration generation, lease, and short expiry. The browser arms it only around the
+   matching `executeTool()` call; the callback consumes it atomically and `/relay/tool`
+   revalidates it. An unarmed native Site Tools invocation fails even in Relay mode. This
+   is call correlation, not a claim that WebMCP supplied caller identity.
+8. **Dynamic capability and executable-port proof.** Common tools cover assignment
+   claim/read, document and collaboration context, progress comment, and scoped result
+   submission. `@Data` alone
+   adds `query_demo_metrics`; `@Code` alone adds `search_demo_code` and
+   `read_demo_file`; `@General` alone adds `read_company_style_guide` and
+   `check_document_consistency`. The first model-visible action reads its assignment
+   through WebMCP. Each physical WebMCP name is role- and registration-generation-scoped
+   (the UI shows a stable logical name), so an old `RegisteredTool` is never reused for a
+   new persona/run. C0 freezes an injectable `ManagedAgentToolClientPort` for repository
+   reads/mutations and a pure `SpecialistFixturePort` for synthetic metrics/code/style
+   reads. S1 and S4 implement those ports; S2 alone adapts them to WebMCP callbacks; I1
+   wires them. Role switches must produce a visible catalog delta and `toolchange`.
+9. **Manifest, trust, and provenance.** A normalized manifest excludes the
+   non-serializable `RegisteredTool.window`; includes exact same-origin `origin`, physical
+   and logical name, registration generation, normalized JSON Schema, description, and
+   standardized `readOnlyHint`/`untrustedContentHint`; rejects extra origins/tools; and
+   hashes only those frozen fields. Producer-only annotations do not silently affect the
+   digest. `executeTool()` returns a string: the relay parses it once, unwraps the current
+   MCP-style envelope only when contract-valid, validates the logical output schema, and
+   never treats a decode failure as a successful call. The server validates all schemas,
+   task/run/attempt binding, range, revision, role, lease, and result. Tool descriptions,
+   document content, and results
+   are untrusted input. Log ordered sanitized `RelayTraceEvent`s—never chain-of-thought,
+   raw secrets, or unrestricted transcripts—in a separate bounded monotonic
+   `relayEventVersion` stream that does not perturb legacy `activityVersion` waits.
+   History records managed agent, human grantor, model, runtime
+   `OPENAI_LUNA_WEBMCP_RELAY`, `origin=WEBMCP`, source labels,
+   rationale, before/after, and Restore.
+10. **Judge-owned demo copies.** Nickname plus document choice creates a fresh isolated
+    seeded copy. Each example renders as exactly two visual paper sheets on desktop and a
+    two-part stack on mobile, has prior human and agent revisions, and leaves one guided
+    issue unresolved. Postmortem is the 90-second hero: Code verifies a retry failure,
+    General rewrites the Root Cause section, and History proves both. Product is the
+    transfer proof: Data queries 14-day launch-capacity fixtures and revises Success
+    metrics. Synthetic evidence is unmistakably labeled.
+11. **Cost and safety bounds.** Disclose that selected document context is sent to
+    OpenAI. Use short-lived in-memory relay grants, strict same-origin enforcement,
+    per-document and global rate limits, maximum calls/tokens/bytes/time/attempts,
+    sequential tool calls, cancellation on unmount/navigation before dispatch,
+    reconciliation after ambiguous dispatch, and a Retry state. Never silently substitute a
+    canned result for a failed live run.
+12. **Protocol-4 compatibility.** Existing protocol-4 documents and `/api/repository-v4`
+    routes remain authoritative. Relay fields are optional/empty for old records; old
+    create/join/read/comment/tool clients keep their current projection and exact eight
+    idle tools. New relay routes and storage are additive. `REPOSITORY_PROTOCOL_VERSION`,
+    registration context keys, database document checks, and storage prefixes remain
+    literal `4`; no stream may invent a protocol-5 surface.
+13. **HTML deck.** `/deck` contains exactly 12 16:9 slides with arrow/key navigation,
+    progress, direct slide URLs, responsive fit, print styles, and reduced-motion support.
+    Its cumulative arc is problem -> document-as-runtime thesis -> judge workflow ->
+    WebMCP/Luna mechanism -> dynamic role proof -> trust/revisions -> Postmortem evidence
+    -> Product/Data transfer -> architecture -> leverage/impact -> future -> closing
+    claim. Use real application screenshots captured after integration, not mockups or
+    invented results; every external claim/source has a visible or accessible source
+    note, and every slide has one clear audience-facing takeaway.
+14. **Submission truth.** A dated supported-client capture must distinguish the native
+    idle Site Tools surface from the mutually exclusive Luna in-page Relay mode. The
+    public submission must use a public repository with an open-source license and a
+    working judge URL; changing
+    the current private GitHub repository's visibility remains an explicit release action.
+
+## Streams
+
+### C0 — relay contract and two protocol spikes — baseline complete; native capture pending
+- Owner / worktree: coordinating task; current checkout.
+- Scope and key files: `.codex/PLAN.md`, `product_spec.md`,
+  `docs/contracts/repository-contract.md`, new WebMCP relay and hero scenario docs,
+  `src/repository/contracts.ts`, new `src/agent-relay/contracts.ts`, contract tests,
+  independent goldens, `EVALS.md`, and isolated probe-only files.
+- Must not touch: feature implementation, applied migrations, UI/CSS, user-owned
+  `.codex/PROGRESS.md`, `.gitignore`, `--annotate`, or legacy demo media.
+- Verification: contract tests freeze exact entities, discriminated mentions, grant and
+  attempt/permit bindings, ports, states, catalogs, manifest fields, event names, protocol-4
+  routes/projections, bounds, and golden facts; the local adapter probe proves the
+  consumer lifecycle and the deployed supported-client harness remains fail-closed and
+  `PENDING` until an eligible native browser is available. One server-held-key Luna API
+  run established `tool_search -> tool_search_output -> function_call ->
+  function_call_output`; its eligible artifact is regenerated from the exact clean C0
+  SHA. A fresh reviewer found no remaining P0/P1 false-claim or ownership blocker. C0
+  exits as a named green scaffold commit plus an explicit evidence boundary; final native
+  capture remains an I1 release gate rather than a claim inferred from the adapter.
+
+### S1 — directory principals, tasks, leases, and persistence — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0.
+- Scope and key files: `src/domain/repository-service.ts`, repository runtime and focused
+  tests, Supabase adapter/tests, exactly one additive migration, protocol-4 non-relay route
+  handlers, the ordinary repository HTTP client, the frozen
+  `ManagedAgentToolClientPort` implementation, `/api/repository-v4/relay/claim`, and the
+  same-origin `/api/repository-v4/relay/tool` endpoint. Claim acquires the lease before it
+  returns the bounded grant; the tool endpoint alone accepts that grant for repository
+  reads/mutations.
+- Must not touch: frozen contracts, relay browser/server code, UI/CSS, fixture source,
+  existing applied migrations, or demo media.
+- Inputs / frozen contracts: C0 profile/mention/run/lease schemas, authorization table,
+  transitions, grant format/TTL, port and route schemas, errors, and v4.1 compatibility
+  projection.
+- Verification: focused domain/adapter/API tests prove human versus agent mentions,
+  server-derived managed identity, separate agent principals, one active lease across two
+  tabs, legal `WAITING_RETRY` transitions, idempotent recovery, stale/cross-document
+  denial, grant/permit expiry and one-shot consumption, lease validation on every call,
+  immutable trace and
+  revision attribution, old v4.1 reads, RLS/grants, and a real PostgreSQL migration
+  compile/rehearsal rather than static SQL alone.
+
+### S2 — in-page WebMCP relay runtime — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0.
+- Scope and key files: `src/webmcp/types.ts`, `src/webmcp/repository-registration.ts`,
+  `RepositoryWebMCPBridge.tsx`, new `src/agent-relay/browser/**`, feature detection,
+  mutually exclusive idle/relay catalog reconciliation, unique physical-name generation,
+  manifest hashing, tool-result decoding, scheduler/election, and focused tests. S2 owns
+  the WebMCP callback adapter over injected C0 ports, but not either port implementation.
+- Must not touch: domain, API routes, migration, frozen contracts, fixture implementation,
+  or workspace UI/CSS.
+- Inputs / frozen contracts: C0 browser consumer types, exact role catalogs, grant/wake
+  messages, state machine, trace events, and current `document.modelContext` semantics.
+- Verification: fake and native-probe tests prove exact eight-tool idle catalog, one
+  managed persona catalog at a time, actual `getTools`/`executeTool`, `toolchange`, strict
+  same-origin/manifest filtering, generation-distinct physical names, stale-descriptor
+  rejection, unarmed native-call denial versus an armed in-page success, one-shot permit
+  clearing, result-envelope decoding, 15-second recovery plus immediate wake, abort
+  cleanup, hidden-tab
+  truthfulness, and WebMCP-off fail-closed behavior.
+
+### S3 — bounded Luna Responses stepper — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0.
+- Scope and key files: new `src/agent-relay/server/**`,
+  `/api/repository-v4/relay/step`, provider adapter, fetch-mocked tests, `package.json`, and
+  `pnpm-lock.yaml` if an SDK is justified by the official API shape.
+- Must not touch: browser WebMCP code, domain persistence outside its service port,
+  workspace UI/CSS, fixture implementation, frozen contracts, or migration.
+- Inputs / frozen contracts: C0 relay-attempt authorization service port implemented by
+  S1, canonical manifest/digest, Responses item projection, developer prompts, limits,
+  trace projection, and exact error taxonomy.
+- Verification: provider-contract tests cover client-executed tool search, injected
+  approved functions, multi-step outputs, repeated developer instructions, malformed
+  JSON/schema rejection, no arbitrary model/tool/prompt input, rate/cost/timeout caps,
+  exact signed permit projection, cancellation, safe redaction, and one opt-in real Luna
+  smoke with response ID retained
+  only in sanitized evidence.
+
+### S4 — specialist fixtures and two living documents — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0.
+- Scope and key files: `src/domain/repository-examples.ts`, new deterministic metrics,
+  code-repository, and writing-guide fixture modules/tests, two-page source fixtures,
+  the pure `SpecialistFixturePort` implementation, seeded histories, and new sanitized
+  `demo/v4.2-relay/**` evidence assets only.
+- Must not touch: service/adapter/API, relay loop, UI/CSS, frozen goldens, or user-owned
+  legacy walkthrough assets.
+- Inputs / frozen contracts: C0 exact `INC-482` and product facts, page split points,
+  unfinished anchors, role tool outputs, evidence labels, and final revision oracles.
+- Verification: deterministic fixture tests prove both fresh clones, literal two-part
+  content, prior multi-author history, unresolved guided work, distinct role answers,
+  exact code fact/evidence, exact product metrics, synthetic badges, and independent
+  golden parity.
+
+### S5 — judge NUX, directory, and flight recorder — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0; sole owner of high-conflict
+  workspace surfaces.
+- Scope and key files: `RepositoryLanding.tsx`, `RepositoryWorkspace.tsx`, new directory,
+  coachmark, relay-status, and flight-recorder components/tests, repository CSS, and the
+  UI's frozen fake client port. BYOA moves behind an Advanced disclosure but remains.
+- Must not touch: domain/server/WebMCP implementation, migration, frozen contracts,
+  fixture source, package dependencies, or user-owned demo assets.
+- Inputs / frozen contracts: C0 surface/commands/events, two-sheet mapping, grouped mention
+  target projection, accessible names, and exact judge script.
+- Verification: driven fake flow proves nickname -> document choice -> guided exact
+  section comment -> grouped `@` selection -> immediate queued/discovering/working/done
+  states -> visible catalog delta/tool calls -> exact diff/evidence/revision -> Restore;
+  human mention remains discussion; desktop and 390px layouts, keyboard/screen-reader
+  semantics, reduced motion, retry, API-key-unavailable, and WebMCP-off states are clear.
+
+### S6 — 12-slide HTML submission deck — pending
+- Owner / worktree: dedicated Codex-managed worktree after C0.
+- Scope and key files: new `src/app/deck/**`, new `src/components/deck/**`, deck-scoped
+  styles/tests, and new `public/deck/**` final assets. Use the existing Ratiflow brand as
+  the visual source; do not introduce a second app theme or presentation dependency.
+- Must not touch: repository workspace UI, domain/server/WebMCP code, migration, frozen
+  contracts, package dependencies, or user-owned demo media.
+- Inputs / frozen contracts: C0 12-slide storyboard, exact submission claims, screenshot
+  shot list, source notes, and reduced-motion/keyboard/print behaviors.
+- Verification: all 12 direct URLs and next/previous/keyboard controls work; 1440x900,
+  1280x720, and mobile captures have no clipping or accidental scrolling; titles remain
+  one line; copy is low-density; source notes are accessible; screenshot crops are sharp
+  and truthful. Placeholder frames are allowed only until I1 supplies final verified app
+  captures. The final deck receives its own fresh `$dev-visual-review`.
+
+### I1 — serialized integration, adversarial proof, and release — pending
+- Owner / worktree: coordinating task after S1-S6 return focused diffs and evidence.
+- Scope and key files: shared app/runtime seams, top-level Relay-mode wiring and wake,
+  route composition, release/eval scripts, README/submission copy, deployment configuration,
+  and new sanitized final evidence. Do not absorb unrelated dirty files.
+- Must not touch: user-owned `.codex/PROGRESS.md`, `.gitignore`, `--annotate`, or legacy
+  demo media except through an explicit later decision.
+- Verification: `.codex/verify.sh`, focused contract/relay/provider tests, real database
+  rehearsal, `pnpm build`, deployed top-level page, production browser e2e,
+  two-tab lease/retry, role-catalog comparison, WebMCP ablation, live Luna run, native
+  external-client idle-catalog run, supported-client capture, responsive/accessibility pass,
+  final screenshot capture/injection and full-deck review, fresh workspace and deck
+  `$dev-visual-review`s, security/privacy review, three-minute judge rehearsal, public
+  repository/license check after authorization, and requirement-by-requirement audit.
+  One mandatory composed oracle links one human mention to exactly one lease/run/attempt
+  and provider response lineage, the real role-specific `getTools()` manifest, Luna's
+  function call, the exact `executeTool()` descriptor/result digest, one completed task,
+  and one revision. A second tab creates no second lineage or spend; a role switch produces
+  a native catalog delta; an unarmed native invocation fails; WebMCP ablation prevents both
+  provider actuation and commit.
+
+## Checkpoints
+
+- Top-level C0 probe cannot swap idle/managed catalogs, execute through native WebMCP, or
+  reject an earlier-generation descriptor -> stop feature streams and rescope; do not
+  fake mediation.
+- Luna cannot complete the documented client-executed tool-search loop with the available
+  API account -> continue mockable implementation only, but block live-demo completion
+  and every claim that Luna is connected.
+- A model-selected mutation can bypass `executeTool()`, choose its identity/authority, or
+  reuse a stale/cross-task grant or unarmed execution permit -> block integration.
+- Switching Data/Code/General does not change the discovered catalog -> the core novelty
+  has failed; fix dynamic registration before UI polish.
+- The primary story can still be understood as generic @bot rewriting when the recorder
+  is closed -> rescope the NUX so WebMCP discovery, role delta, evidence, and revision are
+  visible in the golden path.
+- One closed/hidden page or a second tab creates duplicate work -> block release; leases,
+  idempotency, and truthful page-bound status are non-negotiable.
+- A judge cannot reach a successful first agent revision from the public URL without
+  setup knowledge, credentials, or more than the nickname/document choice -> simplify
+  the NUX before visual review.
+- Any synthetic source looks like a production connector, native Luna Site Tools are
+  implied, or a compatibility run is labeled native -> block submission copy.
+- The repository remains private or lacks a detectable open-source license at submission
+  time -> block submission until the user explicitly authorizes visibility and it is
+  verified.
+
+## Integration order
+
+`C0 contract + deployed WebMCP probe + minimal Luna round trip + adversarial plan/contract
+review -> (S1 || S2 || S3 || S4 || S5 || S6) -> I1 explicit-file integration -> automated and
+database gates -> deployed browser/Luna proof -> dev-visual-review -> fixes ->
+90-second and three-minute rehearsals -> public-repository/release audit`.
+
+After C0, the six streams are genuinely parallel because they consume frozen types and
+ports and own disjoint paths. S1 alone owns persistence-facing service code and the
+managed-tool client port; S2 alone owns the in-page runtime and WebMCP adapters; S3 alone
+owns OpenAI calls and dependency changes; S4 alone owns fixtures and its pure port; S5
+alone owns high-conflict workspace UI; S6 alone owns the HTML deck. The coordinator owns
+contract decisions and serial
+seams. Each worktree begins at the recorded C0 baseline. Workers may use read-only Git
+inspection but make no Git writes, do not revert other changes, and return a file-allowlist
+patch plus evidence manifest through native task handoff. Integration uses those explicit
+allowlists and preserves all unrelated dirty files.
+
+Release order is additive migration -> database advisors and old-code smoke -> v4.2 adapter
+and lease smoke -> top-level deployment -> live Luna smoke -> supported
+native-client evidence -> ordinary-browser fallback -> public judge rehearsal. Unavailable
+external evidence remains `PENDING`; mocks, compatibility adapters, or screenshots cannot
+substitute for an observed native run.
+
+## Risks and open decisions
+
+- WebMCP is a Community Group draft, browser implementation details are moving, and the
+  installed Chrome is 152 while some current documentation describes 153 behavior. The
+  C0 probe must freeze the observed argument/result/unregistration shapes for supported
+  judging clients without weakening the standards path.
+- WebMCP supplies no verified caller identity. Relay and BYOA modes are therefore
+  mutually exclusive, managed physical tool names are run/generation-unique, and server
+  authority remains task/lease/range bound. The C0 probe must establish the precise
+  supported-client transition behavior; native browser review is an additional control,
+  not an identity primitive.
+- A Codex/ChatGPT usage reset does not provision an OpenAI API key or API billing. A
+  server-side key, model access, and a small judge-safe spend allowance are required for
+  the live Luna gate; no secret may enter Git, browser bundles, storage, logs, or evidence.
+- Browser timers are best-effort and throttled in background tabs. The immediate wake is
+  the main path; the 15-second timer is recovery only. True closed-page agents would need
+  a separate remote MCP/background-worker architecture and would no longer demonstrate
+  this page-bound WebMCP loop.
+- Literal two-sheet rendering is a demo comprehension device over one immutable Markdown
+  source, not pagination semantics or real-time Google Docs parity. Exact source anchors,
+  full-snapshot revisions, Restore, and human usability remain the trust model.
+- Public judging creates cost and abuse exposure. Rate limits must still permit all three
+  intended specialist runs in an isolated judge copy and give a readable exhausted state.
+
+---
+
+# Archived plan — Comments that become agent work
 _Updated: 2026-09-02T19:47:14+08:00_
 
 ## Goal and ambition mode

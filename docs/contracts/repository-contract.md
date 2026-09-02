@@ -1,15 +1,493 @@
-# Ratiflow versioned issue-document contract
+# Ratiflow protocol-4 issue-document and managed-relay contract
+
+Version 4.2 · The document is the agent runtime · 2026-09-02
+
+This refreeze is additive to the shipped v4.1 collaboration document. The literal wire
+and storage protocol remains `4`, `REPOSITORY_PROTOCOL_VERSION` remains `4`, and the
+public namespace remains `/api/repository-v4/**`. Version 4.2 adds a managed Agent
+Directory, canonical human and agent mentions, a page-bound GPT-5.6 Luna relay, dynamic
+WebMCP catalogs, and a separate relay audit stream. It does not create protocol 5 or
+replace the immutable v4 document, task, thread, comment, revision, and activity ledger.
+
+Checked TypeScript authority is split deliberately. `src/repository/contracts.ts` owns
+the existing repository graph plus `IssueMentionTarget` and the additive directory
+mention input. `src/agent-relay/contracts.ts` owns every directory, relay, provider,
+catalog, error, limit, and port name in this section. A later implementation may add
+internal helpers, but may not rename, widen, or silently coerce these public contracts.
+
+The winning product statement is: **Mention the expert. The page supplies the tools.
+The document keeps the proof.** OpenAI Site Tools do not currently provide native Luna
+WebMCP. Ratiflow therefore describes this feature precisely as an application-owned
+WebMCP Relay powered by `gpt-5.6-luna`. Remote MCP is a separate protocol and is not the
+runtime described here.
+
+## v4.2.1 Boundary and v4.1 projection isolation
+
+The ordinary issue-document surface and its eight idle BYOA WebMCP tools remain usable
+without the relay. Managed execution is an optional sidecar over the same document. It
+runs only while an eligible top-level document page is open, dispatches immediately
+after a managed mention, and uses a 15-second visible-page recovery heartbeat. This is
+not a cron job, background daemon, or promise to run after the page closes.
+
+The v4.1 repository projection remains exact. `IssueWorkspaceSurface`, its existing JSON
+keys, `activityVersion`, history pagination, the legacy name/member mention request, and
+all pre-v4.2 routes keep their frozen meanings. Directory entries, relay runs, attempts,
+leases, grants, permits, result receipts, and relay trace events never leak into that
+projection. They are read through `RelayWorkspaceState` at the relay sidecar boundary.
+`relayEventVersion` is independent of `activityVersion`; relay progress therefore cannot
+wake a legacy task wait or masquerade as a document edit.
+
+Managed profiles and their tasks may be represented to a v4.1-only reader only through
+the existing compatibility shapes: the profile is not labeled `DEMO_DIRECTORY` in the
+v4.1 profile projection, and a managed task/actor may be projected with the already legal
+null-profile compatibility identity when necessary. The v4.2 sidecar is the only
+authority for managed identity source, runtime, specialty, readiness, catalog, run, and
+attempt state. Existing self-declared profiles and old documents remain byte-for-byte
+valid. No managed principal receives the human-owned BYOA session pair, so a legacy
+agent route cannot execute managed work.
+
+The sidecar is fail-closed. `RelayWorkspaceState.webMcpRequired` is always `true`. When
+`document.modelContext` is absent or the supported WebMCP consumer path cannot be
+observed, managed entries report `WEBMCP_UNAVAILABLE`, no Luna request is dispatched,
+and no canned result is substituted. A compatibility adapter may support development,
+but its evidence must be labeled compatibility and cannot satisfy a native WebMCP row.
+
+## v4.2.2 Agent Directory and canonical mentions
+
+`DirectoryEntry` is a discriminated union of `HumanDirectoryEntry` and
+`AgentDirectoryEntry`. A human entry contains exactly `kind: "HUMAN"`, its immutable
+member snapshot, handle, and display name. An agent entry contains exactly:
+
+- `kind: "AGENT"`, stable profile UUID, and its distinct internal member principal;
+- canonical handle and display name;
+- display scope `COMPANY | TEAM | PERSONAL`;
+- specialty `DATA | CODE | GENERAL`;
+- identity source `DEMO_DIRECTORY | SELF_DECLARED`;
+- runtime `OPENAI_LUNA_WEBMCP_RELAY | BRING_YOUR_OWN_AGENT`;
+- readiness `READY | WEBMCP_UNAVAILABLE | DISABLED`;
+- the ordered server-approved logical tool names; and
+- bounded source labels that identify synthetic evidence.
+
+The three managed demo handles are exactly `data`, `code`, and `general`. Each managed
+agent owns a different internal member principal and stable profile. The existing
+one-profile-per-document-member invariant therefore remains intact; managed agents are
+never multiplexed through the judge's member or credential. `COMPANY | TEAM | PERSONAL`
+is demo/display metadata, not authorization. Runtime readiness is derived at the server
+and page boundary and is not accepted from a browser or model.
+
+Handles are selected from autocomplete by canonical ID. Display text and typed `@`
+names are not authority. `IssueMentionTarget` is exactly one of:
+
+- `{ kind: "HUMAN", memberId }`; or
+- `{ kind: "AGENT", profileId }`.
+
+`CreateDirectoryMentionHttpInput` contains current `expectedRevision`, bounded comment,
+canonical `target`, and an anchor. A human target may use a Document or Selection anchor.
+An agent target requires an active, non-empty Selection anchor no longer than 8,000 code
+points. The server locks the document and resolves the current target by ID; it derives
+member, handle, display name, specialty, category, runtime, tool manifest, mode, and
+authority. A missing, renamed, disabled, cross-document, or type-mismatched target fails
+with `STALE_MENTION_TARGET` without partial state.
+
+The selected ID is authority, but visible text must still agree with it. The canonical
+mention token is `@` followed by the target's current display label; for the managed demo
+profiles it is exactly `@Data`, `@Code`, or `@General`. The bounded 2,000-code-point
+comment must begin with that exact case-sensitive token, then one or more ASCII space,
+tab, CR, or LF code points, then nonblank body text. The compiler removes only that exact
+prefix/separator and trims only those four ASCII whitespace characters at both body ends.
+For an agent target the remainder is the immutable instruction, preserves interior text,
+and must independently fit the 1,000-code-point instruction bound. The server derives the
+task title by collapsing runs of those four whitespace characters to one U+0020 space and
+taking the first 120 Unicode code points without an ellipsis. A mismatch, stale label, or
+overflow fails atomically with `STALE_MENTION_TARGET` or the existing bounded-input error;
+it never silently becomes a different mention. Later `@` text is ordinary comment text.
+
+Selecting a human creates one ordinary standalone thread and root comment and returns a
+`DirectoryMentionReceipt` with outcome `DISCUSSION_CREATED`, human target, thread and
+comment IDs, and null task/run IDs. It does not call a model or create relay work.
+
+Selecting a ready managed agent atomically creates:
+
+1. the root human comment and immutable mention-target snapshot;
+2. one task-owned thread;
+3. one existing `DIRECT` Selection task with the v4.1 immutable context snapshot;
+4. one `RelayRun` in `QUEUED`; and
+5. one `RUN_QUEUED` relay trace event.
+
+It returns outcome `MANAGED_TASK_QUEUED` with the canonical agent target and the thread,
+comment, task, and run UUIDs. Category is server-derived as `DATA -> DATA`,
+`CODE -> CODEBASE`, and `GENERAL -> GENERAL`. Task authority, exact-range validation,
+stale overlap behavior, rationale, evidence, revision, and Restore continue to use the
+existing repository engine.
+
+The current `/api/repository-v4/task/mention` route accepts two exact, non-overlapping
+request shapes. The shipped v4.1 shape `{ expectedRevision, comment,
+mentionedAgentName, assignedToMemberId, anchor }` continues to call the old
+`createMentionTask` service and RPC. The v4.2 canonical-target shape calls
+`createDirectoryMention`. Both prohibit public `requestId`, derive it from an
+`Idempotency-Key`, and replay only an exact identical request. Literal or unselected `@`
+text remains an ordinary comment.
+
+## v4.2.3 Run, attempt, lease, and task lifecycle
+
+`RelayRun` contains run/task/profile IDs, specialty, constant runtime
+`OPENAI_LUNA_WEBMCP_RELAY`, constant model `gpt-5.6-luna`, status, attempt count,
+`maxAttempts: 2`, terminal reason, and timestamps. Its status is exactly:
+
+`QUEUED | ACTIVE | WAITING_RETRY | COMPLETED | EXHAUSTED | CANCELLED`.
+
+Its terminal reason is exactly `TASK_COMPLETED | ATTEMPTS_EXHAUSTED | TASK_CANCELLED |
+TASK_STALE | null`. `COMPLETED`, `EXHAUSTED`, and `CANCELLED` are terminal. A run never
+has more than two numbered attempts.
+
+`RelayAttempt` contains attempt/run IDs, positive attempt number, status, the human
+claimant snapshot, page-session UUID, positive registration generation, lease ID and
+expiry, provider-dispatched flag, provider/tool call counts, current step, start,
+deadline, update, and completion timestamps. Its status is exactly:
+
+`CLAIMED | DISCOVERING | AWAITING_MODEL | EXECUTING_TOOL | RECONCILING | SUCCEEDED |
+FAILED | EXPIRED | CANCELLED`.
+
+Only one run may be `ACTIVE` for a document, not merely for a task or agent. This is
+required because the top-level page exposes one mutually exclusive relay persona and
+catalog. Claim serializes on the document, reconciles any expired active lease, and then
+selects eligible work deterministically by creation time and run ID. `RelayClaimOutcome`
+is exactly:
+
+- `CLAIMED`, returning run, attempt, managed directory entry, and opaque relay grant;
+- `NO_WORK`, returning the fixed 15-second retry interval; or
+- `BUSY`, returning a bounded retry interval and the active run ID.
+
+Any authenticated human member of the document may claim work; claiming does not make
+that human the revision author. The managed profile remains the agent author, while the
+task creator remains the grantor. The claim transaction binds document, run, attempt,
+task, profile, claimant member, credential session instance, page session, lease,
+registration generation, deadline, and stable grant nonce/timestamps. The grant is
+`rfrelay_v1.<base64url canonical payload>.<base64url HMAC-SHA-256>`, signed with the
+server-only `RATIFLOW_RELAY_SIGNING_SECRET` using domain separator
+`ratiflow-relay-grant-v1`. The canonical payload uses fixed keys and binds audience,
+document/profile/task/run/attempt, claimant member, credential-session digest,
+page-session digest, lease ID, registration generation, nonce, issued-at, and expiry.
+Claim stores those claims plus only the final token digest; it never stores plaintext.
+An exact idempotent retry reconstructs the byte-identical token from the persisted claims.
+The signing secret must contain at least 32 random bytes; missing/short configuration
+makes managed Relay unavailable without disabling ordinary document use. The plaintext
+grant exists only in browser memory, is used only as a same-origin relay bearer, and is
+never sent to Luna, stored in browser persistence, returned in state reads, or written to
+traces.
+
+The lease lasts 45 seconds and renews every 15 seconds. Renewal is a compare-and-swap on
+the exact grant, attempt, page, registration generation, and expected lease ID. A lost,
+expired, superseded, cross-document, or cross-page lease fails with
+`RELAY_LEASE_LOST`. Release is best-effort and UUID-conditional; server-clock expiry is
+the authoritative cleanup.
+
+An attempt has a 90-second absolute deadline. If a lease expires before provider
+dispatch, the attempt becomes `EXPIRED` and its run may safely return to `QUEUED`. Once
+provider dispatch may have occurred, timeout or transport ambiguity enters
+`RECONCILING`; the server re-reads the task, run, permit, receipt, and provider markers.
+It never reports a clean cancellation or starts another paid attempt until reconciliation
+proves the outcome. A retryable failed attempt moves the run to `WAITING_RETRY`; the
+visible Retry action invokes claim to create a new numbered attempt. The automatic
+heartbeat claims queued work only and never silently retries `WAITING_RETRY`. The second
+failed attempt moves the run to `EXHAUSTED` with `ATTEMPTS_EXHAUSTED`.
+
+Existing task transitions dominate relay state. Cancelling an Open managed task must
+atomically cancel any queued or active run, cancel/revoke its nonterminal attempt and
+unused permits, release its lease, and append `RUN_CANCELLED` with terminal reason
+`TASK_CANCELLED`. Any document edit or Restore that makes the exact task anchor `STALE`
+per the existing rebase rules performs the same lineage cancellation with terminal
+reason `TASK_STALE`. No provider call or tool mutation may proceed after either
+transition. Conversely, an authoritative successful `submit_scoped_revision` completes
+the task/thread/revision first and atomically makes the run `COMPLETED`, its attempt
+`SUCCEEDED`, and its terminal reason `TASK_COMPLETED`. Reconciliation repairs a lost
+HTTP response from that authoritative state without duplicating a revision or spend.
+
+## v4.2.4 Dynamic WebMCP catalogs and trace proof
+
+Idle/BYOA mode retains exactly the shipped ordered eight-tool catalog:
+
+1. `connect_agent`
+2. `inspect_document`
+3. `read_document_history`
+4. `read_collaboration_context`
+5. `list_my_tasks`
+6. `wait_for_my_tasks`
+7. `comment_on_task`
+8. `submit_task_result`
+
+Claiming managed work waits for any in-flight idle invocation to settle, aborts the idle
+registrations, and records `IDLE_CATALOG_WITHDRAWN`. The top-level page then registers
+one attempt- and generation-scoped physical catalog and records
+`RELAY_CATALOG_REGISTERED`. Every specialty contains the exact ordered common tools:
+
+1. `read_assignment`
+2. `read_document_context`
+3. `read_collaboration_context`
+4. `comment_on_assignment`
+5. `submit_scoped_revision`
+
+The only specialist additions are:
+
+- Data: `query_demo_metrics`;
+- Code: `search_demo_code`, `read_demo_file`; and
+- General: `read_company_style_guide`, `check_document_consistency`.
+
+Physical WebMCP names are unique to run, attempt, and registration generation; the UI
+shows the stable logical names above. An old `RegisteredTool` descriptor cannot execute
+under a successor generation. Completion, exhaustion, cancellation, or release aborts
+the relay catalog, records `RELAY_CATALOG_WITHDRAWN`, restores the exact idle catalog,
+and records `IDLE_CATALOG_RESTORED`.
+
+Ratiflow listens for `toolchange`, calls `document.modelContext.getTools()` from the
+top-level page, and calls `document.modelContext.executeTool()` on the exact returned
+descriptor. Tool callbacks may not be called directly as a shortcut. The first
+model-visible operation must read the assignment through WebMCP. Removing WebMCP must
+prevent provider actuation and commit.
+
+`RelayNormalizedToolManifestEntry` contains only same-origin `origin`, physical and
+logical names, registration generation, description, normalized JSON Schema, and
+`readOnlyHint`/`untrustedContentHint`. It excludes the non-serializable window reference.
+The ordered normalized entries and `sha256:` digest form
+`RelayNormalizedToolManifest`. The server rejects an unknown origin, logical tool,
+physical name, role addition, generation, annotation, schema, order, or digest with
+`RELAY_MANIFEST_MISMATCH`. Tool descriptions, page content, fixture content, and tool
+results remain untrusted input.
+
+The immutable, document-monotonic relay trace uses exactly these event kinds:
+
+`RUN_QUEUED`, `RUN_CLAIMED`, `LEASE_RENEWED`, `IDLE_CATALOG_WITHDRAWN`,
+`RELAY_CATALOG_REGISTERED`, `WEBMCP_TOOLCHANGE_OBSERVED`,
+`MODEL_TOOL_SEARCH_REQUESTED`, `WEBMCP_GET_TOOLS_COMPLETED`, `MODEL_TOOL_SELECTED`,
+`WEBMCP_EXECUTE_STARTED`, `WEBMCP_EXECUTE_COMPLETED`, `REVISION_COMMITTED`,
+`RELAY_CATALOG_WITHDRAWN`, `IDLE_CATALOG_RESTORED`, `ATTEMPT_RECONCILING`,
+`ATTEMPT_FAILED`, `RUN_WAITING_RETRY`, `RUN_COMPLETED`, `RUN_EXHAUSTED`, and
+`RUN_CANCELLED`.
+
+Each `RelayTraceEvent` contains event/version/document/run IDs, nullable attempt ID,
+exact kind, nullable logical/physical tool names and manifest/argument/result digests, a
+bounded scalar-only detail object, and timestamp. It never stores chain-of-thought, raw
+credentials, unrestricted transcripts, full tool arguments, or private document content.
+Browser-reported WebMCP events are accepted only under the live grant and checked
+against the server state; provider and mutation events are emitted by the server.
+
+## v4.2.5 Luna stepper, permits, receipts, and executable ports
+
+`open_ai_api` is read only in server code, with `OPENAI_API_KEY` accepted as a
+conventional fallback. The browser cannot supply a model,
+developer prompt, provider response ID, arbitrary tool definition, credential, actor, or
+origin. Every call uses `gpt-5.6-luna`, the fixed repeated developer instruction, and
+client-executed tool search. A provider response ID may be retained privately for
+continuation and sanitized evidence; it is not authority.
+
+`RelayStepInput` is exactly one of:
+
+- `START` with attempt ID and expected step;
+- `SUBMIT_SEARCH_RESULT` with attempt ID, expected step, tool-search call ID, and the
+  normalized manifest obtained through WebMCP; or
+- `SUBMIT_FUNCTION_RESULT` with attempt ID, expected step, function-call ID, and a
+  server-issued result-receipt ID.
+
+`RelayStepOutcome` is exactly `DISCOVER_TOOLS`, `EXECUTE_TOOL`, `COMPLETED`, or
+`RETRY_REQUIRED`, with the fields frozen in `src/agent-relay/contracts.ts`.
+`DISCOVER_TOOLS` causes the browser to call `getTools()`. `EXECUTE_TOOL` carries the
+physical name, parsed bounded arguments, and one `RelayExecutionPermit`. A provider
+text completion is insufficient to complete a run unless the authoritative scoped
+revision has already completed; otherwise the bounded stepper returns Retry Required or
+fails the attempt.
+
+Every execution permit is an opaque one-shot token bound outside model JSON to attempt,
+function-call ID, exact physical tool name, argument digest, registration generation,
+lease, and expiry. The browser arms it only for the matching `executeTool()` call. A
+native or synthetic call without an armed permit fails with
+`RELAY_EXECUTION_NOT_ARMED`; a mismatched name, arguments, generation, lease, or call
+fails without invoking the tool. Plaintext permits remain in memory and are never sent
+to Luna or exposed in state/trace.
+
+Permits use the equivalent deterministic signed format
+`rfpermit_v1.<base64url canonical payload>.<base64url HMAC-SHA-256>`, audience
+`ratiflow-webmcp-relay-tool`, and domain separator `ratiflow-relay-permit-v1`. Persisted
+`RelayExecutionPermitClaims` plus the token digest allow an exact idempotent step replay
+to reconstruct the same plaintext permit without storing it; the nonce, issue time, and
+expiry never change on replay.
+
+Permit state is exactly `ISSUED | EXECUTING | COMPLETED | FAILED | REVOKED`. Beginning
+execution atomically changes the matching permit to Executing and supplies a
+server-minted downstream request UUID. Repository mutations use that UUID with the
+existing idempotency ledger. Finishing execution validates and stores the bounded,
+JSON-safe output and returns `{ resultReceiptId, output }`. An exact retry returns the
+stored outcome; changed input fails. The browser cannot submit tool output to Luna as
+authority. `SUBMIT_FUNCTION_RESULT` supplies only the receipt ID, and
+`loadVerifiedToolResult` loads its bound function-call ID and output server-side. A
+decode, schema, size, receipt, or output mismatch fails with `RELAY_RESULT_INVALID`.
+
+The repository execution boundary is `ManagedAgentToolClientPort`:
+
+- `readAssignment` returns the exact task/thread and managed directory entry;
+- `readDocumentContext` returns current document, live anchor, and recent revisions;
+- `readCollaborationContext` returns bounded tasks and comments;
+- `commentOnAssignment` appends an agent progress comment; and
+- `submitScopedRevision` applies the existing exact-range Direct result path.
+
+Every method receives a server-derived `RelayToolInvocationContext` containing
+document/run/attempt/task/profile/generation, physical/logical names, and the server
+request UUID. No model field can override that context.
+
+`SpecialistFixturePort` is pure and deterministic. Its exact operations are
+`queryDemoMetrics`, `searchDemoCode`, `readDemoFile`, `readCompanyStyleGuide`, and
+`checkDocumentConsistency`. Metrics accept only datasets
+`northstar_launch_capacity | inc_482_checkout_impact`. Fixtures perform no network
+access, and every returned fact carries an unmistakable synthetic source label.
+
+`RelayAttemptAuthorizationPort` loads a live authorized attempt for the exact grant and
+step, records one legal step outcome, and loads a verified result receipt.
+`LunaResponsesProviderPort` accepts only `START`, `TOOL_SEARCH_OUTPUT`, or
+`FUNCTION_CALL_OUTPUT` and returns only `SEARCH_REQUIRED`, `CALL_REQUIRED`, or
+`COMPLETED`. These ports keep database authority, WebMCP execution, fixtures, and the
+OpenAI transport independently testable.
+
+## v4.2.6 HTTP and RPC sidecar
+
+The exact additive HTTP routes are:
+
+- `GET /api/repository-v4/relay/state`
+- `POST /api/repository-v4/relay/claim`
+- `POST /api/repository-v4/relay/lease/renew`
+- `POST /api/repository-v4/relay/lease/release`
+- `POST /api/repository-v4/relay/tool`
+- `POST /api/repository-v4/relay/step`
+
+State uses the current human session and returns `RelayWorkspaceState`: ordered
+directory, runs, at most one sanitized `RelayAttemptStateView`, at most 100 newest trace
+events, current
+relay event version, literal `webMcpRequired: true`, and literal
+`recoveryHeartbeatMs: 15000`. It returns no grant, permit, session handle, provider
+credential, raw provider transcript, or unrestricted tool payload.
+
+Claim uses the human bearer, `X-Ratiflow-Page-Session`, and a private
+`Idempotency-Key`. Renew, release, step, and tool use the in-memory relay grant as their
+same-origin bearer. Renew also supplies the expected lease ID. Tool additionally supplies
+the one-shot execution permit, exact physical name, and JSON arguments. Step never
+accepts raw tool output. All request bodies use exact-key validation, reject public
+request IDs and unknown keys, honor AbortSignal, and return JSON-serializable results.
+
+The exact additive public RPC catalog is:
+
+- `ratiflow_create_issue_directory_mention_v4`
+- `ratiflow_read_issue_relay_state_v4`
+- `ratiflow_claim_issue_relay_v4`
+- `ratiflow_renew_issue_relay_lease_v4`
+- `ratiflow_release_issue_relay_v4`
+- `ratiflow_record_issue_relay_trace_v4`
+- `ratiflow_begin_issue_relay_tool_v4`
+- `ratiflow_finish_issue_relay_tool_v4`
+- `ratiflow_transition_issue_relay_attempt_v4`
+
+Private SQL helpers may split authorization, step recording, result loading, and JSON
+projection, but no second public overload or broad table endpoint is permitted. The
+mention RPC serves only the new canonical-target branch; the existing
+`ratiflow_create_issue_mention_v4` remains the unchanged v4.1 branch. The step route owns
+the OpenAI call and uses the attempt transition RPC before and after dispatch. The tool
+route alone consumes execution permits and invokes repository or deterministic fixture
+ports. No RPC accepts model-supplied identity or authority.
+
+## v4.2.7 Additive persistence and security
+
+Exactly one new migration implements v4.2; no applied migration is edited. It may add
+managed-directory columns to `ratiflow_issue_agent_profiles_v4`, add a nonnegative
+`relay_event_version` counter to `ratiflow_documents`, extend the request-ledger operation
+check, and create only these relations:
+
+- `public.ratiflow_issue_mentions_v4` — immutable comment/thread/task association,
+  canonical target IDs, and target snapshot;
+- `public.ratiflow_issue_relay_runs_v4` — unique managed task lineage, profile,
+  specialty, fixed runtime/model, status, attempt budget, terminal reason, and times;
+- `public.ratiflow_issue_relay_attempts_v4` — numbered attempt, claimant/page,
+  generation, embedded lease, fixed grant claims including nonce/issued-at/expiry, grant
+  digest, counters, step, provider-dispatch marker, deadline, errors, and times;
+- `public.ratiflow_issue_relay_trace_v4` — immutable document-monotonic sanitized relay
+  events; and
+- `ratiflow_document_private.issue_relay_execution_permits_v4` — function-call binding,
+  fixed permit claims including nonce/issued-at/expiry, token digest,
+  argument/generation/lease binding, server request UUID, state, verified output, digest,
+  and result-receipt ID.
+
+No separate relay-lease table is needed: the live lease is part of the one active
+attempt, and claim/renew/release lock that row with server-clock comparisons. Database
+constraints enforce one run per managed task, one numbered attempt per run, one active
+run per document, one permit per attempt/function call, one receipt per completed permit,
+coherent nullable/terminal timestamps, and document/profile/task/run/attempt foreign-key
+lineage. The managed profile columns are all null for a self-declared profile and all
+present for a directory profile. Directory handles are unique case-insensitively within
+the document. A managed profile cannot be renamed or connected through
+`connect_agent`.
+
+All new public-schema relations enable and force RLS, revoke direct privileges from
+`public`, `anon`, and `authenticated`, and are reachable only through the exact
+security-definer RPCs with pinned search paths. The private permit relation and all
+plaintext-secret generation remain inaccessible through the Data API. The database
+stores SHA-256 digests of share tokens, sessions, relay grants, and permits, never their
+plaintext. Reads are document-scoped; all mutations re-resolve expiry, task state,
+profile, claimant, session instance, page, lease, generation, and request identity.
+
+Trace and run persistence never weakens the existing revision contract. An agent edit is
+still one `WEBMCP` Direct revision with assigned managed profile, task creator as grantor,
+exact before/after diff, rationale, evidence, and Restore. Model/provider metadata lives
+in the relay lineage, not in model-controlled revision fields. Synthetic labels identify
+the demo metrics, code, and style fixtures in both tool results and visible evidence.
+
+## v4.2.8 Exact errors and bounds
+
+Relay operations retain every existing `RepositoryFailure` code and add exactly:
+
+- `STALE_MENTION_TARGET` — the canonical human or agent directory selection changed;
+- `RELAY_UNAVAILABLE` — the server/model or required WebMCP runtime is unavailable;
+- `RELAY_LEASE_LOST` — the attempt no longer owns the exact live lease;
+- `RELAY_STATE_CONFLICT` — the expected step or legal transition no longer matches;
+- `RELAY_EXECUTION_NOT_ARMED` — no matching one-shot permit is armed;
+- `RELAY_MANIFEST_MISMATCH` — discovered tools differ from the approved generation; and
+- `RELAY_RESULT_INVALID` — a tool envelope, receipt, schema, or bounded output is invalid.
+
+Invalid or expired grants and permits return the existing generic `UNAUTHORIZED` without
+revealing whether a secret once existed. Capacity/cost abuse uses `RATE_LIMITED`.
+Ordinary unavailable state is visible and retryable; it never becomes a fabricated
+success.
+
+`RELAY_BOUNDS` is exact:
+
+| Bound | Value |
+|---|---:|
+| Recovery heartbeat | 15,000 ms |
+| Lease TTL | 45,000 ms |
+| Lease renewal interval | 15,000 ms |
+| Relay grant TTL | 120,000 ms |
+| Execution-permit TTL | 30,000 ms |
+| Attempt deadline | 90,000 ms |
+| Attempts per run | 2 |
+| Responses calls per attempt | 6 |
+| Tool calls per attempt | 8 |
+| Managed selection | 8,000 code points |
+| Function arguments | 8,192 bytes |
+| Verified tool result | 32,768 bytes |
+| Trace detail payload | 4,096 bytes |
+| Trace events per attempt | 64 |
+| Trace events per state read | 100 |
+| Model output per Responses call | 1,600 tokens |
+
+Provider calls and tools execute sequentially. Every limit is checked before the paid or
+mutating operation, and an over-limit transition is recorded without leaking content.
+
+## v4.1 compatibility detail
 
 Version 4.1 · Comment-first collaboration refreeze · 2026-09-02
 
-This refreeze keeps the `/api/repository-v4/**` compatibility namespace and immutable
-v4 storage, but supersedes the flagship human workflow, new-work contract, WebMCP
-catalog, examples, and evaluation oracle. Historical `COMMENT`/`REVIEW` records remain
+The following contract remains authoritative for legacy surfaces and clients. Version
+4.2 changes none of these semantics. Historical `COMMENT`/`REVIEW` records remain
 readable; existing Review decision routes remain decision-capable for compatibility but
-are absent from the flagship. New work created by the flagship is an anchored @ mention with server-derived
-`DIRECT` authority and never enters a proposal/approval state.
+are absent from the flagship. New legacy-path work remains an anchored @ mention with
+server-derived `DIRECT` authority and never enters a proposal/approval state.
 
-## 1. Boundary, routes, and retention
+## v4.1.1 Boundary, routes, and retention
 
 Protocol v4 owns `/`, `/issue/[shareToken]`, and `/api/repository-v4/**`. Protocol v3
 remains isolated at `/document/[shareToken]` and `/api/document-v3/**`; its tools and
@@ -45,7 +523,7 @@ direct-link precedence. The page validates path/share/protocol/expiry, stores th
 and removes the fragment before registering tools. Expired, `UNAUTHORIZED`, or
 `NOT_FOUND` credentials are cleared; transient failures are not.
 
-## 2. Checked entities
+## v4.1.2 Checked entities
 
 Checked TypeScript authority is `src/repository/contracts.ts`. All counters are safe
 integers. All offsets and length limits use Unicode code points.
@@ -272,7 +750,7 @@ fail without changing counters. Every returned thread therefore contains its com
 discussion, ordered oldest-first by creation time and then comment ID; there is no
 hidden or unpageable earlier segment.
 
-## 3. Transaction and counter semantics
+## v4.1.3 Transaction and counter semantics
 
 Every modifying transaction resolves the session, locks the document row first, checks
 protocol/expiry/authority/replay, performs all validation, then changes state.
@@ -325,7 +803,7 @@ server commits. It must re-inspect authoritative state; retrying the same logica
 reuses its request ID and therefore cannot double-commit. No UI or tool result claims
 that cancellation rolled back a dispatched request.
 
-## 4. Result submission and concurrency
+## v4.1.4 Result submission and concurrency
 
 `submit_task_result` accepts only task ID, `basedOnRevision`, nonblank `resultSummary`
 (the concise rationale), required changed replacement, and optional evidence references
@@ -357,7 +835,7 @@ source and actual current parent.
 Review acceptance repeats the same live-anchor check. A non-overlapping later edit may
 rebase a proposal. Any overlap stales it before acceptance. First terminal decision wins.
 
-## 5. Human operations
+## v4.1.5 Human operations
 
 The primary human service supports named launch/example/join, inspect, Save revision,
 create @ mention, create standalone thread, add/reply comment, close thread, cancel open
@@ -378,7 +856,7 @@ Restore requires current head and an existing target revision in the same docume
 copies the stored snapshot into a new next revision with authority Restore. Restoring
 the current byte-identical content is an invalid no-op.
 
-## 6. History, surfaces, and pagination
+## v4.1.6 History, surfaces, and pagination
 
 The human surface returns current document, presence, durable member list, current agent
 profiles, all tasks and
@@ -414,7 +892,7 @@ document counters are unchanged. Missing `agents` in an old cached v4 bundle nor
 to `[]` before the first authoritative fetch. A delayed equal-revision response cannot
 hide a comment, newer profile, or terminal task.
 
-## 7. Exact WebMCP catalog
+## v4.1.7 Exact WebMCP catalog
 
 All eight tools register from page start in this order:
 
@@ -482,7 +960,7 @@ token when registered. They read mutable current state through a live ref, honor
 No v4 tool creates, reassigns, cancels, accepts, rejects, restores, resolves, or changes
 mode. No v3 or decision-room tool appears on the issue page.
 
-## 8. HTTP namespace
+## v4.1.8 HTTP namespace
 
 The exact v4 route namespace is:
 
@@ -527,7 +1005,7 @@ accept `requestId`. `revision/read` uses `ReadIssueRevisionHttpInput`. The HTTP/
 boundary adds the header to the corresponding internal `*ServiceInput`, retaining it for
 transport retry of the same logical call.
 
-## 9. Persistence namespace and security
+## v4.1.9 Persistence namespace and security
 
 All applied migrations, including `20260901154147_repository_v4_issue_documents.sql`,
 are immutable. One new additive v4.1 migration adds:
@@ -660,7 +1138,7 @@ and activity 4. A bootstrap path is a bearer secret until opened and scrubbed; r
 fragments, or exchanged session bundles never enter logs or evidence. Reset response
 loss starts a fresh reset rather than replaying plaintext credentials.
 
-## 10. Errors and bounds
+## v4.1.10 Errors and bounds
 
 Errors use the checked codes:
 
@@ -687,7 +1165,7 @@ Unknown properties and unsafe integers fail at schema and server layers. Evidenc
 are 1–240 nonblank code points, at most 12 per comment/result/revision, and are labels or
 URLs—not fetched or certified by Ratiflow.
 
-## 11. Deterministic postmortem and Product document heroes
+## v4.1.11 Deterministic postmortem and Product document heroes
 
 `docs/contracts/postmortem-hero-scenario.md` and independent JSON goldens freeze
 `INC-482`, r1-r5, profile names/owners, exact @ prompts/context, facts, closed human
@@ -700,7 +1178,7 @@ completed Northstar CSV launch Product document: human capacity correction, @Dat
 option arithmetic/table/chart, @ChatGPT synthesis, closed human discussion, multiple
 owners, exact revision provenance, and a fresh connected agent continuity answer.
 
-## 12. Markdown and chart rendering
+## v4.1.12 Markdown and chart rendering
 
 Revision content remains the exact Markdown source. Reading mode renders GFM without raw
 HTML. Links receive safe protocols and external rel attributes. A fenced block whose info
@@ -734,7 +1212,7 @@ URL transform and an explicit element allow-list remain active, remote images ne
 and task-list controls are disabled. Invalid chart source stays inert; persistence accepts
 it as ordinary bounded Markdown rather than pretending it is a valid chart.
 
-## 13. Accessibility and fallback
+## v4.1.13 Accessibility and fallback
 
 The title and Markdown source editor remain native spellchecked controls. Reading mode
 is semantic and selectable; each rendered block has a keyboard-accessible comment

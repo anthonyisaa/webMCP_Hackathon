@@ -873,6 +873,32 @@ export type IssueAnchorInput =
       rangeEnd: number;
     };
 
+/**
+ * Canonical directory selection. Display names and typed @ text are never authority.
+ * This is additive to the v4.1 name/member mention shape retained below.
+ */
+export type IssueMentionTarget =
+  | { kind: "HUMAN"; memberId: string }
+  | { kind: "AGENT"; profileId: string };
+
+export type CreateDirectoryMentionHttpInput = {
+  expectedRevision: number;
+  comment: string;
+} & (
+  | {
+      target: Extract<IssueMentionTarget, { kind: "HUMAN" }>;
+      anchor: IssueAnchorInput;
+    }
+  | {
+      target: Extract<IssueMentionTarget, { kind: "AGENT" }>;
+      anchor: Extract<IssueAnchorInput, { scope: "SELECTION" }>;
+    }
+);
+
+export type CreateDirectoryMentionServiceInput = CreateDirectoryMentionHttpInput & {
+  requestId: string;
+};
+
 export interface CreateIssueTaskHttpInput {
   expectedRevision: number;
   title: string;

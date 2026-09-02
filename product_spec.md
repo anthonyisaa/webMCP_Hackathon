@@ -1,10 +1,14 @@
 # Ratiflow product specification
 
-Version 4.1 · Comment-first collaboration refreeze · Owner: Ant · 2026-09-02
+Version 4.2 · Managed-agent WebMCP Relay refreeze · Owner: Ant · 2026-09-02
 
 ## 0. Authority and supersession
 
-This file is the submission-facing source of truth for the v4 flagship. It supersedes
+This file is the submission-facing source of truth for the v4 flagship. Version 4.2 is
+an additive product release on the literal protocol-4 wire and storage boundary. It
+supersedes the v4.1 flagship story where this file names managed directory agents or the
+Relay, while retaining the complete v4.1 bring-your-own-agent surface as Advanced
+compatibility behavior. It supersedes
 the v3 shared-memo product story at `/`, but it does not delete or weaken the deployed
 v3 compatibility surface at `/document/[shareToken]`.
 
@@ -14,9 +18,14 @@ The v4 contract is jointly owned by:
 - `docs/contracts/repository-contract.md` for exact entities, transitions, authority,
   transactions, APIs, WebMCP behavior, bounds, and errors;
 - `src/repository/contracts.ts` for checked wire types and constants;
+- `src/agent-relay/contracts.ts` and `docs/contracts/webmcp-relay-contract.md` for the
+  managed directory, role catalogs, Luna stepper, leases, permits, traces, and bounds;
 - `docs/contracts/postmortem-hero-scenario.md` for the deterministic `INC-482` fixture;
 - `evals/goldens/repo-document-v4.1/` for independently authored completed-scenario
-  oracles (with the v4 directory retained for blank-template compatibility); and
+  oracles (with the v4 directory retained for blank-template compatibility);
+- `evals/goldens/repo-document-v4.2/managed-relay.json` for the independent role,
+  source-fact, trace, and ablation oracle;
+- `docs/contracts/html-deck-storyboard.md` for the 12-slide evidence narrative; and
 - `EVALS.md` for evidence and release gates.
 
 The v3 `docs/contracts/editor-contract.md`, `src/document/contracts.ts`, routes,
@@ -26,23 +35,41 @@ v4 revision, comment, task-authority, direct-write, template, or native-tool cla
 ## 1. Product promise
 
 **Ratiflow is a versioned document where people collaborate by commenting on exact
-passages, mention the agents they bring with `@`, and preserve a complete record of who
-changed what, why, from which context, and for whom.**
+passages, mention a known specialist with `@`, and preserve a complete record of who
+changed what, why, with which page-supplied tools, from which context, and for whom.**
+
+The submission thesis is: **Mention the expert. The page supplies the tools. The document
+keeps the proof.** The document is not merely edited by an agent; while it is open, its
+top-level page becomes the governed runtime that selects a specialist catalog, exposes it
+through WebMCP, and records the resulting action as reversible provenance.
 
 The final document is the product. Tasks, comments, agent findings, proposals, and
 revision history are the path to that product, not a chat transcript that replaces it.
 A person can open the shared URL, read and edit the document, discuss it, inspect every
 revision, and restore an older version without connecting an agent.
 
-When a compatible agent is present, the top-level page exposes the document, joined
-history and discussion context, owned mentions, and a scoped result surface through
-`document.modelContext`. Each collaborator may bring a different agent. Ratiflow does
-not host or wake the model, require a vendor-specific integration, or claim access to
-external metrics, logs, or source code. Those capabilities belong to the agent.
+The built-in demo directory contains `@Data`, `@Code`, and `@General`. An anchored mention
+queues durable work for the selected canonical profile. While an eligible document page
+remains open, Ratiflow's application-owned Relay uses fixed `gpt-5.6-luna` Responses
+calls to choose among that role's live tools, but the browser discovers and executes
+those tools through `document.modelContext.getTools()` and `executeTool()`. Luna does not
+natively call WebMCP Site Tools, and remote MCP is a different protocol. Advanced users
+may still connect a self-declared external agent through the exact v4.1 eight-tool
+surface.
 
-There is one primary delegation rule: an anchored comment beginning with a recognized
-`@Agent` name creates durable work for that agent and grants one direct replacement of
-that exact passage. The agent's change commits immediately as a reversible revision.
+Synthetic metrics, logs, and code are unmistakably labeled demo sources. A task wakes
+the open page immediately and a 15-second heartbeat recovers missed work; this is not a
+cron job and it does not promise execution after every eligible page closes.
+
+There is one primary delegation rule: an anchored comment beginning with a selected
+directory target grants that agent one direct replacement of the exact passage. A human
+target creates discussion only. A managed-agent target creates exactly one task and one
+Relay run, and a successful scoped result commits immediately as a reversible revision.
+The selected canonical ID is authority, while the visible comment must begin with the
+server-resolved token—exactly `@Data`, `@Code`, or `@General` for the managed demo agents—
+followed by ASCII whitespace and nonblank text. Managed instructions reuse the shipped
+v4.1 compiler's 2,000-code-point comment, 1,000-code-point instruction, whitespace, and
+120-code-point derived-title rules; a mismatch or overflow fails atomically.
 There is no task-mode chooser and no Ratiflow approval step. Text without an agent
 mention creates an ordinary human discussion that can be closed. Legacy v4 Review and
 Comment records remain readable compatibility data but cannot be created from the new
@@ -171,12 +198,13 @@ template launches a high-entropy shared workspace and opens `/issue/[shareToken]
 Anyone holding the URL may join while the POC workspace remains live. The page never
 describes possession-of-link access as private authenticated storage.
 
-Each example accepts its checked document kind and the person's display name, creates a
-fresh completed clone of an independent golden, and adds that person only as the current
-non-authoring viewer. `INC-482` is the detailed postmortem; `Northstar CSV launch` is the
-detailed Product document. Both contain multiple human and agent revisions, a closed
+Each example accepts its checked document kind and the person's nickname, creates a
+fresh isolated clone of an independent golden, and adds that person only as the current
+non-authoring viewer. `INC-482` is the two-sheet Postmortem; `Northstar CSV launch` is the
+two-sheet Product document. Both contain multiple human and agent revisions, a closed
 human discussion, exact @ prompts, context snapshots, rationales, evidence, rendered
-tables/charts, and a continuity answer for a genuinely new agent owner. Fresh identifiers,
+tables/charts, one clearly guided live specialist action, and a continuity answer for a
+genuinely new agent owner. Fresh identifiers,
 credentials, timestamps, expiry, and colors are normalized in comparison; content,
 digests, names, graph, anchors, evidence, counters, diffs, and provenance remain exact.
 Protected runnable resets are separate and production examples never call them.
@@ -189,13 +217,13 @@ The workspace has three quiet regions:
 - a spatially aligned comment margin; History opens as a quiet sheet and both become an
   accessible drawer below 740 px.
 
-On first entry, a dismissible setup strip names the current human and explains the next
-agent step without blocking ordinary document work. In a supported client it accepts a
-local proposed agent name only to compose a copyable instruction; it does not create a
-profile. The external agent must call `connect_agent` itself. The strip reports tool
-registration, no-agent, unsupported-client, error, and successfully connected states
-separately. Its top-bar control reopens the strip, and a successful connection shows the
-exact self-declared agent name plus human owner for this page.
+The first-run NUX is judge-safe and progressive: set a nickname, choose Postmortem or
+Product, then follow one anchored coachmark that says to select the highlighted section,
+open a comment, and choose a specialist after typing `@`. It states that managed agents
+run automatically only while this page stays open and that selected document context is
+sent to OpenAI. Relay readiness, active role, heartbeat, retry, WebMCP-unavailable, and
+complete states are distinct. Advanced BYOA setup remains available without dominating
+the judge path.
 
 Comments align to their anchored passage. A plain comment shows its author, time,
 discussion, and **Close**. An @ mention shows its human owner, named agent, exact prompt,
@@ -210,9 +238,11 @@ remain linked context rather than fake content revisions. **Restore this revisio
 requires a current-revision check and appends a new human-authored revision.
 
 A non-empty rendered title/body selection or a block comment affordance opens one compact
-comment bubble. Typing `@` autocompletes recorded self-declared agent profiles; submitting a
-recognized mention creates scoped Direct work. Any other text creates an anchored human
-discussion. There is no second form. Ambiguous rendered-to-source mapping fails clearly
+comment bubble. Typing `@` opens one grouped directory: Humans first for discussion and
+Agents for `@Data`, `@Code`, `@General`, plus Advanced self-declared profiles. Submitting a
+selected managed agent creates scoped Direct work; submitting a selected human or plain
+text creates discussion. Literal unselected @ text has no authority. There is no second
+form. Ambiguous rendered-to-source mapping fails clearly
 and preserves the selection rather than attaching to the wrong text. Pointer-origin
 context-menu safeguards, native spelling behavior in source edit mode, Unicode code-point
 conversion, focus restoration, and modified right-click behavior remain strict.
@@ -228,14 +258,22 @@ no change-summary form is exposed. The summary is exactly `Edited the document t
 that changed. Conflict recovery remains explicit. The product does
 not claim character-level CRDT or automatic merge behavior.
 
-## 5. Identity, attribution, and bring-your-own-agent
+## 5. Identity, attribution, and agent directory
 
-One workspace member has distinct human and delegated-agent bearer credentials. The
+Managed demo agents are immutable first-class principals, not aliases of the judge.
+Each has a distinct internal member, canonical profile ID, ASCII case-insensitively
+unique handle, display name, `COMPANY | TEAM | PERSONAL` display scope, `DATA | CODE |
+GENERAL` specialty, `DEMO_DIRECTORY` identity source, fixed runtime, readiness, and a
+server-approved logical catalog. Scope labels demonstrate directory hierarchy but are
+not authorization. The server resolves all authority from the selected profile ID; typed
+names and model JSON never choose a principal.
+
+For Advanced BYOA, one workspace member has distinct human and delegated-agent bearer credentials. The
 person supplies the display name shown on their own work. The agent credential is a
 page-scoped capability for whatever compatible agent that member brings; it is not a
 verified model identity or a hosted Ratiflow agent.
 
-The ordinary UI never manufactures an agent profile from a human-entered label. It may
+The ordinary UI never manufactures a managed agent profile from a human-entered label. It may
 help the person compose `Connect to this Ratiflow document as "Name"` and explain that
 one current profile exists per collaborator; teammates connect their own agents. A
 profile appears as connected for the current page only after the page callback observes
@@ -259,7 +297,11 @@ The server derives document, member, actor type, origin, page session, task owne
 mode, scope, and grantor from authenticated execution context and stored records.
 WebMCP input never accepts those fields.
 
-Agent attribution contains:
+Managed Relay attribution contains the immutable managed profile and internal member,
+the human grantor, model `gpt-5.6-luna`, runtime `OPENAI_LUNA_WEBMCP_RELAY`, origin
+`WEBMCP`, the role catalog digest, sanitized tool evidence, exact scoped diff, and linked
+revision. It never claims WebMCP verified the model identity. Advanced BYOA attribution
+continues to contain:
 
 - the human workspace principal whose page delegated the call;
 - the stable profile ID and current self-declared agent name captured for that action;
@@ -280,9 +322,10 @@ window rather than promising permanent hosted storage.
 
 ## 6. Mentions, comments, and scoped work
 
-The browser parses only a leading mention selected from the connected-agent roster. A
-recognized `@Agent prompt` plus a non-empty exact title/body source range compiles to one
-Direct task. The server derives title, category `GENERAL`, agent name, assignee, mode,
+The browser submits only a discriminated canonical directory target. A recognized
+managed `@Agent prompt` plus a non-empty exact title/body source range compiles to one
+Direct task and one queued Relay run. The server derives title, category from specialty,
+agent name, assignee, mode,
 owner, actor, origin, and authority; none are accepted from the model. Every task stores:
 
 - immutable creator, owner, assignee, and agent-profile snapshots;
@@ -294,7 +337,9 @@ owner, actor, origin, and authority; none are accepted from the model. Every tas
 - result rationale, replacement, evidence, and server-computed diff; and
 - lifecycle timestamps.
 
-New mention work uses `OPEN -> COMPLETED | CANCELLED | STALE`. Only the paired agent of
+New mention work uses `OPEN -> COMPLETED | CANCELLED | STALE`. The managed Relay lineage
+uses `QUEUED | ACTIVE | WAITING_RETRY | COMPLETED | EXHAUSTED | CANCELLED`; cancelling or
+staling the task atomically cancels its nonterminal run and attempt. Only the paired agent of
 the immutable assignee may list, wait, discuss, or submit. Any workspace human may view
 the prompt and discussion; server attribution prevents impersonation. Compatibility
 records may retain old v4 modes/statuses but the primary UI does not create or decide them.
@@ -340,9 +385,12 @@ Each immutable revision stores:
 - exact bounded change summary and evidence references; and
 - creation timestamp.
 
-For a human save, author and committer are the same human. For an @Agent task, both are
-the selected self-declared agent and the revision also names its human owner/grantor.
-Historical accepted Review records retain separate agent author and human approver.
+For a human save, author and committer are the same human. For a managed @Agent task,
+both are the selected directory agent's internal principal and the revision also names
+the human grantor, fixed model, and Relay runtime. For an Advanced BYOA @Agent task,
+both are the selected self-declared agent and the revision also names its human
+owner/grantor. Historical accepted Review records retain separate agent author and human
+approver.
 
 Snapshots and digests are immutable. The mutable document head is a projection of the
 latest revision. A revision list can paginate metadata, but inspecting any listed
@@ -357,9 +405,9 @@ idempotent replays, and cancellation before dispatch increment neither. A dispat
 remote write may commit after client cancellation; the client re-inspects and reuses the
 same request identity only when retrying that logical operation.
 
-## 8. Deterministic `INC-482` hero
+## 8. Deterministic judge stories
 
-The primary demo is **`INC-482 · Checkout outage postmortem`**. Its independently
+The 90-second hero is **`INC-482 · Checkout outage postmortem`**. Its independently
 checked golden freezes exact r1 content, collaborators, source facts, task targets,
 comments, replacements, revision digests, and final r5 content.
 
@@ -400,12 +448,21 @@ The observed sequence is:
    @Databot analysis/table/chart, @ChatGPT synthesis, closed discussion, restore, and the
    same fresh-agent continuity path.
 
-The demo must not imply that Ratiflow itself queried the CSV, log service, or repository.
-Those named fixture facts simulate outputs brought by the external specialist agents.
+The judge selects Root cause and writes the frozen `@Code` prompt. The Flight Recorder
+then visibly proves task and lease creation, idle-catalog withdrawal, role-specific
+registration, `toolchange`, Luna client `tool_search`, in-page `getTools()`, Luna's tool
+selection, `executeTool()`, evidence, the exact diff, the new revision, and idle-catalog
+restoration. Switching to `@General` visibly changes the catalog. The Product transfer
+story uses `@Data` on Success measures and proves that 10 + 4 = 14 fits whereas 10 + 8 =
+18 does not, preserving the October 15 invite-only beta and November 1 GA commitment.
+
+The demo must not imply that a real customer system was queried. All named CSV, metric,
+log, and repository sources are deterministic synthetic fixtures.
 
 ## 9. Exact WebMCP surface
 
-All eight tools register from the top-level issue page at page start:
+The top-level page has mutually exclusive WebMCP runtime modes. Idle/BYOA registers the
+existing exact eight-tool catalog:
 
 | Tool | Purpose |
 |---|---|
@@ -421,6 +478,24 @@ All eight tools register from the top-level issue page at page start:
 `src/repository/contracts.ts` exports the complete ordered catalog, including each exact
 description, closed JSON Schema, and annotation set. Runtime registration consumes that
 catalog; it does not maintain a second hand-written version.
+
+Claiming managed work waits for in-flight idle callbacks, aborts the idle catalog, and
+registers only the selected specialist's generation-unique physical tools. All roles get
+`read_assignment`, `read_document_context`, `read_collaboration_context`,
+`comment_on_assignment`, and `submit_scoped_revision`; only Data gets
+`query_demo_metrics`, only Code gets `search_demo_code` and `read_demo_file`, and only
+General gets `read_company_style_guide` and `check_document_consistency`. Completion or
+failure aborts that catalog and restores the eight idle tools.
+
+The Relay starts Luna with only client-executed `tool_search`. Page code calls
+`getTools()`, normalizes the same-origin catalog, and the server validates it before
+continuing the fixed-model response. Each Luna function call receives a server-minted,
+one-shot execution permit outside model JSON; the browser arms it only around the exact
+`executeTool()` descriptor. A stale generation, unarmed native call, changed argument
+digest, expired lease, or unavailable WebMCP surface fails closed. The server accepts
+only a stored verified result receipt when continuing Luna, never browser-supplied result
+content. No chain-of-thought, bearer, or unrestricted provider transcript enters History
+or the Flight Recorder.
 
 Except for the explicitly self-declared display name in `connect_agent`, the model never
 supplies request ID, document, member, owner, actor, origin, task mode, assignee, grantor,
@@ -443,12 +518,12 @@ operation. Authenticated mutations after issuance use replay-safe request identi
 
 ## 10. Competition alignment and proof discipline
 
-| Official criterion | Judge-visible v4 proof |
+| Official criterion | Judge-visible v4.2 proof |
 |---|---|
-| WebMCP Leverage | Different collaborators connect named agents to the same live document. The page natively exposes owned @ mentions, joined history/discussion context, and scoped result submission. Removing WebMCP removes the zero-configuration multi-agent loop. |
-| Execution | Multiple @ mentions land safely from shared source revisions, comments synchronize/close, Markdown tables and charts render, history reconstructs every prompt/context/rationale/change, restore works, and both detailed examples remain usable without WebMCP. |
-| Potential Impact | Teams finish with one accurate postmortem or product document while retaining the facts, disagreements, agent work, grants, decisions, and revisions that produced it. |
-| Creativity and Ambition | Git-grade authorship and task-scoped agent autonomy become native document collaboration rather than a detached agent chat, generic API wrapper, or AI rewrite button. |
+| WebMCP Leverage | The mention changes the top-level page's live tool surface; Luna searches that role catalog and every selected action returns through `executeTool()`. Removing WebMCP leaves the document usable but makes managed actuation fail closed. |
+| Execution | One visible task/lease/attempt lineage yields one bounded, evidence-backed, reversible revision without duplicate spend across tabs; role changes create an observable catalog delta. |
+| Potential Impact | A company directory of people and specialists can work in the same decision record while later readers recover the request, sources, tools, rationale, and change. |
+| Creativity and Ambition | The document itself becomes the dynamic agent runtime and immutable proof ledger, rather than a generic AI rewrite button or detached chat. |
 
 Adapter tests, internal service calls, direct RPC calls, animated screenshots, or model
 prose never count as native WebMCP proof. Native claims require a supported client to
@@ -463,11 +538,11 @@ must-fix. Internal release thresholds are WebMCP `5.0/5`, each other criterion a
 
 ## 11. P0 exclusions and release boundary
 
-P0 excludes accounts, organizations, folders, multiple files per issue, attachments,
+P0 excludes production accounts/SSO/RBAC, arbitrary agent installation, folders, multiple files per issue, attachments,
 arbitrary WYSIWYG rich-text blocks, executable/raw HTML, network embeds, arbitrary
-templates, character-level CRDT, offline sync, background agent execution, agent-to-agent
+templates, character-level CRDT, offline sync, closed-page/background agent execution, agent-to-agent
 messaging, branches, merges, pull requests, arbitrary code or observability connectors,
-verified model identity, public search, permanent storage claims, and generalized roles.
+verified model identity, public search, permanent storage claims, and real customer connectors.
 
 The ordinary human UI must remain useful without WebMCP. The v3 compatibility route must
 keep passing its own tests. Applied migrations are immutable; v4 persistence is
@@ -475,7 +550,8 @@ additive. No secret, credential, private external data, or unsanitized agent tra
 may enter source, logs, screenshots, video assets, or evidence.
 
 Release requires `.codex/verify.sh`, the v4 focused domain/protocol/browser gates,
-production build, five repair-free hero rehearsals, desktop/390px driven behavior, fresh
+production build, five repair-free hero rehearsals, desktop/390px driven behavior, the
+12-slide `/deck` with verified release screenshots, fresh
 read-only visual review, supported-client native capture, controlled WebMCP-off ablation,
 four final criterion judges, and one clean exact-SHA identity across repository,
 deployment, evidence, video, and submission.

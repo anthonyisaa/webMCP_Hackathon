@@ -1,6 +1,37 @@
-# Northstar CSV comment-first Product document hero
+# Northstar CSV managed-relay Product document hero
 
-Version 1 · Protocol v4.1 deterministic scenario · 2026-09-02
+Version 2 · v4.2 product on protocol 4 · 2026-09-02
+
+## v4.2 judge-owned live overlay
+
+The public **Explore product document** path creates a fresh isolated two-sheet clone of
+the detailed Northstar decision below. It preserves existing human saves, agent revisions,
+discussion, alternative wording, and Restore, then highlights **Success measures** as the
+managed Data transfer proof.
+
+The exact live prompt is:
+
+> @Data Check these success measures against the synthetic Northstar capacity plan. Show
+> which October 15 scope fits 14 engineering days and preserve the November 1 renewal
+> commitment, then replace only this section.
+
+Selecting the canonical Data profile creates exactly one Direct task and one queued Relay
+run. The successful trajectory calls `read_assignment`, `query_demo_metrics`, and
+`submit_scoped_revision` through the page's live WebMCP surface. The replacement must show
+that 10 reliability days + 4 invite-only-beta days = 14 and fits exactly; 10 + all 8
+export days = 18 and exceeds the window by 4; October 15 remains an invite-only
+design-partner beta; the remaining four export days lead to full GA by November 1; and the
+$180,000 renewal depends on that production-ready date. It must not describe October 15
+as general availability. Every fixture is visibly labeled **Synthetic demo data**.
+
+The visible proof uses one task/run/attempt lineage and records Luna client tool search,
+the Data-only catalog, WebMCP `getTools()` and `executeTool()`, verified result digests,
+the exact Success-measures diff, revision, and Restore. Switching to `@Code` or
+`@General` must remove `query_demo_metrics` and expose only that role's specialist delta.
+
+This overlay is independently frozen in
+`evals/goldens/repo-document-v4.2/managed-relay.json`. The v4.1 scenario below remains
+the complete historical seed and compatibility oracle.
 
 The independent machine-readable oracle is
 `evals/goldens/repo-document-v4.1/product-document-comment-first.json`. It is authored

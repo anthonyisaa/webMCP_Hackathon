@@ -16,6 +16,9 @@
     "eval:protocol": "vitest run",
     "eval:native:smoke": "playwright test e2e/native.spec.ts",
     "eval:native:v4": "playwright test e2e/native-repository-v4.spec.ts",
+    "eval:relay:adapter": "playwright test e2e/webmcp-relay-probe.spec.ts",
+    "eval:relay:native": "playwright test e2e/native-webmcp-relay-probe.spec.ts",
+    "eval:luna:smoke": "node --env-file=.env scripts/smoke-luna-client-tool-search.mjs",
     "eval:reset:v3": "node scripts/reset-document-hero-v3.mjs",
     "eval:reset:v4": "node scripts/reset-repository-hero-v4.mjs",
     "eval:agent:v3": "node evals/agent/validate.ts",
@@ -28,6 +31,7 @@
   },
   "dependencies": {
     "next": "^16.3.3",
+    "openai": "^7.8.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",

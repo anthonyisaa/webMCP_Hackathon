@@ -14,6 +14,7 @@ export default defineConfig({
       "evals/release/**/*.test.ts",
       "src/app/api/document-v3/**/*.test.ts",
       "src/app/api/repository-v4/**/*.test.ts",
+      "src/agent-relay/**/*.test.ts",
       "src/capabilities/**/*.test.ts",
       "src/components/repository/**/*.test.ts",
       "src/domain/**/*.test.ts",

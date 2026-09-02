@@ -25,9 +25,10 @@ interface WebMCPRegisteredTool {
   name: string;
   title?: string;
   description: string;
-  inputSchema?: string;
+  inputSchema?: WebMCPJsonSchema;
   annotations?: WebMCPAnnotations;
-  origin?: string;
+  origin: string;
+  window: Window;
 }
 
 interface WebMCPModelContext {

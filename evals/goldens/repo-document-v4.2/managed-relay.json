@@ -1,0 +1,136 @@
+{
+  "oracleSchemaVersion": "ratiflow.managed-relay-oracle/v1",
+  "protocolVersion": 4,
+  "releaseName": "v4.2",
+  "claim": "Mention the expert. The page supplies the tools. The document keeps the proof.",
+  "runtime": "OPENAI_LUNA_WEBMCP_RELAY",
+  "model": "gpt-5.6-luna",
+  "agents": [
+    {
+      "handle": "data",
+      "displayName": "Data",
+      "scope": "COMPANY",
+      "specialty": "DATA",
+      "identitySource": "DEMO_DIRECTORY",
+      "logicalTools": [
+        "read_assignment",
+        "read_document_context",
+        "read_collaboration_context",
+        "comment_on_assignment",
+        "submit_scoped_revision",
+        "query_demo_metrics"
+      ]
+    },
+    {
+      "handle": "code",
+      "displayName": "Code",
+      "scope": "TEAM",
+      "specialty": "CODE",
+      "identitySource": "DEMO_DIRECTORY",
+      "logicalTools": [
+        "read_assignment",
+        "read_document_context",
+        "read_collaboration_context",
+        "comment_on_assignment",
+        "submit_scoped_revision",
+        "search_demo_code",
+        "read_demo_file"
+      ]
+    },
+    {
+      "handle": "general",
+      "displayName": "General",
+      "scope": "PERSONAL",
+      "specialty": "GENERAL",
+      "identitySource": "DEMO_DIRECTORY",
+      "logicalTools": [
+        "read_assignment",
+        "read_document_context",
+        "read_collaboration_context",
+        "comment_on_assignment",
+        "submit_scoped_revision",
+        "read_company_style_guide",
+        "check_document_consistency"
+      ]
+    }
+  ],
+  "postmortem": {
+    "documentKind": "POSTMORTEM",
+    "title": "INC-482 · Checkout outage postmortem",
+    "heroAgent": "code",
+    "guidedSection": "Root cause",
+    "prompt": "@Code Check this root-cause section against the synthetic repository and checkout log. Separate the external trigger from the internal amplifier, quantify the retry behavior and queue growth, then replace only this section.",
+    "requiredToolOrder": [
+      "read_assignment",
+      "search_demo_code",
+      "read_demo_file",
+      "submit_scoped_revision"
+    ],
+    "syntheticSources": {
+      "checkout.log": {
+        "provider429StartedUtc": "09:43",
+        "retryTrafficMultiple": 5.8,
+        "queueDepthBefore": 420,
+        "queueDepthPeak": 18240,
+        "rollbackUtc": "10:17",
+        "recoveryUtc": "10:21"
+      },
+      "commit:7d3c9e1": {
+        "behavior": "Retry middleware ignored Retry-After and made up to five zero-delay retries."
+      }
+    },
+    "requiredConclusion": "Provider HTTP 429 throttling was the external trigger; commit 7d3c9e1 was the internal amplifier and root cause of the sustained failure.",
+    "forbiddenConclusion": "Provider latency alone was the root cause."
+  },
+  "productDocument": {
+    "documentKind": "PRODUCT_DOCUMENT",
+    "title": "Northstar · CSV export launch decision",
+    "heroAgent": "data",
+    "guidedSection": "Success measures",
+    "prompt": "@Data Check these success measures against the synthetic Northstar capacity plan. Show which October 15 scope fits 14 engineering days and preserve the November 1 renewal commitment, then replace only this section.",
+    "requiredToolOrder": [
+      "read_assignment",
+      "query_demo_metrics",
+      "submit_scoped_revision"
+    ],
+    "syntheticSources": {
+      "northstar_launch_capacity": {
+        "preBetaCapacityDays": 14,
+        "reliabilityDays": 10,
+        "inviteOnlyBetaDays": 4,
+        "fullExportDays": 8,
+        "inviteOnlyBetaDate": "October 15",
+        "fullGaDate": "November 1",
+        "renewalValueUsd": 180000
+      }
+    },
+    "requiredConclusion": "10 reliability days plus 4 invite-only beta days exactly fit 14 days; 10 plus 8 full-export days require 18 and exceed capacity by 4; finish full GA by November 1.",
+    "forbiddenConclusion": "The October 15 invite-only beta is general availability."
+  },
+  "requiredTraceSubsequence": [
+    "RUN_QUEUED",
+    "RUN_CLAIMED",
+    "IDLE_CATALOG_WITHDRAWN",
+    "RELAY_CATALOG_REGISTERED",
+    "WEBMCP_TOOLCHANGE_OBSERVED",
+    "MODEL_TOOL_SEARCH_REQUESTED",
+    "WEBMCP_GET_TOOLS_COMPLETED",
+    "MODEL_TOOL_SELECTED",
+    "WEBMCP_EXECUTE_STARTED",
+    "WEBMCP_EXECUTE_COMPLETED",
+    "REVISION_COMMITTED",
+    "RELAY_CATALOG_WITHDRAWN",
+    "WEBMCP_TOOLCHANGE_OBSERVED",
+    "IDLE_CATALOG_RESTORED",
+    "RUN_COMPLETED"
+  ],
+  "ablation": {
+    "webMcpUnavailable": {
+      "humanEditingAvailable": true,
+      "commentsAvailable": true,
+      "historyAndRestoreAvailable": true,
+      "managedRelayExecutes": false,
+      "queuedTaskRemainsVisible": true
+    }
+  }
+}
