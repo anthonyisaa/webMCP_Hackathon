@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "vitest";
 
-import postmortemGolden from "../../evals/goldens/repo-document-v4/postmortem.json";
+// @ts-expect-error The CLI exports its runtime validator from an ESM script.
+import { validateResetResult } from "../../scripts/reset-repository-hero-v4.mjs";
+
 import productGolden from "../../evals/goldens/repo-document-v4/product-document.json";
 import type {
   CreateIssueTaskServiceInput,
@@ -63,9 +65,14 @@ async function workspace(body = "Alpha 😀 beta gamma") {
     expectedRevision: 1,
     title: "Incident",
     body,
-    changeSummary: "Set deterministic test content.",
   }));
   assert.equal(saved.document.revision, 2);
+  success(await service.connectAgent(nadia.agentSessionToken, {
+    requestId: randomUUID(), name: "Test agent",
+  }, nadia.sessionInstanceId));
+  success(await service.connectAgent(leo.agentSessionToken, {
+    requestId: randomUUID(), name: "Test agent",
+  }, leo.sessionInstanceId));
   return { service, owner, nadia, leo };
 }
 
@@ -269,17 +276,17 @@ test("replay is document-scoped, checks target authority first, and stores failu
   success(await service.commentOnTask(
     nadia.agentSessionToken,
     commentInput,
-    randomUUID(),
+    nadia.sessionInstanceId,
   ));
   assertFailureCode(await service.commentOnTask(
     leo.agentSessionToken,
     commentInput,
-    randomUUID(),
+    leo.sessionInstanceId,
   ), "UNAUTHORIZED");
   assertFailureCode(await service.commentOnTask(
     leo.agentSessionToken,
     { ...commentInput, body: "Changed cross-owner input." },
-    randomUUID(),
+    leo.sessionInstanceId,
   ), "UNAUTHORIZED");
 
   const unclaimedRequestId = randomUUID();
@@ -291,12 +298,12 @@ test("replay is document-scoped, checks target authority first, and stores failu
   assertFailureCode(await service.commentOnTask(
     leo.agentSessionToken,
     poisonedInput,
-    randomUUID(),
+    leo.sessionInstanceId,
   ), "UNAUTHORIZED");
   success(await service.commentOnTask(
     nadia.agentSessionToken,
     poisonedInput,
-    randomUUID(),
+    nadia.sessionInstanceId,
   ));
 
   const reviewSurface = success(await service.createTask(owner.humanSessionToken, taskInput(leo, 6, 10, {
@@ -312,14 +319,14 @@ test("replay is document-scoped, checks target authority first, and stores failu
     resultSummary: "",
     replacementText: "delta",
     forged: true,
-  } as never, randomUUID()), "UNAUTHORIZED");
+  } as never, nadia.sessionInstanceId), "UNAUTHORIZED");
   const proposed = success(await service.submitTaskResult(leo.agentSessionToken, {
     requestId: resultRequestId,
     taskId: reviewTask.taskId,
     basedOnRevision: 2,
     resultSummary: "Propose an owned replacement.",
     replacementText: "delta",
-  }, randomUUID()));
+  }, leo.sessionInstanceId));
   assert.equal(proposed.outcome, "PROPOSED");
 
   const decisionRequestId = randomUUID();
@@ -373,7 +380,6 @@ test("replay is document-scoped, checks target authority first, and stores failu
     expectedRevision: 1,
     title: "Incident",
     body: "Stale body",
-    changeSummary: "This is stale.",
   };
   assertFailureCode(await service.saveHumanRevision(owner.humanSessionToken, failedSave), "STALE_DOCUMENT");
   assertFailureCode(await service.saveHumanRevision(owner.humanSessionToken, failedSave), "STALE_DOCUMENT");
@@ -420,9 +426,12 @@ test("Comment replacement, missing and cross-thread replies, and stale Review ac
   const service = new LocalRepositoryService({ now: () => fixedNow });
   const owner = success(await service.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
   const nadia = success(await service.join({ shareToken: owner.shareToken, displayName: "Nadia" }));
+  success(await service.connectAgent(nadia.agentSessionToken, {
+    requestId: randomUUID(), name: "Test agent",
+  }, nadia.sessionInstanceId));
   success(await service.saveHumanRevision(owner.humanSessionToken, {
     requestId: randomUUID(), expectedRevision: 1, title: "Incident",
-    body: "Alpha beta gamma", changeSummary: "Set content.",
+    body: "Alpha beta gamma",
   }));
   const commentCreated = success(await service.createTask(owner.humanSessionToken, taskInput(nadia, 0, 5, {
     mode: "COMMENT", anchor: { scope: "DOCUMENT" }, title: "Comment only",
@@ -432,11 +441,11 @@ test("Comment replacement, missing and cross-thread replies, and stale Review ac
   assertFailureCode(await service.submitTaskResult(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: commentTask.taskId, basedOnRevision: 2,
     resultSummary: "A finding.", replacementText: "forbidden",
-  }, randomUUID()), "INVALID_INPUT");
+  }, nadia.sessionInstanceId), "INVALID_INPUT");
   const commented = success(await service.submitTaskResult(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: commentTask.taskId, basedOnRevision: 2,
     resultSummary: "A finding.",
-  }, randomUUID()));
+  }, nadia.sessionInstanceId));
   assert.equal(
     Date.parse(commented.task.updatedAt) - Date.parse(failedAt),
     1,
@@ -460,7 +469,7 @@ test("Comment replacement, missing and cross-thread replies, and stale Review ac
   } as never), "INVALID_INPUT");
   assertFailureCode(await service.commentOnTask(nadia.agentSessionToken, {
     requestId: randomUUID(), threadId: firstTask.threadId, body: "Wrong target discriminator.",
-  } as never, randomUUID()), "INVALID_INPUT");
+  } as never, nadia.sessionInstanceId), "INVALID_INPUT");
   assertFailureCode(await service.addHumanComment(
     owner.humanSessionToken,
     null as never,
@@ -472,23 +481,23 @@ test("Comment replacement, missing and cross-thread replies, and stale Review ac
   assertFailureCode(await service.commentOnTask(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: firstTask.taskId,
     body: "Null evidence must not normalize to omission.", evidenceRefs: null,
-  } as never, randomUUID()), "INVALID_INPUT");
+  } as never, nadia.sessionInstanceId), "INVALID_INPUT");
   assertFailureCode(await service.commentOnTask(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: secondTask.taskId, replyToCommentId: parent.commentId,
     body: "Cross-thread reply.",
-  }, randomUUID()), "INVALID_INPUT");
+  }, nadia.sessionInstanceId), "INVALID_INPUT");
   assertFailureCode(await service.commentOnTask(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: secondTask.taskId, replyToCommentId: randomUUID(),
     body: "Missing reply.",
-  }, randomUUID()), "INVALID_INPUT");
+  }, nadia.sessionInstanceId), "INVALID_INPUT");
 
   success(await service.submitTaskResult(nadia.agentSessionToken, {
     requestId: randomUUID(), taskId: firstTask.taskId, basedOnRevision: 2,
     resultSummary: "Propose delta.", replacementText: "delta",
-  }, randomUUID()));
+  }, nadia.sessionInstanceId));
   success(await service.saveHumanRevision(owner.humanSessionToken, {
     requestId: randomUUID(), expectedRevision: 2, title: "Incident",
-    body: "Alpha omega gamma", changeSummary: "Overlap the proposed anchor.",
+    body: "Alpha omega gamma",
   }));
   assertFailureCode(await service.acceptTaskProposal(owner.humanSessionToken, {
     requestId: randomUUID(), taskId: firstTask.taskId, expectedRevision: 3, note: null,
@@ -550,10 +559,10 @@ test("checked selection, evidence, and complete-discussion bounds fail without c
 test("history is newest-first, restores append instead of rewrite, and stale saves preserve head", async () => {
   const { service, owner } = await workspace("Alpha beta gamma");
   success(await service.saveHumanRevision(owner.humanSessionToken, {
-    requestId: randomUUID(), expectedRevision: 2, title: "Incident", body: "Delta beta gamma", changeSummary: "Edit r3.",
+    requestId: randomUUID(), expectedRevision: 2, title: "Incident", body: "Delta beta gamma",
   }));
   const stale = await service.saveHumanRevision(owner.humanSessionToken, {
-    requestId: randomUUID(), expectedRevision: 2, title: "Incident", body: "Lost update", changeSummary: "Stale.",
+    requestId: randomUUID(), expectedRevision: 2, title: "Incident", body: "Lost update",
   });
   assert.equal(stale.ok, false);
   if (!stale.ok) {
@@ -579,6 +588,9 @@ test("wait uses explicit cursors, rejects duplicate page waits, and distinguishe
   const { service, owner, nadia } = await workspace();
   const cursor = success(await service.inspect(owner.humanSessionToken)).document;
   const pageSessionId = randomUUID();
+  success(await service.connectAgent(nadia.agentSessionToken, {
+    requestId: randomUUID(), name: "Test agent",
+  }, pageSessionId));
   const invalidPage = await service.listMyTasks(
     nadia.agentSessionToken,
     {},
@@ -613,7 +625,7 @@ test("wait uses explicit cursors, rejects duplicate page waits, and distinguishe
   }, pageSessionId);
   success(await service.saveHumanRevision(owner.humanSessionToken, {
     requestId: randomUUID(), expectedRevision: cursor.revision,
-    title: "Incident", body: "Changed while waiting", changeSummary: "Wake on document revision.",
+    title: "Incident", body: "Changed while waiting",
   }));
   const changed = success(await secondWait);
   assert.equal(changed.outcome, "DOCUMENT_CHANGED");
@@ -625,17 +637,21 @@ test("wait rechecks expiry and configured session TTL never exceeds workspace TT
     now: () => now,
     sessionTtlMs: ISSUE_WORKSPACE_TTL_MS * 2,
   });
-  const clampedBundle = success(await clamped.launch({ kind: "POSTMORTEM" }));
+  const clampedBundle = success(await clamped.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
   assert.equal(Date.parse(clampedBundle.expiresAt) - now, ISSUE_WORKSPACE_TTL_MS);
 
   const service = new LocalRepositoryService({ now: () => now, sessionTtlMs: 5, waitSecondMs: 50 });
   const owner = success(await service.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
   const nadia = success(await service.join({ shareToken: owner.shareToken, displayName: "Nadia" }));
+  const pageSessionId = randomUUID();
+  success(await service.connectAgent(nadia.agentSessionToken, {
+    requestId: randomUUID(), name: "Wait agent",
+  }, pageSessionId));
   const wait = service.waitForMyTasks(nadia.agentSessionToken, {
     afterActivityVersion: 1,
     afterRevision: 1,
     timeoutSeconds: 1,
-  }, randomUUID());
+  }, pageSessionId);
   now += 6;
   assertFailureCode(await wait, "UNAUTHORIZED");
 });
@@ -647,23 +663,24 @@ test("credential issuance has deterministic configurable caps and reset rejects 
     credentialRateLimitWindowMs: 100,
     credentialRateLimits: { launch: 1, example: 1, join: 1, reset: 1 },
   });
-  assertFailureCode(await service.launch({ kind: "bad" as "POSTMORTEM" }), "INVALID_INPUT");
-  const owner = success(await service.launch({ kind: "POSTMORTEM" }));
-  assertFailureCode(await service.launch({ kind: "PRODUCT_DOCUMENT" }), "RATE_LIMITED");
-  success(await service.launchExample({}));
-  assertFailureCode(await service.launchExample({}), "RATE_LIMITED");
-  success(await service.join({ shareToken: owner.shareToken }));
-  assertFailureCode(await service.join({ shareToken: owner.shareToken }), "RATE_LIMITED");
+  assertFailureCode(await service.launch({ kind: "bad" as "POSTMORTEM", displayName: "Priya" }), "INVALID_INPUT");
+  const owner = success(await service.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
+  assertFailureCode(await service.launch({ kind: "PRODUCT_DOCUMENT", displayName: "Priya" }), "RATE_LIMITED");
+  success(await service.launchExample({ kind: "POSTMORTEM", displayName: "Quinn" }));
+  assertFailureCode(await service.launchExample({ kind: "POSTMORTEM", displayName: "Quinn" }), "RATE_LIMITED");
+  success(await service.join({ shareToken: owner.shareToken, displayName: "Nadia" }));
+  assertFailureCode(await service.join({ shareToken: owner.shareToken, displayName: "Leo" }), "RATE_LIMITED");
   success(await service.resetPostmortemHero());
   assertFailureCode(await service.resetPostmortemHero(), "RATE_LIMITED");
   now += 101;
-  success(await service.launch({ kind: "PRODUCT_DOCUMENT" }));
+  success(await service.launch({ kind: "PRODUCT_DOCUMENT", displayName: "Jordan" }));
 
   const concurrent = new LocalRepositoryService();
   const firstReset = concurrent.resetPostmortemHero();
   const overlappingReset = await concurrent.resetPostmortemHero();
   assertFailureCode(overlappingReset, "RATE_LIMITED");
   const firstOutcome = success(await firstReset);
+  assert.equal(validateResetResult({ ok: true, data: firstOutcome }), true);
   const encoded = firstOutcome.priyaBootstrapPath.split("#ratiflow-bootstrap=")[1]!;
   const priya = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as IssueSessionBundle;
   assert.equal(success(await concurrent.inspect(priya.humanSessionToken)).document.activityVersion, 4);
@@ -695,165 +712,6 @@ test("surface task and thread ordering is active-first, newest-updated, and task
   assert.equal(ordered.threads[3]!.taskId, null);
   assert.notEqual(ordered.threads[3]!.threadId, olderStandalone.threadId);
   assert.equal(ordered.threads[4]!.threadId, olderStandalone.threadId);
-});
-
-test("completed public example is normalized-exact INC-482 r4/av10", async () => {
-  const service = new LocalRepositoryService();
-  const example = success(await service.launchExample({}));
-  assert.equal(example.surface.document.title, postmortemGolden.document.title);
-  assert.equal(example.surface.document.body, postmortemGolden.revisions[3]!.body);
-  assert.equal(example.surface.document.revision, 4);
-  assert.equal(example.surface.document.activityVersion, 10);
-  assert.deepEqual(example.surface.tasks.map((task) => [task.taskKey, task.mode, task.status]), [
-    ["CODE-9", "REVIEW", "COMPLETED"],
-    ["LOG-22", "DIRECT", "COMPLETED"],
-    ["DATA-17", "DIRECT", "COMPLETED"],
-  ]);
-  const history = success(await service.readHistory(example.humanSessionToken, { limit: 10 }));
-  assert.deepEqual(history.revisions.map((revision) => revision.contentDigest), postmortemGolden.revisions.slice().reverse().map((revision) => revision.contentDigest));
-  assert.deepEqual(history.revisions.map((revision) => [revision.provenance.authority, revision.provenance.origin, revision.provenance.authorOrigin]), [
-    ["REVIEW", "ORDINARY_UI", "WEBMCP"],
-    ["DIRECT", "WEBMCP", "WEBMCP"],
-    ["DIRECT", "WEBMCP", "WEBMCP"],
-    ["HUMAN", "ORDINARY_UI", "ORDINARY_UI"],
-  ]);
-  const code = example.surface.tasks.find((task) => task.taskKey === "CODE-9")!;
-  const thread = example.surface.threads.find((entry) => entry.threadId === code.threadId)!;
-  assert.deepEqual(thread.comments.map((comment) => comment.body), postmortemGolden.comments.map((comment) => comment.body));
-  assert.deepEqual(thread.comments.map((comment) => comment.evidenceRefs), postmortemGolden.comments.map((comment) => comment.evidenceRefs));
-  assert.deepEqual(thread.comments.map((comment) => comment.origin), postmortemGolden.comments.map((comment) => comment.origin));
-  assert.equal(thread.comments[0]!.replyToCommentId, null);
-  assert.equal(thread.comments[1]!.replyToCommentId, thread.comments[0]!.commentId);
-  assert.equal(thread.comments[0]!.author.displayName, "Priya Shah");
-  assert.equal(thread.comments[1]!.author.displayName, "Builder agent");
-
-  const actualByKey = new Map(example.surface.tasks.map((task) => [task.taskKey, task]));
-  const goldenMemberNames = new Map(Object.values(postmortemGolden.members).map((member) => [member.memberId, member.displayName]));
-  for (const expected of postmortemGolden.tasks) {
-    const actual = actualByKey.get(expected.taskKey)!;
-    assert.ok(actual, `missing ${expected.taskKey}`);
-    assert.deepEqual(
-      [actual.title, actual.category, actual.instruction, actual.agentLabel, actual.mode, actual.status],
-      [expected.title, expected.category, expected.instruction, expected.agentLabel, expected.mode, expected.finalStatus],
-    );
-    assert.equal(actual.creator.displayName, goldenMemberNames.get(expected.creatorMemberId));
-    assert.equal(actual.assignee.displayName, goldenMemberNames.get(expected.assigneeMemberId));
-    assert.deepEqual(actual.creationAnchor, expected.creationAnchor);
-    assert.equal(actual.anchor.scope, "SELECTION");
-    if (actual.anchor.scope === "SELECTION") {
-      const replacement = expected.submission !== undefined
-        ? expected.submission.replacementText
-        : expected.proposal!.replacementText;
-      const liveStart = expected.submission !== undefined
-        ? expected.submission.liveAnchor.rangeStart
-        : expected.anchorRebases!.at(-1)!.rangeStart;
-      assert.deepEqual(
-        [actual.anchor.field, actual.anchor.rangeStart, actual.anchor.rangeEnd, actual.anchor.selectedText, actual.anchor.anchorRevision, actual.anchor.anchorState],
-        ["BODY", liveStart, liveStart + Array.from(replacement).length, replacement, 4, "ACTIVE"],
-      );
-    }
-    const linkedThread = example.surface.threads.find((candidate) => candidate.threadId === actual.threadId)!;
-    assert.equal(linkedThread.taskId, actual.taskId);
-    assert.deepEqual(linkedThread.creationAnchor, expected.creationAnchor);
-    assert.deepEqual(linkedThread.anchor, actual.anchor);
-    if (expected.submission !== undefined) {
-      assert.equal(actual.result?.outcome, "COMMITTED");
-      if (actual.result?.outcome === "COMMITTED") {
-        assert.deepEqual(
-          {
-            rangeStart: actual.result.liveAnchor.rangeStart,
-            rangeEnd: actual.result.liveAnchor.rangeEnd,
-            anchorRevision: actual.result.liveAnchor.anchorRevision,
-            anchorState: actual.result.liveAnchor.anchorState,
-          },
-          expected.submission.liveAnchor,
-        );
-        assert.equal(actual.result.replacementText, expected.submission.replacementText);
-        const resultRevision = success(await service.readRevision(example.humanSessionToken, expected.submission.resultRevision));
-        assert.equal(actual.result.submittedAt, resultRevision.createdAt);
-      }
-      assert.deepEqual(
-        [actual.result?.outcome, actual.result?.resultSummary, actual.result?.sourceRevision, actual.result?.resultRevision, actual.result?.evidenceRefs],
-        [expected.submission.outcome, expected.submission.resultSummary, expected.submission.basedOnRevision, expected.submission.resultRevision, expected.submission.evidenceRefs],
-      );
-    } else {
-      const expectedLive = expected.anchorRebases!.at(-1)!;
-      assert.deepEqual(
-        {
-          rangeStart: actual.proposal?.liveAnchor.rangeStart,
-          rangeEnd: actual.proposal?.liveAnchor.rangeEnd,
-          selectedText: actual.proposal?.liveAnchor.selectedText,
-          anchorRevision: actual.proposal?.liveAnchor.anchorRevision,
-          anchorState: actual.proposal?.liveAnchor.anchorState,
-        },
-        {
-          rangeStart: expectedLive.rangeStart,
-          rangeEnd: expectedLive.rangeEnd,
-          selectedText: expectedLive.selectedText,
-          anchorRevision: expectedLive.anchorRevision,
-          anchorState: expectedLive.anchorState,
-        },
-      );
-      assert.deepEqual(
-        [actual.proposal?.replacementText, actual.proposal?.resultSummary, actual.proposal?.sourceRevision, actual.proposal?.evidenceRefs],
-        [expected.proposal!.replacementText, expected.proposal!.resultSummary, expected.proposal!.basedOnRevision, expected.proposal!.evidenceRefs],
-      );
-      assert.deepEqual(
-        [actual.decision?.kind, actual.decision?.note, actual.decision?.decisionRevision, actual.decision?.resultRevision],
-        [expected.decision!.kind, expected.decision!.note, expected.decision!.decisionRevision, expected.decision!.resultRevision],
-      );
-      const resultRevision = success(await service.readRevision(example.humanSessionToken, expected.decision!.resultRevision));
-      assert.equal(actual.decision?.decidedAt, resultRevision.createdAt);
-      assert.equal(actual.resolvedAt, resultRevision.createdAt);
-    }
-  }
-
-  const actualTaskKeyById = new Map(example.surface.tasks.map((task) => [task.taskId, task.taskKey]));
-  const expectedTaskKeyById = new Map(postmortemGolden.tasks.map((task) => [task.taskId, task.taskKey]));
-  for (const [index, expected] of postmortemGolden.revisions.entries()) {
-    const actual = success(await service.readRevision(example.humanSessionToken, index + 1));
-    assert.deepEqual(
-      [actual.revision, actual.parentRevision, actual.title, actual.body, actual.contentDigest, actual.diffs, actual.changeSummary, actual.evidenceRefs],
-      [expected.revision, expected.parentRevision, expected.title, expected.body, expected.contentDigest, expected.diffs, expected.changeSummary, expected.evidenceRefs],
-    );
-    assert.deepEqual(
-      [actual.provenance.authority, actual.provenance.origin, actual.provenance.authorOrigin, actual.provenance.sourceRevision, actual.provenance.restoredRevision],
-      [expected.provenance.authority, expected.provenance.origin, expected.provenance.authorOrigin, expected.provenance.sourceRevision, expected.provenance.restoredRevision],
-    );
-    assert.equal(
-      actual.provenance.taskId === null ? null : actualTaskKeyById.get(actual.provenance.taskId),
-      expected.provenance.taskId === null ? null : expectedTaskKeyById.get(expected.provenance.taskId),
-    );
-  }
-  assertNoStoredMemberColor(example.surface);
-});
-
-test("protected reset issues four resumable bootstrap sessions at exact r1/av4", async () => {
-  const service = new LocalRepositoryService();
-  const reset = success(await service.resetPostmortemHero());
-  assert.equal(reset.fixtureVersion, "repo-document-v4.postmortem.v1");
-  assert.equal(reset.revision, 1);
-  assert.equal(reset.activityVersion, 4);
-  assert.match(reset.priyaBootstrapPath, /^\/issue\/[A-Za-z0-9_-]+#ratiflow-bootstrap=[A-Za-z0-9_-]+$/);
-  const encoded = reset.priyaBootstrapPath.split("#ratiflow-bootstrap=")[1]!;
-  const priya = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as IssueSessionBundle;
-  assert.equal(priya.selfMemberId, "00000000-0000-4000-8000-000000000411");
-  assert.equal(priya.surface.document.id, "00000000-0000-4000-8000-000000000401");
-  assert.equal(priya.surface.document.body, postmortemGolden.revisions[0]!.body);
-  assert.deepEqual(priya.surface.tasks.map((task) => [task.taskId, task.taskKey, task.mode, task.status]), [
-    ["00000000-0000-4000-8000-000000000423", "CODE-9", "REVIEW", "OPEN"],
-    ["00000000-0000-4000-8000-000000000422", "LOG-22", "DIRECT", "OPEN"],
-    ["00000000-0000-4000-8000-000000000421", "DATA-17", "DIRECT", "OPEN"],
-  ]);
-  const resumed = success(await service.inspect(priya.humanSessionToken));
-  assert.equal(resumed.document.activityVersion, 4);
-  assert.equal(resumed.members.length, 4);
-
-  const replacement = success(await service.resetPostmortemHero());
-  const expired = await service.inspect(priya.humanSessionToken);
-  assert.equal(expired.ok, false);
-  if (!expired.ok) assert.equal(expired.code, "UNAUTHORIZED");
-  assert.notEqual(replacement.shareToken, reset.shareToken);
 });
 
 test("surface reconciliation never lets delayed data hide content or same-revision activity", async () => {

@@ -3,17 +3,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { test } from "vitest";
 
-import type {
-  IssueRevisionProvenance,
-  IssueWorkspaceSurface,
-} from "@/repository/contracts";
+import type { IssueRevisionProvenance, IssueWorkspaceSurface } from "@/repository/contracts";
 
 import { RepositoryLanding } from "./RepositoryLanding";
 import {
-  repositoryAuthorityLabel,
-  repositoryCanReceiveSessionResult,
   repositoryCanApplyRevisionSnapshot,
+  repositoryCanReceiveSessionResult,
   repositoryClampCodePoints,
+  repositoryCommentStartsWithAgent,
   repositoryDraftMatchesDocument,
   repositoryNextHistoryHasMore,
   repositoryProvenanceSummary,
@@ -22,145 +19,65 @@ import {
   repositoryShouldAdoptRevisionMutation,
 } from "./RepositoryWorkspace";
 
-test("the landing surface offers only the two frozen document types", () => {
+test("landing makes human identity and the one-agent handoff explicit before its two templates", () => {
   const markup = renderToStaticMarkup(createElement(RepositoryLanding, {
     onCreate() {},
     onOpenExample() {},
   }));
-
-  assert.match(markup, /data-testid="template-picker"/);
-  assert.match(markup, /data-document-kind="POSTMORTEM"/);
-  assert.match(markup, /data-document-kind="PRODUCT_DOCUMENT"/);
-  assert.equal((markup.match(/data-document-kind=/g) ?? []).length, 2);
-  assert.match(markup, />Open incident example</);
-  assert.doesNotMatch(markup, /Open outage example/);
+  assert.match(markup, /What should collaborators call you\?/u);
+  assert.match(markup, /Choose the nickname collaborators will see\./u);
+  assert.match(markup, /Connect the agent you’re bringing\./u);
+  assert.match(markup, /Each collaborator connects one current agent/u);
+  assert.match(markup, /data-document-kind="POSTMORTEM"/u);
+  assert.match(markup, /data-document-kind="PRODUCT_DOCUMENT"/u);
+  assert.equal((markup.match(/data-document-kind=/gu) ?? []).length, 2);
+  assert.match(markup, /Explore postmortem/u);
+  assert.match(markup, /Explore product document/u);
 });
 
-test("same-session activity and revision props do not change the workspace reset identity", () => {
-  const surface = (documentId: string, revision: number) => ({
-    document: { id: documentId, revision },
-  }) as IssueWorkspaceSurface;
-
-  const initial = repositorySessionIdentity({
-    sessionInstanceId: "browser-session-a",
-    surface: surface("document-a", 1),
-  });
-  const collaborationUpdate = repositorySessionIdentity({
-    sessionInstanceId: "browser-session-a",
-    surface: surface("document-a", 8),
-  });
-  const nextDocument = repositorySessionIdentity({
-    sessionInstanceId: "browser-session-a",
-    surface: surface("document-b", 1),
-  });
-
-  assert.equal(collaborationUpdate, initial);
-  assert.notEqual(nextDocument, initial);
+test("same-session collaboration updates do not reset workspace identity", () => {
+  const surface = (documentId: string, revision: number) => ({ document: { id: documentId, revision } }) as IssueWorkspaceSurface;
+  const initial = repositorySessionIdentity({ sessionInstanceId: "browser-a", surface: surface("doc-a", 1) });
+  assert.equal(repositorySessionIdentity({ sessionInstanceId: "browser-a", surface: surface("doc-a", 8) }), initial);
+  assert.notEqual(repositorySessionIdentity({ sessionInstanceId: "browser-a", surface: surface("doc-b", 1) }), initial);
 });
 
-test("an asynchronous revision result owns only the exact live draft", () => {
-  const saved = { title: "Incident", body: "The submitted revision." };
-
-  assert.equal(repositoryDraftMatchesDocument({ ...saved }, saved), true);
-  assert.equal(
-    repositoryDraftMatchesDocument(
-      { ...saved, body: "An edit made while the revision was saving." },
-      saved,
-    ),
-    false,
-  );
+test("late surface results cannot cross mounted workspace identities", () => {
+  const surface = (id: string) => ({ document: { id } }) as IssueWorkspaceSurface;
+  const session = { sessionInstanceId: "browser-a", surface: surface("doc-a") };
+  const identity = repositorySessionIdentity(session);
+  assert.equal(repositoryCanReceiveSessionResult(identity, identity, session, "doc-a"), true);
+  assert.equal(repositoryCanReceiveSessionResult("browser-b:doc-b", identity, session, "doc-a"), false);
+  assert.equal(repositoryCanReceiveSessionResult(identity, identity, session, "doc-b"), false);
 });
 
-test("accept and restore adopt a mutation only while their baseline still owns the draft", () => {
+test("draft and immutable-revision guards preserve in-flight human edits", () => {
   const baseline = { title: "Incident", body: "Before" };
-  const current = { title: "Incident", body: "After" };
-
-  assert.equal(
-    repositoryShouldAdoptRevisionMutation(baseline, baseline, baseline, false),
-    true,
-  );
-  assert.equal(
-    repositoryShouldAdoptRevisionMutation(
-      { title: "Incident", body: "A later local edit" },
-      baseline,
-      baseline,
-      true,
-    ),
-    false,
-  );
-  assert.equal(
-    repositoryShouldAdoptRevisionMutation(current, baseline, current, false),
-    true,
-  );
-});
-
-test("late surface and unavailable-session callbacks cannot cross workspace identities", () => {
-  const surface = (documentId: string) => ({
-    document: { id: documentId },
-  }) as IssueWorkspaceSurface;
-  const session = {
-    sessionInstanceId: "browser-session-a",
-    surface: surface("document-a"),
-  };
-  const expectedIdentity = repositorySessionIdentity(session);
-
-  assert.equal(
-    repositoryCanReceiveSessionResult(
-      expectedIdentity,
-      expectedIdentity,
-      session,
-      "document-a",
-    ),
-    true,
-  );
-  assert.equal(
-    repositoryCanReceiveSessionResult(
-      "browser-session-b:document-b",
-      expectedIdentity,
-      session,
-      "document-a",
-    ),
-    false,
-  );
-  assert.equal(
-    repositoryCanReceiveSessionResult(
-      expectedIdentity,
-      expectedIdentity,
-      session,
-      "document-b",
-    ),
-    false,
-  );
-  assert.equal(
-    repositoryCanReceiveSessionResult(expectedIdentity, expectedIdentity, null),
-    false,
-  );
-});
-
-test("revision snapshots render only for the request that still owns selection", () => {
+  assert.equal(repositoryDraftMatchesDocument({ ...baseline }, baseline), true);
+  assert.equal(repositoryShouldAdoptRevisionMutation(baseline, baseline, baseline, false), true);
+  assert.equal(repositoryShouldAdoptRevisionMutation({ ...baseline, body: "Local" }, baseline, baseline, true), false);
   assert.equal(repositoryCanApplyRevisionSnapshot(4, 4, { revision: 4 }), true);
-  assert.equal(repositoryCanApplyRevisionSnapshot(3, 4, { revision: 4 }), false);
-  assert.equal(repositoryCanApplyRevisionSnapshot(4, 4, { revision: 3 }), false);
-});
-
-test("surface pagination flags synchronize until an older-history cursor is active", () => {
+  assert.equal(repositoryCanApplyRevisionSnapshot(4, 3, { revision: 4 }), false);
   assert.equal(repositoryNextHistoryHasMore(0, false, true), true);
-  assert.equal(repositoryNextHistoryHasMore(0, true, false), false);
   assert.equal(repositoryNextHistoryHasMore(1, false, true), false);
 });
 
-test("bounded editor fields count Unicode code points instead of UTF-16 units", () => {
+test("bounded text counts code points and delegation requires an explicit agent selection-compatible prefix", () => {
   assert.equal(repositoryClampCodePoints("😀😀agent", 3), "😀😀a");
-  assert.equal(repositoryClampCodePoints("short", 20), "short");
+  assert.equal(repositoryCommentStartsWithAgent("@Databot build the table", "Databot"), true);
+  assert.equal(repositoryCommentStartsWithAgent("@Databot\tbuild the table", "Databot"), true);
+  assert.equal(repositoryCommentStartsWithAgent("@Databot", "Databot"), false);
+  assert.equal(repositoryCommentStartsWithAgent("prefix @Databot build it", "Databot"), false);
 });
 
-test("revision copy exposes task authority and human approval", () => {
+test("history provenance names the self-declared agent and human owner", () => {
   const member = { memberId: "member-1", displayName: "Nadia" };
   const agent = {
     actorType: "AGENT" as const,
-    displayName: "Research agent",
+    displayName: "Databot",
     member,
-    agentLabel: "Research agent",
+    agentProfileId: "profile-1",
+    agentLabel: "Databot",
   };
   const direct: IssueRevisionProvenance = {
     sourceRevision: 3,
@@ -174,39 +91,6 @@ test("revision copy exposes task authority and human approval", () => {
     approvedBy: null,
     restoredRevision: null,
   };
-  const reviewed: IssueRevisionProvenance = {
-    sourceRevision: 3,
-    authority: "REVIEW",
-    origin: "ORDINARY_UI",
-    authorOrigin: "WEBMCP",
-    taskId: "task-2",
-    author: agent,
-    committer: {
-      actorType: "HUMAN",
-      displayName: member.displayName,
-      member,
-      agentLabel: null,
-    },
-    grantedBy: member,
-    approvedBy: member,
-    restoredRevision: null,
-  };
-
-  assert.equal(repositoryAuthorityLabel(direct.authority), "Direct agent commit");
-  assert.equal(
-    repositoryProvenanceSummary(direct),
-    "Research agent committed directly · granted by Nadia",
-  );
-  assert.equal(
-    repositoryProvenanceSummary(reviewed),
-    "Research agent authored · applied by Nadia",
-  );
-  assert.equal(
-    repositoryRevisionLineageLabel({ parentRevision: 4, provenance: direct }),
-    "Research agent · Direct from r3, safely rebased",
-  );
-  assert.equal(
-    repositoryRevisionLineageLabel({ parentRevision: 3, provenance: reviewed }),
-    "Research agent · Reviewed by Nadia",
-  );
+  assert.equal(repositoryProvenanceSummary(direct), "Databot · Nadia changed the document");
+  assert.equal(repositoryRevisionLineageLabel({ parentRevision: 4, provenance: direct }), "Databot · Direct from r3, safely rebased");
 });

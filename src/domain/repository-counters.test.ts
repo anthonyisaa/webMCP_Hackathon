@@ -154,6 +154,9 @@ test("D04 successful operations follow the exact revision/activity ledger atomic
   await assertHeadIsAtomic(service, owner.humanSessionToken, owner.surface);
 
   const worker = success(await service.join({ shareToken: owner.shareToken, displayName: "Worker" }));
+  success(await service.connectAgent(worker.agentSessionToken, {
+    requestId: requestId(), name: "Counter agent",
+  }, worker.sessionInstanceId));
   assert.deepEqual(counters(await inspect(service, owner.humanSessionToken)), { revision: 1, activityVersion: 1 });
 
   const initialBody = "alpha beta gamma delta epsilon zeta";
@@ -163,7 +166,6 @@ test("D04 successful operations follow the exact revision/activity ledger atomic
       expectedRevision: 1,
       title: "Counter oracle",
       body: initialBody,
-      changeSummary: "Install compact deterministic text.",
     }));
 
   const unchangedSave = await expectNoDurableChange(service, owner.humanSessionToken, "unchanged human save", () =>
@@ -172,7 +174,6 @@ test("D04 successful operations follow the exact revision/activity ledger atomic
       expectedRevision: 2,
       title: "Counter oracle",
       body: initialBody,
-      changeSummary: "This byte-identical save is a no-op.",
     }));
   success(unchangedSave);
   ledger.push({ operation: "unchanged human save", ...counters(await inspect(service, owner.humanSessionToken)) });
@@ -353,6 +354,9 @@ test("D04 observations, presence, waits, failures, aborts, and replays are zero-
   });
   const owner = success(await service.launch({ kind: "PRODUCT_DOCUMENT", displayName: "Owner" }));
   const worker = success(await service.join({ shareToken: owner.shareToken, displayName: "Worker" }));
+  success(await service.connectAgent(worker.agentSessionToken, {
+    requestId: requestId(), name: "Counter agent",
+  }, worker.sessionInstanceId));
   assert.deepEqual(counters(await inspect(service, owner.humanSessionToken)), { revision: 1, activityVersion: 1 });
 
   success(await expectNoDurableChange(service, owner.humanSessionToken, "inspect", () =>
@@ -404,7 +408,6 @@ test("D04 observations, presence, waits, failures, aborts, and replays are zero-
     expectedRevision: 1,
     title: "Aborted title",
     body: "Aborted body",
-    changeSummary: "This must never dispatch.",
   };
   const beforeAbort = await inspect(service, owner.humanSessionToken);
   const controller = new AbortController();
@@ -422,7 +425,6 @@ test("D04 observations, presence, waits, failures, aborts, and replays are zero-
     expectedRevision: 1,
     title: "Replay oracle",
     body: "alpha beta gamma",
-    changeSummary: "Create one replayable content revision.",
   };
   const saved = success(await service.saveHumanRevision(owner.humanSessionToken, saveInput));
   assert.deepEqual(counters(saved), { revision: 2, activityVersion: 2 });
@@ -441,7 +443,6 @@ test("D04 observations, presence, waits, failures, aborts, and replays are zero-
       expectedRevision: 1,
       title: "Stale title",
       body: "Stale body",
-      changeSummary: "Reject the stale base.",
     }));
   assert.equal(staleSave.ok, false);
   if (!staleSave.ok) assert.equal(staleSave.code, "STALE_DOCUMENT");

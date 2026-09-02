@@ -1,92 +1,170 @@
-# INC-482 deterministic postmortem hero
+# INC-482 comment-first postmortem hero
 
-Version 1 · Protocol v4 contract fixture · 2026-09-01
+Version 2 · Protocol v4.1 deterministic scenario · 2026-09-02
 
 The independent machine-readable oracle is
-`evals/goldens/repo-document-v4/postmortem.json`. Production seed code must not import
-that JSON, and golden tests must not derive expected values from the production seed.
+`evals/goldens/repo-document-v4.1/postmortem-comment-first.json`. Production example
+builders must not import that JSON or derive their expected values from production seed
+code. The oracle deliberately describes a product scenario rather than mirroring a
+TypeScript response type.
 
-## Scenario
+## What this scenario proves
 
-Priya Shah launches `INC-482 · Checkout outage postmortem`. Its first revision contains
-three exact `Investigation in progress.` placeholders. She delegates each selection to a
-different collaborator and chooses the authority explicitly:
+Priya Shah opens **INC-482 · Checkout outage postmortem**. Revision 1 is already a
+coherent postmortem, but its Impact, Timeline, and Root cause sections each contain the
+exact selection `Investigation in progress.` Priya selects each placeholder, opens one
+anchored comment, chooses a named agent from autocomplete, and writes the prompt in that
+comment. There is no task form, mode chooser, or approval gate.
 
-| Task | Target at r1 (code points) | Mode | Assignee / agent | Required evidence |
-|---|---:|---|---|---|
-| `DATA-17` | Body `[174, 200)` | Direct | Nadia Chen / Data agent | `impact.csv` |
-| `LOG-22` | Body `[215, 241)` | Direct | Leo Park / Logging agent | `checkout.log` |
-| `CODE-9` | Body `[258, 284)` | Review | Sam Rivera / Builder agent | `commit:7d3c9e1`, `checkout.log` |
+Three direct mentions begin from r1:
 
-The task keys above are human-readable labels. Their immutable `taskId` and `threadId`
-values are frozen separately in the JSON fixture.
+| Scenario label | Stored task key | Visible anchored comment | Owner / self-declared agent | Evidence |
+|---|---|---|---|---|
+| `PM-DATA-1` | `TASK-1` | `@Databot Use impact.csv to replace this placeholder with verified checkout attempts, succeeded and failed counts, affected merchants, duplicate-charge status, a GFM outcome table, and a bar chart.` | Nadia Chen / Databot | `impact.csv` |
+| `PM-LOGS-1` | `TASK-2` | `@Logbot Use checkout.log to replace this placeholder with the exact UTC incident timeline from provider throttling through recovery.` | Leo Park / Logbot | `checkout.log` |
+| `PM-CODE-1` | `TASK-3` | `@Builder Use commit 7d3c9e1 and checkout.log to explain the external trigger, the internal amplifier, and why the outage persisted.` | Sam Rivera / Builder | `commit:7d3c9e1`, `checkout.log` |
 
-The three tasks are created at r1, advancing activity from av1 through av4 without
-creating revisions. `DATA-17` commits r2/av5. `LOG-22`, submitted against r1, safely
-rebases to `[319, 345)` and commits r3/av6. `CODE-9`, also based on r1, safely rebases
-first to `[362, 388)` at r2 and then `[573, 599)` at r3. Its submission creates a Review
-proposal at r3/av7 rather than changing the document.
+Autocomplete selection, not raw `@` text, compiles each comment into one Direct task.
+The atomic create stores the exact visible comment as the first human comment in the
+task thread, the immutable r1 selection, 600-code-point-bounded surrounding context,
+the current profile name and owner, and one activity event. All three agents submit from
+r1. Because their selections are disjoint, Databot commits r2, Logbot safely rebases and
+commits r3, and Builder safely rebases and commits r4. Each result lands immediately and
+keeps its prompt, context, evidence, rationale, before/after diff, author, owner, and
+revision link. Each Direct revision's change summary is exactly the submitted result
+rationale, without a second seed-specific summary.
 
-Priya comments at r3/av8:
+After r4 Priya creates an ordinary anchored human discussion on the Root cause text:
 
 > Provider throttling happened first. Are we overclaiming our code as the root cause?
 
-The Builder agent replies at r3/av9:
+That discussion does not create a task or revision. Priya then selects the same r4 Root
+cause text and delegates a second anchored comment:
 
-> The logs show 429s as the trigger, but commit 7d3c9e1 ignored Retry-After and issued
-> up to five zero-delay retries. That raised retry traffic to 5.8× and the queue from
-> 420 to 18,240, so the code regression explains why throttling became a 38-minute
-> outage.
+> @Builder Clarify this section using the earlier discussion: state that provider 429
+> throttling was the external trigger, quantify the retry amplification and queue growth,
+> and explain why the retry regression—not provider latency alone—was the root cause of
+> the sustained failure.
 
-Priya accepts with the exact note `Accepted after separating the external trigger from
-the internal retry amplifier.` Acceptance commits r4/av10. The r4 author is the Builder
-agent; the committer, grantor, and approver are Priya.
+Builder reads the prior discussion and collaboration history, then directly commits the
+clarified r5. Priya closes the ordinary human discussion. Closing records resolver and
+time; it is not acceptance, and it does not create a revision. The second Builder task
+uses scenario label `PM-CODE-2` and stored key `TASK-4`; it is Completed and shows its
+highlighted r4→r5 change with a Restore affordance.
 
-## Source facts
+## Frozen source facts
 
-- `impact.csv`: 28,417 checkout attempts, 6,742 failures, 311 merchants, and zero
-  duplicate charges.
-- `checkout.log`: provider 429 responses at 09:43 UTC; retry traffic at 5.8× baseline;
-  queue growth from 420 to 18,240; rollback at 10:17; recovery at 10:21.
-- `commit:7d3c9e1`: the retry middleware ignored `Retry-After` and made up to five
-  immediate retries.
+- `impact.csv` contains 28,417 checkout attempts, 6,742 failures, 21,675 succeeded
+  attempts, 311 affected merchants, and zero duplicate charges.
+- `checkout.log` records provider HTTP 429 responses beginning at 09:43 UTC, retry
+  traffic reaching 5.8× baseline, queue depth growing from 420 to 18,240, rollback at
+  10:17, and recovery at 10:21.
+- `commit:7d3c9e1` changed retry middleware so it ignored `Retry-After` and made up to
+  five zero-delay retries.
+- Provider throttling is the external trigger. The retry regression is the internal
+  amplifier and root cause of the sustained checkout failure. “Provider latency alone
+  was the root cause” is a forbidden conclusion.
 
-The finding must distinguish cause layers: provider throttling was the external trigger;
-the zero-delay retry regression was the internal amplifier and root cause of the
-sustained checkout failure. “Provider latency alone was the root cause” is false.
+The impact replacement includes this exact chart object inside a fenced `chart` block:
 
-## Frozen revision ledger
+```json
+{
+  "version": 1,
+  "type": "bar",
+  "title": "Checkout outcomes during INC-482",
+  "description": "Attempted, succeeded, and failed checkout counts from 09:43 to 10:21 UTC.",
+  "labels": ["Attempted", "Succeeded", "Failed"],
+  "series": [
+    {"name": "Checkouts", "values": [28417, 21675, 6742]}
+  ],
+  "xLabel": "Outcome",
+  "yLabel": "Checkout attempts"
+}
+```
 
-Offsets are zero-based, end-exclusive Unicode code-point positions. Digests are SHA-256
-of UTF-8 `JSON.stringify({ title, body })` in that property order.
+It has three labels, well below the protocol maximum of 12. The GFM table and chart are
+revisioned Markdown source; reading mode renders them, while Edit exposes the exact
+source.
 
-| Revision | Parent | Source | Authority | Origin / author origin | Change | Digest |
-|---:|---:|---:|---|---|---|---|
-| r1 | — | 0 | Human / Priya | UI / UI | Launch full postmortem | `sha256:1541f67567b338045168123f6428f6ac5d67d25332362d94caf09608a253e140` |
-| r2 | 1 | 1 | Direct / Data agent | WebMCP / WebMCP | Body `[174, 200)` → verified impact | `sha256:9fe562c0c6351c6088ebc0d42c642eda96361aeae1d20d2123982fbdac552bb3` |
-| r3 | 2 | 1 | Direct / Logging agent | WebMCP / WebMCP | Body `[319, 345)` → observed timeline | `sha256:1b1a153a2d6f2ad20708db552f18fe739b90754f6ea567666e655f2251f0e69e` |
-| r4 | 3 | 1 | Review / Builder + Priya | UI / WebMCP | Body `[573, 599)` → reviewed root cause | `sha256:6238f961ccbadec704a8d0300705679da0f0261ba84551e26e7044c64d343c5c` |
+## Revision and activity trajectory
 
-`origin` names the transaction that committed the revision; `authorOrigin` names where
-the content was authored. Thus the accepted Review is committed in the ordinary UI but
-retains the Builder agent's WebMCP authorship.
+Offsets in the JSON oracle are zero-based, end-exclusive Unicode code-point offsets.
+Every revision is a full title/body snapshot even though the oracle also names the one
+replacement that produces it.
 
-All four full title/body snapshots, one-splice diffs, actor/member UUIDs, comments,
-evidence references, timestamps, provenance links, and the r1→r4 counter ledger are
-normative in the JSON golden.
+| Event | Revision | Activity | Provenance |
+|---|---:|---:|---|
+| Priya launches the r1 template | 1 | 1 | Human / Priya Shah |
+| Create scenario `PM-DATA-1` / stored `TASK-1` atomically | 1 | 2 | anchored human comment → Direct task |
+| Create scenario `PM-LOGS-1` / stored `TASK-2` atomically | 1 | 3 | anchored human comment → Direct task |
+| Create scenario `PM-CODE-1` / stored `TASK-3` atomically | 1 | 4 | anchored human comment → Direct task |
+| Databot completes stored `TASK-1` from r1 | 2 | 5 | Direct / Databot owned by Nadia Chen |
+| Logbot completes stored `TASK-2` from r1 | 3 | 6 | Direct / Logbot owned by Leo Park |
+| Builder completes stored `TASK-3` from r1 | 4 | 7 | Direct / Builder owned by Sam Rivera |
+| Priya opens the human root-cause discussion | 4 | 8 | standalone comment, no revision |
+| Create scenario `PM-CODE-2` / stored `TASK-4` atomically at r4 | 4 | 9 | anchored human comment → Direct task |
+| Builder completes stored `TASK-4` from r4 | 5 | 10 | Direct clarification / Builder |
+| Priya closes the human discussion | 5 | 11 | resolved discussion, no revision |
 
-## Fresh-agent answer key
+Agent profile writes and reads change neither document counter. Profile access metadata
+counts only one successful connect per page lifetime and first-commit agent mutations;
+reads and waits never touch it. The completed example therefore contains only the three
+historical profiles: Databot and Logbot at access count 2 (connect + result), and Builder
+at 3 (one connect + two results in one page lifetime). The later continuity probe creates
+Contextbot at 1 (connect only). The final document is r5/av11. r1–r5 remain immutable,
+and Restoring any prior revision would create a new Restore revision rather than
+rewriting history.
 
-When asked what caused INC-482 and how the conclusion was resolved, a fresh agent must
-recover that provider 429 throttling was the trigger, while the `7d3c9e1` retry regression
-amplified traffic to 5.8× and the queue from 420 to 18,240. It must cite the `CODE-9`
-discussion and accepted r4, and must not collapse the external trigger and internal root
-cause into one claim. The exact scoring answer and required references are frozen in the
-JSON golden.
+## Fresh-agent continuity probe
 
-## Product-document companion
+Quinn Patel owns no task and did not participate in any revision or discussion. At
+r5/av11 Quinn brings a fresh agent, which self-declares `Contextbot`. After
+`connect_agent`, it pages `read_collaboration_context` from that observed activity state
+with a limit of 5. The first call returns av11–av7 and cursor 7; the second uses
+`beforeActivityVersion: 7`, returns av6–av2, and yields cursor 2; the third uses
+`beforeActivityVersion: 2`, returns av1, and yields a null cursor. Concatenating those
+windows produces the exact newest-first order av11→av1 with no gap or duplicate. Only
+after paging to the null cursor does the probe assert r5→r1 and all five threads. The
+joined events expose each revision's prompt, canonical source context, thread, rationale,
+evidence, diff, and agent profile, including the closed standalone Priya discussion.
+These reads leave Contextbot's access count at 1.
 
-`evals/goldens/repo-document-v4/product-document.json` independently freezes the exact
-Product document template at r1/av1 with one human member, no tasks, no threads, and
-digest
-`sha256:23ee848c487a1abab312bd33f69b0fea0b072014e5daacc46effcab27f34cf90`.
+The exact question is:
+
+> What caused INC-482, how did the team distinguish trigger from root cause, and which
+> prior discussion changed the final wording?
+
+A passing answer must say that provider 429 throttling was the trigger; `7d3c9e1`
+ignored `Retry-After` and made up to five zero-delay retries; traffic reached 5.8× and
+the queue grew from 420 to 18,240; the retry regression was the internal amplifier/root
+cause of the sustained failure; and Priya's r4 human discussion led to `PM-CODE-2` and
+stored `TASK-4` and the clarified r5. Here `PM-CODE-2` is only the oracle scenario label;
+the recoverable document task key is `TASK-4`. It must cite `TASK-4`, `checkout.log`,
+`commit:7d3c9e1`, and the closed discussion. It must not say that provider latency alone
+was the root cause.
+
+## Oracle schema
+
+The JSON uses `oracleSchemaVersion: "ratiflow.comment-first-scenario-oracle/v1"` and
+freezes:
+
+- exact deterministic owner, profile, stored `TASK-n`, thread, comment, and discussion
+  keys, with `PM-*` names explicitly limited to oracle scenario labels;
+- prompts and immutable creation context, including source revision, source digest, and
+  the exact newest-first prior-activity snapshots present when each task was created;
+- source facts and exact chart JSON;
+- one-splice revision materialization plus exact full final Markdown;
+- activity/revision counters and direct/close provenance;
+- rationales, evidence, highlighted before/after text, and discussion state; and
+- a fresh-owner continuity query with exact cursor pages/event order, required
+  facts/references, and forbidden claims.
+
+Fresh production UUIDs, credentials, paths, and timestamps may be normalized by the
+example parity test. No semantic value above may be normalized.
+
+Public example creation accepts `{ kind, displayName }`. For the canonical demo input,
+`displayName` is `Quinn Patel`: that input creates a fresh current non-authoring viewer
+only and does not pre-seed an agent profile. Priya, Nadia, Leo, and Sam remain the exact
+historical contributors, and the new viewer is never retroactively attributed their
+revisions, prompts, tasks, or comments. `connect_agent` in the subsequent continuity
+probe is what first creates Quinn's Contextbot profile.

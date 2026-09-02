@@ -5,7 +5,6 @@ import { test } from "vitest";
 import type {
   IssueRevision,
   IssueRevisionSummary,
-  IssueSessionBundle,
   RepositoryResult,
 } from "@/repository/contracts";
 import {
@@ -49,14 +48,6 @@ function revisionSummary(revision: IssueRevision): IssueRevisionSummary {
   };
 }
 
-function decodeBootstrap(path: string): IssueSessionBundle {
-  const marker = "#ratiflow-bootstrap=";
-  const markerIndex = path.indexOf(marker);
-  assert.notEqual(markerIndex, -1, "bootstrap path must contain an encoded bundle");
-  const encoded = path.slice(markerIndex + marker.length);
-  return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as IssueSessionBundle;
-}
-
 test("D02/D03: Human Save and Restore append exact reconstructable revision records", async () => {
   const epoch = Date.parse("2026-09-02T02:00:00.000Z");
   const service = new LocalRepositoryService({ now: () => epoch });
@@ -78,7 +69,7 @@ test("D02/D03: Human Save and Restore append exact reconstructable revision reco
   assert.equal(initial.title, PRODUCT_DOCUMENT_TEMPLATE_TITLE);
   assert.equal(initial.body, PRODUCT_DOCUMENT_TEMPLATE_BODY);
 
-  const saveSummary = "Replace the template with the reviewed short form.";
+  const saveSummary = "Edited the document title and body.";
   const savedSurface = success(await service.saveHumanRevision(
     owner.humanSessionToken,
     {
@@ -86,7 +77,6 @@ test("D02/D03: Human Save and Restore append exact reconstructable revision reco
       expectedRevision: 1,
       title: "X",
       body: "Y",
-      changeSummary: saveSummary,
     },
   ));
   const saved = success(await service.readRevision(owner.humanSessionToken, 2));
@@ -267,6 +257,9 @@ test("D11: Comment mode appends its finding in oldest-first order and never crea
     shareToken: owner.shareToken,
     displayName: "Nadia Chen",
   }));
+  const connected = success(await service.connectAgent(worker.agentSessionToken, {
+    requestId: randomUUID(), name: "Data agent",
+  }, worker.sessionInstanceId));
   const original = success(await service.readRevision(owner.humanSessionToken, 1));
   const created = success(await service.createTask(owner.humanSessionToken, {
     requestId: randomUUID(),
@@ -329,12 +322,13 @@ test("D11: Comment mode appends its finding in oldest-first order and never crea
       actorType: "AGENT",
       displayName: "Data agent",
       member: { memberId: worker.selfMemberId, displayName: "Nadia Chen" },
+      agentProfileId: connected.profile.profileId,
       agentLabel: "Data agent",
     },
-    submittedAt: "2026-09-02T03:00:00.003Z",
+    submittedAt: "2026-09-02T03:00:00.004Z",
   });
-  assert.equal(submitted.task.updatedAt, "2026-09-02T03:00:00.003Z");
-  assert.equal(submitted.task.resolvedAt, "2026-09-02T03:00:00.003Z");
+  assert.equal(submitted.task.updatedAt, "2026-09-02T03:00:00.004Z");
+  assert.equal(submitted.task.resolvedAt, "2026-09-02T03:00:00.004Z");
 
   const after = success(await service.inspect(owner.humanSessionToken));
   assert.equal(after.document.revision, 1);
@@ -356,7 +350,7 @@ test("D11: Comment mode appends its finding in oldest-first order and never crea
     memberId: worker.selfMemberId,
     displayName: "Nadia Chen",
   });
-  assert.equal(thread.resolvedAt, "2026-09-02T03:00:00.003Z");
+  assert.equal(thread.resolvedAt, "2026-09-02T03:00:00.004Z");
   assert.equal(thread.comments.length, 2);
   assert.deepEqual(thread.comments.map((comment) => comment.body), [
     "Please state the evidence boundary explicitly.",
@@ -365,7 +359,7 @@ test("D11: Comment mode appends its finding in oldest-first order and never crea
   assert.deepEqual(thread.comments[0], question);
   exactKeys(thread.comments[1]!, [
     "commentId", "threadId", "replyToCommentId", "author", "origin", "body",
-    "evidenceRefs", "createdAt",
+    "createdRevision", "evidenceRefs", "createdAt",
   ], "Comment task finding");
   assert.match(thread.comments[1]!.commentId, UUID);
   assert.deepEqual(thread.comments[1], {
@@ -376,191 +370,13 @@ test("D11: Comment mode appends its finding in oldest-first order and never crea
       actorType: "AGENT",
       displayName: "Data agent",
       member: { memberId: worker.selfMemberId, displayName: "Nadia Chen" },
+      agentProfileId: connected.profile.profileId,
       agentLabel: "Data agent",
     },
     origin: "WEBMCP",
+    createdRevision: 1,
     body: finding,
     evidenceRefs: ["impact.csv"],
-    createdAt: "2026-09-02T03:00:00.003Z",
+    createdAt: "2026-09-02T03:00:00.004Z",
   });
-});
-
-test("D17: completed CODE-9 and its complete discussion remain visible only to Sam's paired agent", async () => {
-  const epoch = Date.parse("2026-09-02T04:00:00.000Z");
-  const service = new LocalRepositoryService({ now: () => epoch });
-  const reset = success(await service.resetPostmortemHero());
-  const priya = decodeBootstrap(reset.priyaBootstrapPath);
-  const nadia = decodeBootstrap(reset.nadiaBootstrapPath);
-  const leo = decodeBootstrap(reset.leoBootstrapPath);
-  const sam = decodeBootstrap(reset.samBootstrapPath);
-  const codeTask = priya.surface.tasks.find((task) => task.taskKey === "CODE-9");
-  assert.ok(codeTask);
-
-  const resultSummary = "Separated the provider trigger from the retry regression that sustained the outage.";
-  const replacementText = "Provider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure.";
-  const proposal = success(await service.submitTaskResult(
-    sam.agentSessionToken,
-    {
-      requestId: randomUUID(),
-      taskId: codeTask.taskId,
-      basedOnRevision: 1,
-      resultSummary,
-      replacementText,
-      evidenceRefs: ["commit:7d3c9e1", "checkout.log"],
-    },
-    sam.sessionInstanceId,
-  ));
-  assert.equal(proposal.outcome, "PROPOSED");
-
-  const questionBody = "Provider throttling happened first. Are we overclaiming our code as the root cause?";
-  const questioned = success(await service.addHumanComment(priya.humanSessionToken, {
-    requestId: randomUUID(),
-    threadId: codeTask.threadId,
-    body: questionBody,
-  }));
-  const question = questioned.threads
-    .find((thread) => thread.threadId === codeTask.threadId)?.comments[0];
-  assert.ok(question);
-
-  const replyBody = "The logs show 429s as the trigger, but commit 7d3c9e1 ignored Retry-After and issued up to five zero-delay retries. That raised retry traffic to 5.8× and the queue from 420 to 18,240, so the code regression explains why throttling became a 38-minute outage.";
-  const reply = success(await service.commentOnTask(
-    sam.agentSessionToken,
-    {
-      requestId: randomUUID(),
-      taskId: codeTask.taskId,
-      replyToCommentId: question.commentId,
-      body: replyBody,
-      evidenceRefs: ["checkout.log", "commit:7d3c9e1"],
-    },
-    sam.sessionInstanceId,
-  ));
-
-  const accepted = success(await service.acceptTaskProposal(priya.humanSessionToken, {
-    requestId: randomUUID(),
-    taskId: codeTask.taskId,
-    expectedRevision: 1,
-    note: "Accepted after separating the external trigger from the internal retry amplifier.",
-  }));
-  assert.equal(accepted.document.revision, 2);
-
-  const defaultSamList = success(await service.listMyTasks(
-    sam.agentSessionToken,
-    {},
-    sam.sessionInstanceId,
-  ));
-  assert.deepEqual(defaultSamList.tasks, []);
-  const samList = success(await service.listMyTasks(
-    sam.agentSessionToken,
-    { includeResolved: true },
-    sam.sessionInstanceId,
-  ));
-  assert.equal(samList.revision, 2);
-  assert.equal(samList.activityVersion, 8);
-  assert.equal(samList.tasks.length, 1);
-  const returned = samList.tasks[0]!;
-  assert.equal(returned.task.taskKey, "CODE-9");
-  assert.equal(returned.task.taskId, codeTask.taskId);
-  assert.equal(returned.task.assignee.memberId, sam.selfMemberId);
-  assert.equal(returned.task.status, "COMPLETED");
-  assert.equal(returned.task.mode, "REVIEW");
-  assert.equal(returned.task.result, null);
-  assert.deepEqual(returned.task.proposal, {
-    replacementText,
-    resultSummary,
-    evidenceRefs: ["commit:7d3c9e1", "checkout.log"],
-    sourceRevision: 1,
-    liveAnchor: codeTask.anchor,
-    proposedBy: {
-      actorType: "AGENT",
-      displayName: "Builder agent",
-      member: { memberId: sam.selfMemberId, displayName: "Sam Rivera" },
-      agentLabel: "Builder agent",
-    },
-    proposedAt: "2026-09-02T04:00:00.004Z",
-  });
-  assert.deepEqual(returned.task.decision, {
-    kind: "ACCEPTED",
-    note: "Accepted after separating the external trigger from the internal retry amplifier.",
-    decidedBy: { memberId: priya.selfMemberId, displayName: "Priya Shah" },
-    decidedAt: "2026-09-02T04:00:00.007Z",
-    decisionRevision: 1,
-    resultRevision: 2,
-  });
-  assert.equal(returned.task.resolvedAt, "2026-09-02T04:00:00.007Z");
-
-  exactKeys(returned.thread, [
-    "threadId", "taskId", "creationAnchor", "anchor", "status", "createdBy",
-    "createdAt", "resolvedBy", "resolvedAt", "comments",
-  ], "CODE-9 thread");
-  assert.equal(returned.thread.threadId, codeTask.threadId);
-  assert.equal(returned.thread.taskId, codeTask.taskId);
-  assert.equal(returned.thread.status, "RESOLVED");
-  assert.deepEqual(returned.thread.resolvedBy, {
-    memberId: priya.selfMemberId,
-    displayName: "Priya Shah",
-  });
-  assert.equal(returned.thread.resolvedAt, "2026-09-02T04:00:00.007Z");
-  assert.equal(returned.thread.comments.length, 2);
-  exactKeys(returned.thread.comments[0]!, [
-    "commentId", "threadId", "replyToCommentId", "author", "origin", "body",
-    "evidenceRefs", "createdAt",
-  ], "Priya CODE-9 question");
-  exactKeys(returned.thread.comments[1]!, [
-    "commentId", "threadId", "replyToCommentId", "author", "origin", "body",
-    "evidenceRefs", "createdAt",
-  ], "Builder CODE-9 reply");
-  assert.match(returned.thread.comments[0]!.commentId, UUID);
-  assert.match(returned.thread.comments[1]!.commentId, UUID);
-  assert.deepEqual(returned.thread.comments[0], {
-    commentId: question.commentId,
-    threadId: codeTask.threadId,
-    replyToCommentId: null,
-    author: {
-      actorType: "HUMAN",
-      displayName: "Priya Shah",
-      member: { memberId: priya.selfMemberId, displayName: "Priya Shah" },
-      agentLabel: null,
-    },
-    origin: "ORDINARY_UI",
-    body: questionBody,
-    evidenceRefs: [],
-    createdAt: "2026-09-02T04:00:00.005Z",
-  });
-  assert.deepEqual(returned.thread.comments[1], {
-    commentId: reply.comment.commentId,
-    threadId: codeTask.threadId,
-    replyToCommentId: question.commentId,
-    author: {
-      actorType: "AGENT",
-      displayName: "Builder agent",
-      member: { memberId: sam.selfMemberId, displayName: "Sam Rivera" },
-      agentLabel: "Builder agent",
-    },
-    origin: "WEBMCP",
-    body: replyBody,
-    evidenceRefs: ["checkout.log", "commit:7d3c9e1"],
-    createdAt: "2026-09-02T04:00:00.006Z",
-  });
-  assert.deepEqual(returned.thread.comments.map((comment) => comment.body), [
-    questionBody,
-    replyBody,
-  ]);
-
-  const otherLists = await Promise.all([
-    ["Priya", priya, []] as const,
-    ["Nadia", nadia, ["DATA-17"]] as const,
-    ["Leo", leo, ["LOG-22"]] as const,
-  ].map(async ([label, bundle, expectedKeys]) => {
-    const listed = success(await service.listMyTasks(
-      bundle.agentSessionToken,
-      { includeResolved: true },
-      bundle.sessionInstanceId,
-    ));
-    const keys = listed.tasks.map((view) => view.task.taskKey);
-    assert.deepEqual(keys, expectedKeys, `${label} must see only paired work`);
-    assert.equal(keys.includes("CODE-9"), false, `${label} must not receive Sam's task`);
-    return listed;
-  }));
-  assert.equal(otherLists.flatMap((listed) => listed.tasks)
-    .some((view) => view.thread.threadId === codeTask.threadId), false);
 });

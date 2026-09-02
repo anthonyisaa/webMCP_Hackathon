@@ -60,12 +60,14 @@ async function workspace(body = "alpha 😀 target omega") {
     shareToken: owner.shareToken,
     displayName: "Adversarial worker",
   }));
+  success(await service.connectAgent(worker.agentSessionToken, {
+    requestId: requestId(), name: "Test agent",
+  }, worker.sessionInstanceId));
   const surface = success(await service.saveHumanRevision(owner.humanSessionToken, {
     requestId: requestId(),
     expectedRevision: 1,
     title: "Adversarial issue",
     body,
-    changeSummary: "Install deterministic adversarial content.",
   }));
   return { service, owner, worker, surface };
 }
@@ -258,7 +260,6 @@ describe.sequential("repository adversarial evaluation matrix", () => {
         expectedRevision: 2,
         title: setup.surface.document.title,
         body: scenario.next,
-        changeSummary: `Apply a disjoint Unicode edit ${scenario.name} the target.`,
       }));
       const rebased = namedTask(saved, title);
       assert.deepEqual(rebased.creationAnchor, createdTask.creationAnchor);
@@ -333,7 +334,6 @@ describe.sequential("repository adversarial evaluation matrix", () => {
           expectedRevision: 2,
           title: setup.surface.document.title,
           body: scenario.next,
-          changeSummary: `Create the ${scenario.name} conflict.`,
         },
       ));
       const staleTask = namedTask(staleSurface, scenario.name);
@@ -393,7 +393,6 @@ describe.sequential("repository adversarial evaluation matrix", () => {
       expectedRevision: 2,
       title: setup.surface.document.title,
       body: bodyR3,
-      changeSummary: "Append content after the stable target.",
     }));
     surface = success(await setup.service.createTask(
       setup.owner.humanSessionToken,
@@ -494,6 +493,9 @@ describe.sequential("repository adversarial evaluation matrix", () => {
       shareToken: owner.shareToken,
       displayName: "Bounds worker",
     }));
+    success(await service.connectAgent(worker.agentSessionToken, {
+      requestId: requestId(), name: "Schema agent",
+    }, worker.sessionInstanceId));
     const body = "😀target";
     const exactTitle = "😀".repeat(ISSUE_TITLE_MAX_LENGTH);
     let surface = success(await service.saveHumanRevision(owner.humanSessionToken, {
@@ -501,7 +503,6 @@ describe.sequential("repository adversarial evaluation matrix", () => {
       expectedRevision: 1,
       title: exactTitle,
       body,
-      changeSummary: "✨".repeat(ISSUE_CHANGE_SUMMARY_MAX_LENGTH),
     }));
     assert.equal(Array.from(surface.document.title).length, ISSUE_TITLE_MAX_LENGTH);
     assert.ok(surface.document.title.length > ISSUE_TITLE_MAX_LENGTH);
@@ -512,7 +513,6 @@ describe.sequential("repository adversarial evaluation matrix", () => {
       expectedRevision: 2,
       title: `${exactTitle}😀`,
       body,
-      changeSummary: "Reject one code point beyond the title limit.",
     }), "INVALID_INPUT");
     assert.deepEqual(success(await service.inspect(owner.humanSessionToken)), beforeOverlong);
 

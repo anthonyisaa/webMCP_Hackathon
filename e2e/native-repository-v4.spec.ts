@@ -2,8 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   REPOSITORY_TOOL_NAMES,
+  type ConnectIssueAgentToolResult,
   type InspectIssueToolResult,
   type ListMyIssueTasksToolResult,
+  type ReadCollaborationContextToolResult,
   type ReadIssueHistoryToolResult,
 } from "../src/repository/contracts";
 
@@ -23,7 +25,14 @@ type NativeInvocation<T> = {
 async function discoverNativeTools(page: Page): Promise<NativeDiscovery> {
   return page.evaluate(async () => {
     const context = document.modelContext;
-    if (!context) return { supported: false, hasGetTools: false, hasExecuteTool: false, tools: [] };
+    if (!context) {
+      return {
+        supported: false,
+        hasGetTools: false,
+        hasExecuteTool: false,
+        tools: [],
+      };
+    }
     const hasGetTools = typeof context.getTools === "function";
     const tools = hasGetTools ? await context.getTools!() : [];
     return {
@@ -31,7 +40,9 @@ async function discoverNativeTools(page: Page): Promise<NativeDiscovery> {
       hasGetTools,
       hasExecuteTool: typeof context.executeTool === "function",
       tools: Array.isArray(tools)
-        ? tools.map((tool) => tool.name).filter((name): name is string => typeof name === "string")
+        ? tools
+            .map((tool) => tool.name)
+            .filter((name): name is string => typeof name === "string")
         : [],
     };
   });
@@ -45,79 +56,213 @@ async function invokeNativeTool<T>(
   return page.evaluate(async ({ toolName, toolInput }) => {
     const context = document.modelContext;
     if (!context?.getTools || !context.executeTool) {
-      throw new Error("The standard document.modelContext execution surface is unavailable.");
+      throw new Error(
+        "The standard document.modelContext execution surface is unavailable.",
+      );
     }
-    const tool = (await context.getTools()).find((candidate) => candidate.name === toolName);
+    const tool = (await context.getTools()).find(
+      (candidate) => candidate.name === toolName,
+    );
     if (!tool) throw new Error(`Native tool ${toolName} was not discovered.`);
     const raw = await context.executeTool(tool, toolInput);
     let parsed: unknown = raw;
     if (typeof parsed === "string") parsed = JSON.parse(parsed) as unknown;
-    if (typeof parsed !== "object" || parsed === null || !("content" in parsed) || !("structuredContent" in parsed)) {
-      return { envelopeObserved: false, contentText: null, structuredContent: parsed as T };
+    if (
+      typeof parsed !== "object"
+      || parsed === null
+      || !("content" in parsed)
+      || !("structuredContent" in parsed)
+    ) {
+      return {
+        envelopeObserved: false,
+        contentText: null,
+        structuredContent: parsed as T,
+      };
     }
     const envelope = parsed as { content: unknown; structuredContent: T };
     const contentText = Array.isArray(envelope.content)
       ? envelope.content.find((entry): entry is { type: "text"; text: string } =>
-          typeof entry === "object" && entry !== null
+          typeof entry === "object"
+          && entry !== null
           && (entry as { type?: unknown }).type === "text"
           && typeof (entry as { text?: unknown }).text === "string")?.text ?? null
       : null;
-    return { envelopeObserved: true, contentText, structuredContent: envelope.structuredContent };
+    return {
+      envelopeObserved: true,
+      contentText,
+      structuredContent: envelope.structuredContent,
+    };
   }, { toolName: name, toolInput: input });
 }
 
 function expectNativeEnvelope<T>(invocation: NativeInvocation<T>): T {
   expect(invocation.envelopeObserved).toBe(true);
   expect(invocation.contentText).not.toBeNull();
-  expect(JSON.parse(invocation.contentText ?? "null")).toEqual(invocation.structuredContent);
+  expect(JSON.parse(invocation.contentText ?? "null")).toEqual(
+    invocation.structuredContent,
+  );
   return invocation.structuredContent;
 }
 
-test("native v4 precondition discovers exactly six repository tools and reads immutable history", async ({ page }) => {
+test("native v4.1 discovers eight tools, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Open incident example" }).click();
-  await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/);
-  await expect(page.getByLabel("Document title")).toHaveValue("INC-482 · Checkout outage postmortem");
+  await page.getByLabel("What should collaborators call you?").fill("Quinn Patel");
+  await page.getByRole("button", { name: "Explore postmortem" }).click();
+  await expect(page).toHaveURL(/\/issue\/[A-Za-z0-9_-]+$/u);
+  await expect(page.getByRole("heading", {
+    level: 1,
+    name: "INC-482 · Checkout outage postmortem",
+  })).toBeVisible();
 
   await expect.poll(async () => (await discoverNativeTools(page)).supported, {
-    message: "Native v4 evidence requires the standard document.modelContext surface.",
+    message:
+      "Native v4.1 evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
   }).toBe(true);
   const discovery = await discoverNativeTools(page);
   expect(discovery.hasGetTools).toBe(true);
   expect([...discovery.tools].sort()).toEqual([...REPOSITORY_TOOL_NAMES].sort());
+  await expect(page.getByRole("heading", {
+    name: "Bring your agent into this document.",
+  })).toBeVisible();
 
   if (discovery.hasExecuteTool) {
-    const inspected = expectNativeEnvelope(await invokeNativeTool<InspectIssueToolResult>(
-      page,
-      "inspect_document",
-      {},
-    ));
+    const connected = expectNativeEnvelope(
+      await invokeNativeTool<ConnectIssueAgentToolResult>(
+        page,
+        "connect_agent",
+        { name: "Contextbot" },
+      ),
+    );
+    expect(connected).toMatchObject({
+      ok: true,
+      profile: {
+        name: "Contextbot",
+        identitySource: "SELF_DECLARED",
+        member: { displayName: "Quinn Patel" },
+        accessCount: 1,
+      },
+      revision: 5,
+      activityVersion: 11,
+    });
+    const connectedStatus = page.getByRole("button", {
+      name: /Contextbot connected/u,
+    });
+    await expect(connectedStatus).toBeVisible();
+    await connectedStatus.click();
+    await expect(page.getByRole("heading", {
+      name: "Your agent is ready to mention.",
+    })).toBeVisible();
+    await page.getByRole("button", { name: "Close agent setup" }).click();
+
+    const inspected = expectNativeEnvelope(
+      await invokeNativeTool<InspectIssueToolResult>(
+        page,
+        "inspect_document",
+        {},
+      ),
+    );
     expect(inspected).toMatchObject({
       ok: true,
-      document: { protocolVersion: 4, revision: 4, activityVersion: 10 },
-      currentRevision: 4,
-      currentActivityVersion: 10,
+      document: {
+        protocolVersion: 4,
+        revision: 5,
+        activityVersion: 11,
+        title: "INC-482 · Checkout outage postmortem",
+      },
+      currentRevision: 5,
+      currentActivityVersion: 11,
+      agents: expect.arrayContaining([
+        expect.objectContaining({
+          name: "Contextbot",
+          member: { displayName: "Quinn Patel" },
+        }),
+      ]),
       tasks: expect.any(Array),
     });
 
-    const history = expectNativeEnvelope(await invokeNativeTool<ReadIssueHistoryToolResult>(
-      page,
-      "read_document_history",
-      { limit: 10 },
-    ));
-    expect(history).toMatchObject({ ok: true, currentRevision: 4, revisions: expect.any(Array) });
-    if (history.ok) expect(history.revisions.map((revision) => revision.revision)).toEqual([4, 3, 2, 1]);
+    const history = expectNativeEnvelope(
+      await invokeNativeTool<ReadIssueHistoryToolResult>(
+        page,
+        "read_document_history",
+        { limit: 10 },
+      ),
+    );
+    expect(history).toMatchObject({
+      ok: true,
+      currentRevision: 5,
+      currentActivityVersion: 11,
+      hasMoreOlder: false,
+    });
+    if (history.ok) {
+      expect(history.revisions.map(({ revision }) => revision)).toEqual([
+        5,
+        4,
+        3,
+        2,
+        1,
+      ]);
+    }
 
-    const tasks = expectNativeEnvelope(await invokeNativeTool<ListMyIssueTasksToolResult>(
-      page,
-      "list_my_tasks",
-      { includeResolved: true },
-    ));
-    expect(tasks).toMatchObject({ ok: true, revision: 4, activityVersion: 10, tasks: expect.any(Array) });
+    const collaboration = expectNativeEnvelope(
+      await invokeNativeTool<ReadCollaborationContextToolResult>(
+        page,
+        "read_collaboration_context",
+        { limit: 5 },
+      ),
+    );
+    expect(collaboration).toMatchObject({
+      ok: true,
+      currentRevision: 5,
+      currentActivityVersion: 11,
+      hasMoreOlder: true,
+      nextBeforeActivityVersion: 7,
+      agents: expect.arrayContaining([
+        expect.objectContaining({ name: "Contextbot", accessCount: 1 }),
+      ]),
+    });
+    if (collaboration.ok) {
+      expect(collaboration.events.map(({ activityVersion }) => activityVersion)).toEqual([
+        11,
+        10,
+        9,
+        8,
+        7,
+      ]);
+    }
+
+    const tasks = expectNativeEnvelope(
+      await invokeNativeTool<ListMyIssueTasksToolResult>(
+        page,
+        "list_my_tasks",
+        { includeResolved: true },
+      ),
+    );
+    expect(tasks).toEqual({
+      ok: true,
+      revision: 5,
+      activityVersion: 11,
+      tasks: [],
+    });
+  } else {
+    test.info().annotations.push({
+      type: "pending",
+      description:
+        "This supported client discovered the v4.1 catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
+    });
   }
 
+  expect(pageErrors).toEqual([]);
+
+  await page.goto("/new");
+  await expect.poll(async () => {
+    const names = (await discoverNativeTools(page)).tools;
+    return names.filter((name) =>
+      REPOSITORY_TOOL_NAMES.includes(
+        name as (typeof REPOSITORY_TOOL_NAMES)[number],
+      ));
+  }).toEqual([]);
   expect(pageErrors).toEqual([]);
 });

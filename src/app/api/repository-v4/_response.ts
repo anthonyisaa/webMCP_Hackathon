@@ -33,3 +33,12 @@ export function idempotencyKeyFrom(request: Request): string | null {
 export function hasPublicRequestId(body: Record<string, unknown>): boolean {
   return Object.prototype.hasOwnProperty.call(body, "requestId");
 }
+
+export function hasExactRequestKeys(
+  body: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): boolean {
+  return required.every((key) => Object.hasOwn(body, key))
+    && Object.keys(body).every((key) => required.includes(key) || optional.includes(key));
+}

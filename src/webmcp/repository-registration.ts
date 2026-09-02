@@ -105,6 +105,7 @@ export class RepositoryWebMCPRegistrationManager {
   #queue: Promise<RepositoryWebMCPRegistrationDiff> = Promise.resolve(
     emptyRepositoryRegistrationDiff(),
   );
+  #contextKey: string | null = null;
   #requestedGeneration = 0;
   #disposed = false;
 
@@ -131,6 +132,11 @@ export class RepositoryWebMCPRegistrationManager {
     selfMemberId: string,
     contextKey: string,
   ): Promise<RepositoryWebMCPRegistrationDiff> {
+    if (this.#contextKey !== null && this.#contextKey !== contextKey) {
+      this.#dependencies.connection.current = null;
+      this.#dependencies.onAgentConnectionChange?.(null);
+    }
+    this.#contextKey = contextKey;
     const generation = ++this.#requestedGeneration;
     const before = this.registeredTools;
     const desired = desiredRepositoryWebMCPTools(surface, selfMemberId);
@@ -265,6 +271,8 @@ export class RepositoryWebMCPRegistrationManager {
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
+    this.#dependencies.connection.current = null;
+    this.#dependencies.onAgentConnectionChange?.(null);
     this.#requestedGeneration += 1;
     for (const name of this.registeredTools) {
       this.#abortRegistration(name, "Repository WebMCP bridge disposed");

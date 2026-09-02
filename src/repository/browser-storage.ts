@@ -55,10 +55,17 @@ function isSurface(value: unknown): value is IssueWorkspaceSurface {
     && Number.isSafeInteger(surface.document.revision)
     && Number.isSafeInteger(surface.document.activityVersion)
     && Array.isArray(surface.members)
+    && (surface.agents === undefined || Array.isArray(surface.agents))
     && Array.isArray(surface.presence)
     && Array.isArray(surface.tasks)
     && Array.isArray(surface.threads)
-    && Array.isArray(surface.history);
+    && Array.isArray(surface.history)
+    && normalizeLegacyAgents(surface);
+}
+
+function normalizeLegacyAgents(surface: Partial<IssueWorkspaceSurface>): true {
+  if (surface.agents === undefined) surface.agents = [];
+  return true;
 }
 
 function isCredential(

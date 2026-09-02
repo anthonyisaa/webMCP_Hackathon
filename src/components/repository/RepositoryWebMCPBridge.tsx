@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import type {
+  IssueAgentProfile,
   IssueWorkspaceSurface,
   RepositoryBrowserClientPort,
 } from "../../repository/contracts";
@@ -28,6 +29,7 @@ export interface RepositoryWebMCPBridgeProps {
   service: RepositoryBrowserClientPort;
   onStatusChange?: (status: RepositoryWebMCPBridgeStatus) => void;
   onAuthoritativeSurface?: (surface: IssueWorkspaceSurface) => void;
+  onAgentConnectionChange?: (profile: IssueAgentProfile | null) => void;
   onToolExecutionChange?: (
     tool: "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null,
   ) => void;
@@ -50,6 +52,7 @@ export function RepositoryWebMCPBridge({
   service,
   onStatusChange,
   onAuthoritativeSurface,
+  onAgentConnectionChange,
   onToolExecutionChange,
 }: RepositoryWebMCPBridgeProps) {
   const identityKey = JSON.stringify([
@@ -67,12 +70,14 @@ export function RepositoryWebMCPBridge({
     agentSessionToken,
     selfMemberId,
   }) as MutableRepositoryWebMCPRuntimeRef;
+  const connectionRef = useRef<IssueAgentProfile | null>(null);
   const managerRef = useRef<RepositoryWebMCPRegistrationManager | null>(null);
   const activitySignalRef = useRef<RepositoryActivitySignal | null>(null);
   const namespaceRef = useRef<RepositoryWebMCPBridgeStatus["namespace"]>("unsupported");
   const unsupportedIdentityRef = useRef<string | null>(null);
   const statusCallbackRef = useRef(onStatusChange);
   const authoritativeCallbackRef = useRef(onAuthoritativeSurface);
+  const connectionCallbackRef = useRef(onAgentConnectionChange);
   const executionCallbackRef = useRef(onToolExecutionChange);
 
   const registrationSurfaceKey = JSON.stringify([
@@ -101,6 +106,7 @@ export function RepositoryWebMCPBridge({
     );
     statusCallbackRef.current = onStatusChange;
     authoritativeCallbackRef.current = onAuthoritativeSurface;
+    connectionCallbackRef.current = onAgentConnectionChange;
     executionCallbackRef.current = onToolExecutionChange;
 
     // Report the ordinary-browser state before paint. React may defer passive effects
@@ -120,6 +126,8 @@ export function RepositoryWebMCPBridge({
   });
 
   useEffect(() => {
+    connectionRef.current = null;
+    connectionCallbackRef.current?.(null);
     const activitySignal = new RepositoryActivitySignal(
       latest.current.surface.document.activityVersion,
     );
@@ -129,6 +137,8 @@ export function RepositoryWebMCPBridge({
     namespaceRef.current = detected.namespace;
     if (!detected.context) {
       return () => {
+        connectionRef.current = null;
+        connectionCallbackRef.current?.(null);
         if (activitySignalRef.current === activitySignal) {
           activitySignalRef.current = null;
         }
@@ -139,11 +149,15 @@ export function RepositoryWebMCPBridge({
 
     const dependencies: RepositoryWebMCPRuntimeDependencies = {
       latest,
+      connection: connectionRef,
       service,
       activitySignal,
       activeWaitKeys,
       onAuthoritativeSurface: (nextSurface) => {
         authoritativeCallbackRef.current?.(nextSurface);
+      },
+      onAgentConnectionChange: (profile) => {
+        connectionCallbackRef.current?.(profile);
       },
       onToolExecutionChange: (tool) => executionCallbackRef.current?.(tool),
     };

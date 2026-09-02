@@ -2,6 +2,9 @@ import type {
   AddHumanIssueCommentHttpInput,
   CancelIssueTaskHttpInput,
   CommentOnIssueTaskToolInput,
+  ConnectIssueAgentOutcome,
+  ConnectIssueAgentToolInput,
+  CreateMentionTaskHttpInput,
   CreateIssueTaskHttpInput,
   CreateIssueThreadHttpInput,
   DecideIssueTaskHttpInput,
@@ -15,6 +18,8 @@ import type {
   LaunchIssueHttpInput,
   ListMyIssueTasksInput,
   ListMyIssueTasksOutcome,
+  ReadCollaborationContextInput,
+  ReadCollaborationContextOutcome,
   ReadIssueHistoryInput,
   ReadIssueHistoryOutcome,
   RepositoryBrowserClientPort,
@@ -115,7 +120,7 @@ export class RepositoryHttpService implements RepositoryBrowserClientPort {
   }
 
   launchExample(
-    input: LaunchIssueExampleHttpInput = {},
+    input: LaunchIssueExampleHttpInput,
     signal?: AbortSignal,
   ): Promise<RepositoryResult<IssueSessionBundle>> {
     return publicPost("/api/repository-v4/example", input, signal);
@@ -137,6 +142,20 @@ export class RepositoryHttpService implements RepositoryBrowserClientPort {
       method: "GET",
       sessionToken,
       signal,
+    });
+  }
+
+  inspectAsAgent(
+    agentSessionToken: string,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
+    return authenticated({
+      path: "/api/repository-v4/surface",
+      method: "GET",
+      sessionToken: agentSessionToken,
+      signal,
+      extraHeaders: { [PAGE_SESSION_HEADER]: pageSessionId },
     });
   }
 
@@ -162,6 +181,21 @@ export class RepositoryHttpService implements RepositoryBrowserClientPort {
   ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
     return authenticated({
       path: "/api/repository-v4/task/create",
+      method: "POST",
+      sessionToken,
+      body: input,
+      signal,
+      extraHeaders: this.#mutationHeaders(),
+    });
+  }
+
+  createMentionTask(
+    sessionToken: string,
+    input: CreateMentionTaskHttpInput,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
+    return authenticated({
+      path: "/api/repository-v4/task/mention",
       method: "POST",
       sessionToken,
       body: input,
@@ -300,6 +334,72 @@ export class RepositoryHttpService implements RepositoryBrowserClientPort {
       sessionToken,
       body: { revision },
       signal,
+    });
+  }
+
+  readHistoryAsAgent(
+    agentSessionToken: string,
+    input: ReadIssueHistoryInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ReadIssueHistoryOutcome>> {
+    return authenticated({
+      path: "/api/repository-v4/revision/history",
+      method: "POST",
+      sessionToken: agentSessionToken,
+      body: input,
+      signal,
+      extraHeaders: { [PAGE_SESSION_HEADER]: pageSessionId },
+    });
+  }
+
+  readRevisionAsAgent(
+    agentSessionToken: string,
+    revision: number,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueRevision>> {
+    return authenticated({
+      path: "/api/repository-v4/revision/read",
+      method: "POST",
+      sessionToken: agentSessionToken,
+      body: { revision },
+      signal,
+      extraHeaders: { [PAGE_SESSION_HEADER]: pageSessionId },
+    });
+  }
+
+  connectAgent(
+    agentSessionToken: string,
+    input: ConnectIssueAgentToolInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ConnectIssueAgentOutcome>> {
+    return authenticated({
+      path: "/api/repository-v4/agent/connect",
+      method: "POST",
+      sessionToken: agentSessionToken,
+      body: input,
+      signal,
+      extraHeaders: this.#mutationHeaders({
+        [PAGE_SESSION_HEADER]: pageSessionId,
+      }),
+    });
+  }
+
+  readCollaborationContext(
+    agentSessionToken: string,
+    input: ReadCollaborationContextInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ReadCollaborationContextOutcome>> {
+    return authenticated({
+      path: "/api/repository-v4/agent/context",
+      method: "POST",
+      sessionToken: agentSessionToken,
+      body: input,
+      signal,
+      extraHeaders: { [PAGE_SESSION_HEADER]: pageSessionId },
     });
   }
 

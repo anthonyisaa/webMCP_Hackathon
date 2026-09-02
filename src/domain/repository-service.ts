@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   ISSUE_ACTIVE_TASK_LIMIT,
   ISSUE_AGENT_LABEL_MAX_LENGTH,
+  ISSUE_AGENT_NAME_MAX_LENGTH,
   ISSUE_ASSIGNEE_ACTIVE_TASK_LIMIT,
   ISSUE_BODY_MAX_LENGTH,
   ISSUE_CHANGE_SUMMARY_MAX_LENGTH,
@@ -12,10 +13,15 @@ import {
   ISSUE_EVIDENCE_REF_MAX_LENGTH,
   ISSUE_HISTORY_DEFAULT_LIMIT,
   ISSUE_HISTORY_MAX_LIMIT,
+  ISSUE_CONTEXT_DEFAULT_LIMIT,
+  ISSUE_CONTEXT_MAX_LIMIT,
   ISSUE_STANDALONE_THREAD_LIMIT,
   ISSUE_TASK_CATEGORIES,
   ISSUE_TASK_INSTRUCTION_MAX_LENGTH,
   ISSUE_TASK_MODES,
+  ISSUE_TASK_CONTEXT_SIDE_MAX_LENGTH,
+  ISSUE_TASK_PRIOR_CONTEXT_EXCERPT_MAX_LENGTH,
+  ISSUE_TASK_PRIOR_CONTEXT_LIMIT,
   ISSUE_TASK_TITLE_MAX_LENGTH,
   ISSUE_THREAD_COMMENT_LIMIT,
   ISSUE_TITLE_MAX_LENGTH,
@@ -32,12 +38,17 @@ import {
   type CancelIssueTaskServiceInput,
   type CommentOnIssueTaskServiceInput,
   type CreateIssueTaskServiceInput,
+  type CreateMentionTaskServiceInput,
   type CreateIssueThreadServiceInput,
   type DecideIssueTaskServiceInput,
   type IssueAgentActorSnapshot,
+  type IssueAgentProfile,
+  type IssueActivityKind,
+  type IssueActorSnapshot,
   type IssueAnchor,
   type IssueAnchorInput,
   type IssueComment,
+  type IssueCollaborationContextEvent,
   type IssueDocument,
   type IssueDocumentField,
   type IssueDocumentKind,
@@ -49,6 +60,8 @@ import {
   type IssueRevisionSummary,
   type IssueSessionBundle,
   type IssueTask,
+  type IssueTaskContextSnapshot,
+  type IssueTaskPriorContextEntry,
   type IssueTaskDecision,
   type IssueTaskMode,
   type IssueTaskProposal,
@@ -62,6 +75,8 @@ import {
   type LaunchIssueHttpInput,
   type ListMyIssueTasksInput,
   type ListMyIssueTasksOutcome,
+  type ReadCollaborationContextInput,
+  type ReadCollaborationContextOutcome,
   type ReadIssueHistoryInput,
   type ReadIssueHistoryOutcome,
   type RepositoryEvaluationPort,
@@ -69,6 +84,8 @@ import {
   type RepositoryResult,
   type RepositoryServicePort,
   type ResetPostmortemHeroOutcome,
+  type ConnectIssueAgentOutcome,
+  type ConnectIssueAgentServiceInput,
   type ResolveIssueThreadServiceInput,
   type RestoreIssueRevisionServiceInput,
   type SaveIssueRevisionServiceInput,
@@ -78,6 +95,11 @@ import {
   type WaitForMyIssueTasksInput,
   type WaitForMyIssueTasksOutcome,
 } from "@/repository/contracts";
+import { compileIssueMention } from "@/capabilities/mention-compiler";
+import {
+  POSTMORTEM_EXAMPLE,
+  PRODUCT_DOCUMENT_EXAMPLE,
+} from "@/domain/repository-examples";
 import {
   deriveIssueSplice,
   issuePointLength,
@@ -115,6 +137,8 @@ type StoredTask = {
   category: IssueTask["category"];
   instruction: string;
   agentLabel: string;
+  agentProfileId: string | null;
+  context: IssueTaskContextSnapshot | null;
   mode: IssueTaskMode;
   status: IssueTaskStatus;
   creationAnchor: IssueAnchor;
@@ -128,6 +152,30 @@ type StoredTask = {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+};
+
+type StoredAgentProfile = IssueAgentProfile & {
+  /** Private ABA guard; intentionally omitted from every public projection. */
+  identityGeneration: number;
+};
+
+type StoredAgentPageConnection = {
+  profileId: string;
+  identityGeneration: number;
+};
+
+type StoredActivity = {
+  activityId: string;
+  activityVersion: number;
+  kind: IssueActivityKind;
+  documentRevision: number;
+  actor: IssueActorSnapshot;
+  createdAt: string;
+  revisionId: string | null;
+  taskId: string | null;
+  threadId: string | null;
+  commentId: string | null;
+  excerpt: string;
 };
 
 type LedgerEntry = {
@@ -155,6 +203,9 @@ type StoredWorkspace = {
   tasks: StoredTask[];
   threads: IssueThread[];
   revisions: IssueRevision[];
+  agentsByMemberId: Map<string, StoredAgentProfile>;
+  pageConnections: Map<string, StoredAgentPageConnection>;
+  activities: StoredActivity[];
   ledger: Map<string, LedgerEntry>;
 };
 
@@ -173,6 +224,7 @@ type RevisionInput = {
   ownTaskId?: string;
   ownReplacement?: { field: IssueDocumentField; replacement: string };
   restore?: boolean;
+  activityKind?: IssueActivityKind;
   timestamp?: string;
 };
 
@@ -201,47 +253,11 @@ const HERO_NADIA_ID = "00000000-0000-4000-8000-000000000412";
 const HERO_LEO_ID = "00000000-0000-4000-8000-000000000413";
 const HERO_SAM_ID = "00000000-0000-4000-8000-000000000414";
 const HERO_REVISION_ID = "00000000-0000-4000-8000-000000000451";
-
-const EXAMPLE_TITLE = "INC-482 · Checkout outage postmortem";
-const EXAMPLE_R1_BODY = `## Summary
-
-Checkout requests failed for 38 minutes after a payment-provider throttling event. Service recovered after the team rolled back the retry middleware.
-
-## Impact
-
-Investigation in progress.
-
-## Timeline
-
-Investigation in progress.
-
-## Root cause
-
-Investigation in progress.
-
-## Detection and response
-
-The on-call engineer responded to the checkout error-rate alert and coordinated rollback.
-
-## Contributing factors
-
-The retry path had not been load-tested against provider throttling.
-
-## Corrective actions
-
-- [ ] Honor provider backoff headers — Payments Platform — September 5
-- [ ] Add throttling load tests — Checkout — September 7
-- [ ] Alert on retry amplification — Reliability — September 6
-
-## Learnings
-
-Separate external triggers from internal amplifiers when assigning root cause.`;
-const EXAMPLE_IMPACT = "Between 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.";
-const EXAMPLE_TIMELINE = `- 09:43 — Provider 429 responses began.
-- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.
-- 10:17 — The team rolled back retry middleware commit 7d3c9e1.
-- 10:21 — Checkout success rate recovered.`;
-const EXAMPLE_ROOT_CAUSE = "Provider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure.";
+const HERO_PROFILE_IDS = {
+  nadia: "00000000-0000-4000-8000-000000005121",
+  leo: "00000000-0000-4000-8000-000000005122",
+  sam: "00000000-0000-4000-8000-000000005123",
+} as const;
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -310,6 +326,27 @@ function digest(title: string, body: string): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(JSON.stringify({ title, body }), "utf8").digest("hex")}`;
 }
 
+function anchorForOccurrence(
+  value: string,
+  selectedText: string,
+  occurrence: number,
+): Extract<IssueAnchorInput, { scope: "SELECTION" }> {
+  let codeUnitStart = -1;
+  let cursor = 0;
+  for (let index = 0; index < occurrence; index += 1) {
+    codeUnitStart = value.indexOf(selectedText, cursor);
+    if (codeUnitStart < 0) throw new Error(`Example selection not found: ${selectedText}`);
+    cursor = codeUnitStart + selectedText.length;
+  }
+  const rangeStart = issuePointLength(value.slice(0, codeUnitStart));
+  return {
+    scope: "SELECTION",
+    field: "BODY",
+    rangeStart,
+    rangeEnd: rangeStart + issuePointLength(selectedText),
+  };
+}
+
 function secretDigest(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -323,12 +360,14 @@ function humanActor(member: IssueMemberSnapshot): IssueHumanActorSnapshot {
   };
 }
 
-function agentActor(task: StoredTask): IssueAgentActorSnapshot {
+function agentActor(task: StoredTask, profile?: StoredAgentProfile): IssueAgentActorSnapshot {
+  const currentName = profile?.name ?? task.agentLabel;
   return {
     actorType: "AGENT",
-    displayName: task.agentLabel,
+    displayName: currentName,
     member: clone(task.assignee),
-    agentLabel: task.agentLabel,
+    agentProfileId: profile?.profileId ?? task.agentProfileId,
+    agentLabel: currentName,
   };
 }
 
@@ -417,67 +456,75 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     this.resetInFlight = true;
     try {
       this.removeWorkspace(HERO_DOCUMENT_ID);
-    const { workspace, bundle: priya } = this.createWorkspace(
-      "POSTMORTEM",
-      EXAMPLE_TITLE,
-      EXAMPLE_R1_BODY,
-      "Priya Shah",
-      "Launch INC-482 postmortem.",
-      { documentId: HERO_DOCUMENT_ID, revisionId: HERO_REVISION_ID, memberId: HERO_PRIYA_ID },
-    );
-    const nadia = this.issueBundle(workspace, this.addMember(workspace, "Nadia Chen", HERO_NADIA_ID), priya.shareToken);
-    const leo = this.issueBundle(workspace, this.addMember(workspace, "Leo Park", HERO_LEO_ID), priya.shareToken);
-    const sam = this.issueBundle(workspace, this.addMember(workspace, "Sam Rivera", HERO_SAM_ID), priya.shareToken);
-    this.expectSuccess(await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Add verified checkout impact and data-integrity figures.",
-      category: "DATA",
-      instruction: "Use impact.csv to replace only the Impact placeholder with verified checkout attempts, failures, affected merchants, and duplicate-charge status.",
-      agentLabel: "Data agent",
-      mode: "DIRECT",
-      assignedToMemberId: nadia.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 174, rangeEnd: 200 },
-    }), "create reset DATA-17");
-    this.setHeroTaskIdentity(workspace, workspace.tasks.at(-1)!, {
-      taskId: "00000000-0000-4000-8000-000000000421",
-      threadId: "00000000-0000-4000-8000-000000000431",
-      taskKey: "DATA-17",
-    });
-    this.expectSuccess(await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Replace the timeline placeholder with the observed outage sequence.",
-      category: "LOGS",
-      instruction: "Use checkout.log to replace only the Timeline placeholder with the observed UTC sequence from provider throttling through recovery.",
-      agentLabel: "Logging agent",
-      mode: "DIRECT",
-      assignedToMemberId: leo.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 215, rangeEnd: 241 },
-    }), "create reset LOG-22");
-    this.setHeroTaskIdentity(workspace, workspace.tasks.at(-1)!, {
-      taskId: "00000000-0000-4000-8000-000000000422",
-      threadId: "00000000-0000-4000-8000-000000000432",
-      taskKey: "LOG-22",
-    });
-    this.expectSuccess(await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Explain provider throttling as trigger and retry regression as root cause.",
-      category: "CODEBASE",
-      instruction: "Use commit 7d3c9e1 and checkout.log to distinguish the external trigger from the internal condition that sustained the outage. Replace only the Root cause placeholder.",
-      agentLabel: "Builder agent",
-      mode: "REVIEW",
-      assignedToMemberId: sam.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 258, rangeEnd: 284 },
-    }), "create reset CODE-9");
-    this.setHeroTaskIdentity(workspace, workspace.tasks.at(-1)!, {
-      taskId: "00000000-0000-4000-8000-000000000423",
-      threadId: "00000000-0000-4000-8000-000000000433",
-      taskKey: "CODE-9",
-    });
-    const current = (bundle: IssueSessionBundle): IssueSessionBundle => ({ ...bundle, surface: this.surface(workspace) });
-    throwIfAborted(signal);
+      const { workspace, bundle: priya } = this.createWorkspace(
+        "POSTMORTEM",
+        POSTMORTEM_EXAMPLE.title,
+        POSTMORTEM_EXAMPLE.body,
+        "Priya Shah",
+        POSTMORTEM_EXAMPLE.launchSummary,
+        { documentId: HERO_DOCUMENT_ID, revisionId: HERO_REVISION_ID, memberId: HERO_PRIYA_ID },
+      );
+      const nadiaMember = this.addMember(workspace, "Nadia Chen", HERO_NADIA_ID);
+      const leoMember = this.addMember(workspace, "Leo Park", HERO_LEO_ID);
+      const samMember = this.addMember(workspace, "Sam Rivera", HERO_SAM_ID);
+      const nadia = this.issueBundle(workspace, nadiaMember, priya.shareToken);
+      const leo = this.issueBundle(workspace, leoMember, priya.shareToken);
+      const sam = this.issueBundle(workspace, samMember, priya.shareToken);
+      this.seedAgentProfile(workspace, nadiaMember, "Databot", 0, HERO_PROFILE_IDS.nadia);
+      this.seedAgentProfile(workspace, leoMember, "Logbot", 0, HERO_PROFILE_IDS.leo);
+      this.seedAgentProfile(workspace, samMember, "Builder", 0, HERO_PROFILE_IDS.sam);
+
+      const placeholder = "Investigation in progress.";
+      const mentions = [
+        {
+          spec: POSTMORTEM_EXAMPLE.tasks.impact,
+          memberId: nadia.selfMemberId,
+          occurrence: 1,
+          identity: {
+            taskId: "00000000-0000-4000-8000-000000005131",
+            threadId: "00000000-0000-4000-8000-000000005141",
+            commentId: "00000000-0000-4000-8000-000000005151",
+          },
+        },
+        {
+          spec: POSTMORTEM_EXAMPLE.tasks.timeline,
+          memberId: leo.selfMemberId,
+          occurrence: 2,
+          identity: {
+            taskId: "00000000-0000-4000-8000-000000005132",
+            threadId: "00000000-0000-4000-8000-000000005142",
+            commentId: "00000000-0000-4000-8000-000000005152",
+          },
+        },
+        {
+          spec: POSTMORTEM_EXAMPLE.tasks.cause,
+          memberId: sam.selfMemberId,
+          occurrence: 3,
+          identity: {
+            taskId: "00000000-0000-4000-8000-000000005133",
+            threadId: "00000000-0000-4000-8000-000000005143",
+            commentId: "00000000-0000-4000-8000-000000005153",
+          },
+        },
+      ] as const;
+      for (const mention of mentions) {
+        this.expectSuccess(await this.createMentionTask(priya.humanSessionToken, {
+          requestId: randomUUID(), expectedRevision: 1,
+          comment: mention.spec.prompt,
+          mentionedAgentName: mention.spec.agentName,
+          assignedToMemberId: mention.memberId,
+          anchor: anchorForOccurrence(POSTMORTEM_EXAMPLE.body, placeholder, mention.occurrence),
+        }), `create reset ${mention.spec.agentName} mention`);
+        this.setHeroTaskIdentity(workspace, workspace.tasks.at(-1)!, {
+          ...mention.identity,
+          taskKey: workspace.tasks.at(-1)!.taskKey,
+        });
+      }
+      this.setExampleContextSides(workspace.tasks[0]!, "## Impact\n\n", "\n\n## Timeline\n\nInvestigation in progress.");
+      this.setExampleContextSides(workspace.tasks[1]!, "## Timeline\n\n", "\n\n## Root cause\n\nInvestigation in progress.");
+      this.setExampleContextSides(workspace.tasks[2]!, "## Root cause\n\n", "\n\n## Detection and response");
+      const current = (bundle: IssueSessionBundle): IssueSessionBundle => ({ ...bundle, surface: this.surface(workspace) });
+      throwIfAborted(signal);
       return {
         ok: true,
         data: {
@@ -503,7 +550,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
   ): Promise<RepositoryResult<IssueSessionBundle>> {
     throwIfAborted(signal);
     this.cleanupExpired();
-    if (!hasExactKeys(input, ["kind"], ["displayName"])
+    if (!hasExactKeys(input, ["kind", "displayName"])
       || !ISSUE_DOCUMENT_KINDS.includes(input.kind)
       || !this.validDisplayName(input.displayName)) {
       return failure("INVALID_INPUT", "A valid issue kind and display name are required.");
@@ -518,7 +565,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       input.kind,
       template.title,
       template.body,
-      input.displayName ?? "Collaborator 1",
+      input.displayName,
       template.summary,
     );
     return { ok: true, data: bundle };
@@ -529,117 +576,25 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<IssueSessionBundle>> {
     throwIfAborted(signal);
-    if (!hasExactKeys(input, [])) return failure("INVALID_INPUT", "The example request must be empty.");
+    if (!hasExactKeys(input, ["kind", "displayName"])
+      || !ISSUE_DOCUMENT_KINDS.includes(input.kind)
+      || !this.validDisplayName(input.displayName)) {
+      return failure("INVALID_INPUT", "A valid example kind and display name are required.");
+    }
     if (!this.consumeCredentialIssuance("example")) {
       return failure("RATE_LIMITED", "The public example rate limit has been reached.");
     }
-    const seeded = this.createWorkspace(
-      "POSTMORTEM",
-      EXAMPLE_TITLE,
-      EXAMPLE_R1_BODY,
-      "Priya Shah",
-      "Launch INC-482 postmortem.",
-    );
-    const { workspace, bundle: priya } = seeded;
-    const nadia = this.issueBundle(workspace, this.addMember(workspace, "Nadia Chen"), priya.shareToken);
-    const leo = this.issueBundle(workspace, this.addMember(workspace, "Leo Park"), priya.shareToken);
-    const sam = this.issueBundle(workspace, this.addMember(workspace, "Sam Rivera"), priya.shareToken);
-
-    const createdData = await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Add verified checkout impact and data-integrity figures.",
-      category: "DATA",
-      instruction: "Use impact.csv to replace only the Impact placeholder with verified checkout attempts, failures, affected merchants, and duplicate-charge status.",
-      agentLabel: "Data agent",
-      mode: "DIRECT",
-      assignedToMemberId: nadia.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 174, rangeEnd: 200 },
-    });
-    this.expectSuccess(createdData, "create DATA-17");
-    workspace.tasks.at(-1)!.taskKey = "DATA-17";
-    const createdLog = await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Replace the timeline placeholder with the observed outage sequence.",
-      category: "LOGS",
-      instruction: "Use checkout.log to replace only the Timeline placeholder with the observed UTC sequence from provider throttling through recovery.",
-      agentLabel: "Logging agent",
-      mode: "DIRECT",
-      assignedToMemberId: leo.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 215, rangeEnd: 241 },
-    });
-    this.expectSuccess(createdLog, "create LOG-22");
-    workspace.tasks.at(-1)!.taskKey = "LOG-22";
-    const createdCode = await this.createTask(priya.humanSessionToken, {
-      expectedRevision: 1,
-      requestId: randomUUID(),
-      title: "Explain provider throttling as trigger and retry regression as root cause.",
-      category: "CODEBASE",
-      instruction: "Use commit 7d3c9e1 and checkout.log to distinguish the external trigger from the internal condition that sustained the outage. Replace only the Root cause placeholder.",
-      agentLabel: "Builder agent",
-      mode: "REVIEW",
-      assignedToMemberId: sam.selfMemberId,
-      anchor: { scope: "SELECTION", field: "BODY", rangeStart: 258, rangeEnd: 284 },
-    });
-    this.expectSuccess(createdCode, "create CODE-9");
-    workspace.tasks.at(-1)!.taskKey = "CODE-9";
-
-    const dataTask = workspace.tasks.find((task) => task.taskKey === "DATA-17")!;
-    const logTask = workspace.tasks.find((task) => task.taskKey === "LOG-22")!;
-    const codeTask = workspace.tasks.find((task) => task.taskKey === "CODE-9")!;
-    this.expectSuccess(await this.submitTaskResult(nadia.agentSessionToken, {
-      taskId: dataTask.taskId,
-      basedOnRevision: 1,
-      resultSummary: "Added verified checkout impact and confirmed no duplicate charges.",
-      replacementText: EXAMPLE_IMPACT,
-      evidenceRefs: ["impact.csv"],
-      requestId: randomUUID(),
-    }, nadia.sessionInstanceId), "submit DATA-17");
-    this.expectSuccess(await this.submitTaskResult(leo.agentSessionToken, {
-      taskId: logTask.taskId,
-      basedOnRevision: 1,
-      resultSummary: "Added the observed outage timeline and recovery sequence.",
-      replacementText: EXAMPLE_TIMELINE,
-      evidenceRefs: ["checkout.log"],
-      requestId: randomUUID(),
-    }, leo.sessionInstanceId), "submit LOG-22");
-    this.expectSuccess(await this.submitTaskResult(sam.agentSessionToken, {
-      taskId: codeTask.taskId,
-      basedOnRevision: 1,
-      resultSummary: "Separated the provider trigger from the retry regression that sustained the outage.",
-      replacementText: EXAMPLE_ROOT_CAUSE,
-      evidenceRefs: ["commit:7d3c9e1", "checkout.log"],
-      requestId: randomUUID(),
-    }, sam.sessionInstanceId), "propose CODE-9");
-    const humanComment = await this.addHumanComment(priya.humanSessionToken, {
-      requestId: randomUUID(),
-      threadId: codeTask.threadId,
-      body: "Provider throttling happened first. Are we overclaiming our code as the root cause?",
-    });
-    this.expectSuccess(humanComment, "comment on CODE-9");
-    const replyToCommentId = workspace.threads.find((thread) => thread.threadId === codeTask.threadId)!.comments[0]!.commentId;
-    this.expectSuccess(await this.commentOnTask(sam.agentSessionToken, {
-      requestId: randomUUID(),
-      taskId: codeTask.taskId,
-      replyToCommentId,
-      body: "The logs show 429s as the trigger, but commit 7d3c9e1 ignored Retry-After and issued up to five zero-delay retries. That raised retry traffic to 5.8× and the queue from 420 to 18,240, so the code regression explains why throttling became a 38-minute outage.",
-      evidenceRefs: ["checkout.log", "commit:7d3c9e1"],
-    }, sam.sessionInstanceId), "reply on CODE-9");
-    this.expectSuccess(await this.acceptTaskProposal(priya.humanSessionToken, {
-      requestId: randomUUID(),
-      taskId: codeTask.taskId,
-      expectedRevision: 3,
-      note: "Accepted after separating the external trigger from the internal retry amplifier.",
-    }), "accept CODE-9");
+    const bundle = input.kind === "POSTMORTEM"
+      ? await this.buildPostmortemExample(input.displayName)
+      : await this.buildProductDocumentExample(input.displayName);
     throwIfAborted(signal);
-    return { ok: true, data: { ...priya, surface: this.surface(workspace) } };
+    return { ok: true, data: bundle };
   }
 
   async join(input: JoinIssueHttpInput, signal?: AbortSignal): Promise<RepositoryResult<IssueSessionBundle>> {
     throwIfAborted(signal);
     this.cleanupExpired();
-    if (!hasExactKeys(input, ["shareToken"], ["displayName"])
+    if (!hasExactKeys(input, ["shareToken", "displayName"])
       || typeof input.shareToken !== "string"
       || !/^[A-Za-z0-9_-]{32,128}$/.test(input.shareToken)
       || !this.validDisplayName(input.displayName)) {
@@ -651,15 +606,26 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     const workspaceId = this.workspaceIdsByShareTokenHash.get(secretDigest(input.shareToken));
     const workspace = workspaceId ? this.workspaces.get(workspaceId) : undefined;
     if (!workspace) return failure("NOT_FOUND", "The issue was not found.");
-    const member = this.addMember(workspace, input.displayName ?? `Collaborator ${workspace.nextGuestNumber++}`);
+    const member = this.addMember(workspace, input.displayName);
     return { ok: true, data: this.issueBundle(workspace, member, input.shareToken) };
   }
 
   async inspect(sessionToken: string, signal?: AbortSignal): Promise<RepositoryResult<IssueWorkspaceSurface>> {
     throwIfAborted(signal);
-    const resolved = this.resolveSession(sessionToken);
-    if (!resolved) return failure("UNAUTHORIZED", "A valid issue session is required.");
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid human session is required.");
     return { ok: true, data: this.surface(resolved.workspace) };
+  }
+
+  async inspectAsAgent(
+    agentSessionToken: string,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
+    throwIfAborted(signal);
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    return { ok: true, data: this.surface(connected.resolved.workspace) };
   }
 
   async saveHumanRevision(
@@ -672,12 +638,11 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     if (!resolved) return failure("UNAUTHORIZED", "A valid human session is required.");
     const replay = this.replay<IssueWorkspaceSurface>(resolved, "save", input);
     if (replay) return replay;
-    if (!hasExactKeys(input, ["expectedRevision", "requestId", "title", "body", "changeSummary"])
+    if (!hasExactKeys(input, ["expectedRevision", "requestId", "title", "body"])
       || !isUuid(input.requestId)
       || !isCounter(input.expectedRevision)
       || !boundedText(input.title, ISSUE_TITLE_MAX_LENGTH)
-      || !boundedText(input.body, ISSUE_BODY_MAX_LENGTH, true)
-      || !boundedText(input.changeSummary, ISSUE_CHANGE_SUMMARY_MAX_LENGTH)) {
+      || !boundedText(input.body, ISSUE_BODY_MAX_LENGTH, true)) {
       return this.recordReplay(resolved, "save", input, failure("INVALID_INPUT", "The revision input is invalid."));
     }
     const stale = this.requireHead(resolved.workspace, input.expectedRevision);
@@ -687,6 +652,13 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       return this.recordReplay(resolved, "save", input, result);
     }
     const actor = humanActor(resolved.member);
+    const titleChanged = input.title !== resolved.workspace.document.title;
+    const bodyChanged = input.body !== resolved.workspace.document.body;
+    const changeSummary = titleChanged && bodyChanged
+      ? "Edited the document title and body."
+      : titleChanged
+        ? "Edited the document title."
+        : "Edited the document.";
     this.appendRevision(resolved.workspace, {
       title: input.title,
       body: input.body,
@@ -702,8 +674,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         approvedBy: null,
         restoredRevision: null,
       },
-      changeSummary: input.changeSummary,
+      changeSummary,
       evidenceRefs: [],
+      activityKind: "REVISION_SAVED",
     });
     const result = { ok: true, data: this.surface(resolved.workspace) } as const;
     this.notify(resolved.workspace.id);
@@ -749,6 +722,8 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       category: input.category,
       instruction: input.instruction,
       agentLabel: input.agentLabel,
+      agentProfileId: null,
+      context: null,
       mode: input.mode,
       status: "OPEN",
       creationAnchor: clone(anchor),
@@ -776,10 +751,148 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       resolvedAt: null,
       comments: [],
     });
-    this.bumpActivity(workspace, timestamp);
+    this.appendActivity(workspace, {
+      kind: "TASK_CREATED",
+      actor: humanActor(resolved.member),
+      taskId,
+      threadId,
+      excerpt: input.instruction,
+      timestamp,
+    });
     const result = { ok: true, data: this.surface(workspace) } as const;
     this.notify(workspace.id);
     return this.recordReplay(resolved, "task.create", input, result);
+  }
+
+  async createMentionTask(
+    sessionToken: string,
+    input: CreateMentionTaskServiceInput,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
+    throwIfAborted(signal);
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid human session is required.");
+    const replay = this.replay<IssueWorkspaceSurface>(resolved, "mention.create", input);
+    if (replay) return replay;
+    if (!hasExactKeys(input, [
+      "expectedRevision", "requestId", "comment", "mentionedAgentName",
+      "assignedToMemberId", "anchor",
+    ])
+      || !isUuid(input.requestId)
+      || !isCounter(input.expectedRevision)
+      || !isUuid(input.assignedToMemberId)
+      || !this.validAnchorInputShape(input.anchor)) {
+      return this.recordReplay(resolved, "mention.create", input, failure("INVALID_INPUT", "The mention input is invalid."));
+    }
+    const workspace = resolved.workspace;
+    const stale = this.requireHead(workspace, input.expectedRevision);
+    if (stale) return this.recordReplay(resolved, "mention.create", input, stale);
+    const assignee = workspace.members.get(input.assignedToMemberId);
+    const profile = workspace.agentsByMemberId.get(input.assignedToMemberId);
+    if (!assignee || !profile || profile.name !== input.mentionedAgentName) {
+      return this.recordReplay(resolved, "mention.create", input, failure(
+        "STALE_AGENT_PROFILE",
+        "The selected agent profile changed. Choose the agent again.",
+      ));
+    }
+    const compiled = compileIssueMention(input.comment, input.mentionedAgentName);
+    if (!compiled.ok) {
+      return this.recordReplay(resolved, "mention.create", input, failure("INVALID_INPUT", "The selected mention is not a valid agent prompt."));
+    }
+    if (workspace.tasks.length >= ISSUE_WORKSPACE_TASK_LIMIT
+      || this.activeTasks(workspace).length >= ISSUE_ACTIVE_TASK_LIMIT
+      || this.activeTasks(workspace).filter((task) => task.assignee.memberId === assignee.memberId).length >= ISSUE_ASSIGNEE_ACTIVE_TASK_LIMIT) {
+      return this.recordReplay(resolved, "mention.create", input, failure("RATE_LIMITED", "The active task limit has been reached."));
+    }
+    const anchor = this.makeAnchor(workspace, input.anchor);
+    if (!anchor || anchor.scope !== "SELECTION") {
+      return this.recordReplay(resolved, "mention.create", input, failure("INVALID_INPUT", "Agent work requires a valid target selection."));
+    }
+    const timestamp = this.stamp(workspace);
+    const taskId = randomUUID();
+    const threadId = randomUUID();
+    const commentId = randomUUID();
+    const sourceValue = anchor.field === "TITLE" ? workspace.document.title : workspace.document.body;
+    const context: IssueTaskContextSnapshot = {
+      sourceRevision: workspace.document.revision,
+      sourceDigest: digest(workspace.document.title, workspace.document.body),
+      documentTitle: workspace.document.title,
+      field: anchor.field,
+      rangeStart: anchor.rangeStart,
+      rangeEnd: anchor.rangeEnd,
+      targetText: anchor.selectedText,
+      beforeText: issueSlice(
+        sourceValue,
+        Math.max(0, anchor.rangeStart - ISSUE_TASK_CONTEXT_SIDE_MAX_LENGTH),
+        anchor.rangeStart,
+      ),
+      afterText: issueSlice(
+        sourceValue,
+        anchor.rangeEnd,
+        anchor.rangeEnd + ISSUE_TASK_CONTEXT_SIDE_MAX_LENGTH,
+      ),
+      priorContext: this.snapshotPriorContext(workspace),
+    };
+    const creator = this.memberSnapshot(resolved.member);
+    const task: StoredTask = {
+      taskId,
+      taskKey: `TASK-${workspace.nextTaskNumber++}`,
+      title: compiled.value.title,
+      category: "GENERAL",
+      instruction: compiled.value.instruction,
+      agentLabel: profile.name,
+      agentProfileId: profile.profileId,
+      context,
+      mode: "DIRECT",
+      status: "OPEN",
+      creationAnchor: clone(anchor),
+      anchor: clone(anchor),
+      creator,
+      assignee: this.memberSnapshot(assignee),
+      threadId,
+      proposal: null,
+      result: null,
+      decision: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      resolvedAt: null,
+    };
+    const comment: IssueComment = {
+      commentId,
+      threadId,
+      replyToCommentId: null,
+      author: humanActor(resolved.member),
+      origin: "ORDINARY_UI",
+      createdRevision: workspace.document.revision,
+      body: input.comment,
+      evidenceRefs: [],
+      createdAt: timestamp,
+    };
+    workspace.tasks.push(task);
+    workspace.threads.push({
+      threadId,
+      taskId,
+      creationAnchor: clone(anchor),
+      anchor: clone(anchor),
+      status: "OPEN",
+      createdBy: creator,
+      createdAt: timestamp,
+      resolvedBy: null,
+      resolvedAt: null,
+      comments: [comment],
+    });
+    this.appendActivity(workspace, {
+      kind: "TASK_CREATED",
+      actor: humanActor(resolved.member),
+      taskId,
+      threadId,
+      commentId,
+      excerpt: input.comment,
+      timestamp,
+    });
+    const result = { ok: true, data: this.surface(workspace) } as const;
+    this.notify(workspace.id);
+    return this.recordReplay(resolved, "mention.create", input, result);
   }
 
   async createThread(
@@ -825,12 +938,21 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         replyToCommentId: null,
         author,
         origin: "ORDINARY_UI",
+        createdRevision: workspace.document.revision,
         body: input.body,
         evidenceRefs: [],
         createdAt: timestamp,
       }],
     });
-    this.bumpActivity(workspace, timestamp);
+    const comment = workspace.threads.at(-1)!.comments[0]!;
+    this.appendActivity(workspace, {
+      kind: "THREAD_CREATED",
+      actor: author,
+      threadId,
+      commentId: comment.commentId,
+      excerpt: comment.body,
+      timestamp,
+    });
     const result = { ok: true, data: this.surface(workspace) } as const;
     this.notify(workspace.id);
     return this.recordReplay(resolved, "thread.create", input, result);
@@ -859,11 +981,21 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       replyToCommentId: input.replyToCommentId ?? null,
       author: humanActor(resolved.member),
       origin: "ORDINARY_UI",
+      createdRevision: resolved.workspace.document.revision,
       body: input.body,
       evidenceRefs: clone(input.evidenceRefs ?? []),
       createdAt: timestamp,
     });
-    this.bumpActivity(resolved.workspace, timestamp);
+    const comment = thread.comments.at(-1)!;
+    this.appendActivity(resolved.workspace, {
+      kind: "COMMENT_ADDED",
+      actor: comment.author,
+      taskId: thread.taskId,
+      threadId: thread.threadId,
+      commentId: comment.commentId,
+      excerpt: comment.body,
+      timestamp,
+    });
     const result = { ok: true, data: this.surface(resolved.workspace) } as const;
     this.notify(resolved.workspace.id);
     return this.recordReplay(resolved, "thread.comment", input, result);
@@ -894,7 +1026,13 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     thread.status = "RESOLVED";
     thread.resolvedBy = this.memberSnapshot(resolved.member);
     thread.resolvedAt = timestamp;
-    this.bumpActivity(resolved.workspace, timestamp);
+    this.appendActivity(resolved.workspace, {
+      kind: "THREAD_RESOLVED",
+      actor: humanActor(resolved.member),
+      threadId: thread.threadId,
+      excerpt: thread.comments[0]?.body ?? resolved.workspace.document.title,
+      timestamp,
+    });
     const result = { ok: true, data: this.surface(resolved.workspace) } as const;
     this.notify(resolved.workspace.id);
     return this.recordReplay(resolved, "thread.resolve", input, result);
@@ -924,7 +1062,14 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     task.updatedAt = timestamp;
     task.resolvedAt = timestamp;
     this.resolveTaskThread(resolved.workspace, task, task.creator, timestamp);
-    this.bumpActivity(resolved.workspace, timestamp);
+    this.appendActivity(resolved.workspace, {
+      kind: "TASK_CANCELLED",
+      actor: humanActor(resolved.member),
+      taskId: task.taskId,
+      threadId: task.threadId,
+      excerpt: task.instruction,
+      timestamp,
+    });
     const result = { ok: true, data: this.surface(resolved.workspace) } as const;
     this.notify(resolved.workspace.id);
     return this.recordReplay(resolved, "task.cancel", input, result);
@@ -988,6 +1133,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       changeSummary: input.changeSummary,
       evidenceRefs: [],
       restore: true,
+      activityKind: "REVISION_RESTORED",
     });
     const result = { ok: true, data: this.surface(resolved.workspace) } as const;
     this.notify(resolved.workspace.id);
@@ -1000,30 +1146,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<ReadIssueHistoryOutcome>> {
     throwIfAborted(signal);
-    const resolved = this.resolveSession(sessionToken);
-    if (!resolved) return failure("UNAUTHORIZED", "A valid issue session is required.");
-    if (!hasExactKeys(input, [], ["beforeRevision", "limit"])
-      || (input.beforeRevision !== undefined && (!Number.isSafeInteger(input.beforeRevision) || input.beforeRevision < 1))
-      || (input.limit !== undefined && (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > ISSUE_HISTORY_MAX_LIMIT))) {
-      return failure("INVALID_INPUT", "The history input is invalid.");
-    }
-    const limit = input.limit ?? ISSUE_HISTORY_DEFAULT_LIMIT;
-    const candidates = resolved.workspace.revisions
-      .filter((revision) => input.beforeRevision === undefined || revision.revision < input.beforeRevision)
-      .slice()
-      .reverse();
-    const selected = candidates.slice(0, limit);
-    const hasMoreOlder = candidates.length > selected.length;
-    return {
-      ok: true,
-      data: {
-        revisions: selected.map(revisionSummary),
-        hasMoreOlder,
-        nextBeforeRevision: hasMoreOlder ? selected.at(-1)?.revision ?? null : null,
-        currentRevision: resolved.workspace.document.revision,
-        currentActivityVersion: resolved.workspace.document.activityVersion,
-      },
-    };
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid human session is required.");
+    return this.readHistoryForWorkspace(resolved.workspace, input);
   }
 
   async readRevision(
@@ -1032,11 +1157,132 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<IssueRevision>> {
     throwIfAborted(signal);
-    const resolved = this.resolveSession(sessionToken);
-    if (!resolved) return failure("UNAUTHORIZED", "A valid issue session is required.");
+    const resolved = this.authorize(sessionToken, "HUMAN");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid human session is required.");
     if (!Number.isSafeInteger(revision) || revision < 1) return failure("INVALID_INPUT", "A positive revision is required.");
     const found = resolved.workspace.revisions.find((entry) => entry.revision === revision);
     return found ? { ok: true, data: clone(found) } : failure("NOT_FOUND", "The revision was not found.");
+  }
+
+  async readHistoryAsAgent(
+    agentSessionToken: string,
+    input: ReadIssueHistoryInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ReadIssueHistoryOutcome>> {
+    throwIfAborted(signal);
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    return this.readHistoryForWorkspace(connected.resolved.workspace, input);
+  }
+
+  async readRevisionAsAgent(
+    agentSessionToken: string,
+    revision: number,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<IssueRevision>> {
+    throwIfAborted(signal);
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    if (!Number.isSafeInteger(revision) || revision < 1) {
+      return failure("INVALID_INPUT", "A positive revision is required.");
+    }
+    const found = connected.resolved.workspace.revisions.find((entry) => entry.revision === revision);
+    return found ? { ok: true, data: clone(found) } : failure("NOT_FOUND", "The revision was not found.");
+  }
+
+  async connectAgent(
+    agentSessionToken: string,
+    input: ConnectIssueAgentServiceInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ConnectIssueAgentOutcome>> {
+    throwIfAborted(signal);
+    const resolved = this.authorize(agentSessionToken, "AGENT");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
+    if (!isUuid(pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The page session is invalid.");
+    if (!hasExactKeys(input, ["requestId", "name"])
+      || !isUuid(input.requestId)
+      || !this.validAgentName(input.name)) {
+      return failure("INVALID_INPUT", "A valid self-declared agent name is required.");
+    }
+    const operation = this.agentOperation(resolved, pageSessionId, "agent.connect");
+    const replay = this.replay<ConnectIssueAgentOutcome>(resolved, operation, input);
+    if (replay) return replay;
+    const workspace = resolved.workspace;
+    const timestamp = this.stamp(workspace);
+    let profile = workspace.agentsByMemberId.get(resolved.member.memberId);
+    if (!profile) {
+      profile = {
+        profileId: randomUUID(),
+        member: this.memberSnapshot(resolved.member),
+        name: input.name,
+        identitySource: "SELF_DECLARED",
+        firstSeenAt: timestamp,
+        lastAccessedAt: timestamp,
+        accessCount: 0,
+        identityGeneration: 1,
+      };
+      workspace.agentsByMemberId.set(resolved.member.memberId, profile);
+    } else if (profile.name !== input.name) {
+      profile.name = input.name;
+      profile.identityGeneration += 1;
+    }
+    workspace.pageConnections.set(this.pageConnectionKey(resolved, pageSessionId), {
+      profileId: profile.profileId,
+      identityGeneration: profile.identityGeneration,
+    });
+    this.touchAgentProfile(profile, timestamp);
+    const result = {
+      ok: true,
+      data: {
+        profile: this.publicAgentProfile(profile),
+        revision: workspace.document.revision,
+        activityVersion: workspace.document.activityVersion,
+      },
+    } as const;
+    return this.recordReplay(resolved, operation, input, result);
+  }
+
+  async readCollaborationContext(
+    agentSessionToken: string,
+    input: ReadCollaborationContextInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ): Promise<RepositoryResult<ReadCollaborationContextOutcome>> {
+    throwIfAborted(signal);
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    if (!hasExactKeys(input, [], ["beforeActivityVersion", "limit"])
+      || (input.beforeActivityVersion !== undefined
+        && (!Number.isSafeInteger(input.beforeActivityVersion) || input.beforeActivityVersion < 1))
+      || (input.limit !== undefined
+        && (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > ISSUE_CONTEXT_MAX_LIMIT))) {
+      return failure("INVALID_INPUT", "The collaboration-context input is invalid.");
+    }
+    const workspace = connected.resolved.workspace;
+    const limit = input.limit ?? ISSUE_CONTEXT_DEFAULT_LIMIT;
+    const candidates = workspace.activities
+      .filter((activity) => input.beforeActivityVersion === undefined
+        || activity.activityVersion < input.beforeActivityVersion)
+      .slice()
+      .reverse();
+    const selected = candidates.slice(0, limit);
+    const hasMoreOlder = candidates.length > selected.length;
+    return {
+      ok: true,
+      data: {
+        agents: this.publicAgentProfiles(workspace),
+        events: selected.map((activity) => this.contextEvent(workspace, activity)),
+        hasMoreOlder,
+        nextBeforeActivityVersion: hasMoreOlder
+          ? selected.at(-1)?.activityVersion ?? null
+          : null,
+        currentRevision: workspace.document.revision,
+        currentActivityVersion: workspace.document.activityVersion,
+      },
+    };
   }
 
   async listMyTasks(
@@ -1046,9 +1292,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<ListMyIssueTasksOutcome>> {
     throwIfAborted(signal);
-    const resolved = this.authorize(agentSessionToken, "AGENT");
-    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
-    if (!this.matchesPage(resolved, pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The agent page session is no longer current.");
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    const { resolved } = connected;
     if (!hasExactKeys(input, [], ["includeResolved"]) || (input.includeResolved !== undefined && typeof input.includeResolved !== "boolean")) {
       return failure("INVALID_INPUT", "The task-list input is invalid.");
     }
@@ -1062,9 +1308,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<WaitForMyIssueTasksOutcome>> {
     throwIfAborted(signal);
-    const resolved = this.authorize(agentSessionToken, "AGENT");
-    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
-    if (!this.matchesPage(resolved, pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The agent page session is no longer current.");
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    const { resolved } = connected;
     if (!hasExactKeys(input, ["afterActivityVersion", "afterRevision"], ["timeoutSeconds"])
       || !isCounter(input.afterActivityVersion) || !isCounter(input.afterRevision)
       || (input.timeoutSeconds !== undefined && (!Number.isSafeInteger(input.timeoutSeconds)
@@ -1075,7 +1321,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     if (input.afterActivityVersion > workspace.document.activityVersion || input.afterRevision > workspace.document.revision) {
       return failure("INVALID_INPUT", "Wait cursors cannot be ahead of the issue.");
     }
-    const waitKey = `${workspace.id}:${resolved.member.memberId}:${pageSessionId}`;
+    const waitKey = `${workspace.id}:${resolved.member.memberId}:${resolved.session.sessionInstanceId}:${pageSessionId}`;
     if (this.activeWaits.has(waitKey)) return failure("WAIT_ALREADY_ACTIVE", "A wait is already active for this page.");
     let activityCursor = input.afterActivityVersion;
     const deadline = Date.now() + (input.timeoutSeconds ?? ISSUE_WAIT_DEFAULT_SECONDS) * this.waitSecondMs;
@@ -1083,15 +1329,18 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     try {
       while (true) {
         throwIfAborted(signal);
-        const current = this.authorize(agentSessionToken, "AGENT");
-        if (!current
-          || current.workspace.id !== workspace.id
+        const currentConnection = this.connectedAgent(agentSessionToken, pageSessionId);
+        if (!currentConnection.ok) {
+          if (currentConnection.code === "AGENT_IDENTITY_REQUIRED"
+            || currentConnection.code === "STALE_AGENT_PROFILE"
+            || currentConnection.code === "STALE_PAGE_CONTEXT") return currentConnection;
+          return failure("UNAUTHORIZED", "The agent session expired while waiting.");
+        }
+        const current = currentConnection.resolved;
+        if (current.workspace.id !== workspace.id
           || current.member.memberId !== resolved.member.memberId
           || current.session.sessionInstanceId !== resolved.session.sessionInstanceId) {
           return failure("UNAUTHORIZED", "The agent session expired while waiting.");
-        }
-        if (!this.matchesPage(current, pageSessionId)) {
-          return failure("STALE_PAGE_CONTEXT", "The agent page session is no longer current.");
         }
         const tasks = this.myTasks(current, false).tasks.filter(({ task }) => task.status === "OPEN");
         if (tasks.length > 0) {
@@ -1123,39 +1372,50 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<{ task: IssueTask; comment: IssueComment; activityVersion: number }>> {
     throwIfAborted(signal);
-    const resolved = this.authorize(agentSessionToken, "AGENT");
-    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
-    if (!this.matchesPage(resolved, pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The agent page session is no longer current.");
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    const { resolved, profile } = connected;
     if (!this.validTargetIdentity(input)) return failure("INVALID_INPUT", "The comment input is invalid.");
     const task = resolved.workspace.tasks.find((entry) => entry.taskId === input.taskId);
     if (!task || task.assignee.memberId !== resolved.member.memberId) {
       return failure("UNAUTHORIZED", "This agent does not own the requested task.");
     }
-    const replay = this.replay<{ task: IssueTask; comment: IssueComment; activityVersion: number }>(resolved, "agent.comment", input);
+    const operation = this.agentOperation(resolved, pageSessionId, "agent.comment");
+    const replay = this.replay<{ task: IssueTask; comment: IssueComment; activityVersion: number }>(resolved, operation, input);
     if (replay) return replay;
     if (!this.validCommentInput(input, "taskId")) {
-      return this.recordReplay(resolved, "agent.comment", input, failure("INVALID_INPUT", "The comment input is invalid."));
+      return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "The comment input is invalid."));
     }
     const thread = resolved.workspace.threads.find((entry) => entry.threadId === task.threadId)!;
     const replyFailure = this.validateReply(thread, input.replyToCommentId);
-    if (replyFailure) return this.recordReplay(resolved, "agent.comment", input, replyFailure);
-    if (thread.comments.length >= ISSUE_THREAD_COMMENT_LIMIT) return this.recordReplay(resolved, "agent.comment", input, failure("RATE_LIMITED", "The thread is full."));
+    if (replyFailure) return this.recordReplay(resolved, operation, input, replyFailure);
+    if (thread.comments.length >= ISSUE_THREAD_COMMENT_LIMIT) return this.recordReplay(resolved, operation, input, failure("RATE_LIMITED", "The thread is full."));
     const timestamp = this.stamp(resolved.workspace);
     const comment: IssueComment = {
       commentId: randomUUID(),
       threadId: thread.threadId,
       replyToCommentId: input.replyToCommentId ?? null,
-      author: agentActor(task),
+      author: agentActor(task, profile),
       origin: "WEBMCP",
+      createdRevision: resolved.workspace.document.revision,
       body: input.body,
       evidenceRefs: clone(input.evidenceRefs ?? []),
       createdAt: timestamp,
     };
     thread.comments.push(comment);
-    this.bumpActivity(resolved.workspace, timestamp);
+    this.appendActivity(resolved.workspace, {
+      kind: "COMMENT_ADDED",
+      actor: comment.author,
+      taskId: task.taskId,
+      threadId: thread.threadId,
+      commentId: comment.commentId,
+      excerpt: comment.body,
+      timestamp,
+    });
+    this.touchAgentProfile(profile, timestamp);
     const result = { ok: true, data: { task: publicTask(task), comment: clone(comment), activityVersion: resolved.workspace.document.activityVersion } } as const;
     this.notify(resolved.workspace.id);
-    return this.recordReplay(resolved, "agent.comment", input, result);
+    return this.recordReplay(resolved, operation, input, result);
   }
 
   async submitTaskResult(
@@ -1165,43 +1425,45 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     signal?: AbortSignal,
   ): Promise<RepositoryResult<SubmitIssueTaskResultOutcome>> {
     throwIfAborted(signal);
-    const resolved = this.authorize(agentSessionToken, "AGENT");
-    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
-    if (!this.matchesPage(resolved, pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The agent page session is no longer current.");
+    const connected = this.connectedAgent(agentSessionToken, pageSessionId);
+    if (!connected.ok) return connected;
+    const { resolved, profile } = connected;
     if (!this.validTargetIdentity(input)) return failure("INVALID_INPUT", "The task result input is invalid.");
     const workspace = resolved.workspace;
     const task = workspace.tasks.find((entry) => entry.taskId === input.taskId);
     if (!task || task.assignee.memberId !== resolved.member.memberId) {
       return failure("UNAUTHORIZED", "This agent does not own the requested task.");
     }
-    const replay = this.replay<SubmitIssueTaskResultOutcome>(resolved, "agent.result", input);
+    const operation = this.agentOperation(resolved, pageSessionId, "agent.result");
+    const replay = this.replay<SubmitIssueTaskResultOutcome>(resolved, operation, input);
     if (replay) return replay;
     if (!this.validResultInput(input)) {
-      return this.recordReplay(resolved, "agent.result", input, failure("INVALID_INPUT", "The task result input is invalid."));
+      return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "The task result input is invalid."));
     }
     if (task.status === "STALE") {
-      return this.recordReplay(resolved, "agent.result", input, failure("STALE_TASK_CONTEXT", "The task target is stale.", false, { currentTask: publicTask(task) }));
+      return this.recordReplay(resolved, operation, input, failure("STALE_TASK_CONTEXT", "The task target is stale.", false, { currentTask: publicTask(task) }));
     }
     if (task.status !== "OPEN") {
-      return this.recordReplay(resolved, "agent.result", input, failure("TASK_MODE_VIOLATION", "Only Open tasks accept a result.", false, { currentTask: publicTask(task) }));
+      return this.recordReplay(resolved, operation, input, failure("TASK_MODE_VIOLATION", "Only Open tasks accept a result.", false, { currentTask: publicTask(task) }));
     }
     if (input.basedOnRevision < task.anchor.createdRevision || input.basedOnRevision > workspace.document.revision) {
-      return this.recordReplay(resolved, "agent.result", input, failure("INVALID_INPUT", "The source revision is outside this task's valid range."));
+      return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "The source revision is outside this task's valid range."));
     }
     const evidenceRefs = input.evidenceRefs ?? [];
-    const actor = agentActor(task);
+    const actor = agentActor(task, profile);
     if (task.mode === "COMMENT") {
       if (input.replacementText !== undefined) {
-        return this.recordReplay(resolved, "agent.result", input, failure("INVALID_INPUT", "Comment tasks cannot replace content."));
+        return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "Comment tasks cannot replace content."));
       }
       const thread = workspace.threads.find((entry) => entry.threadId === task.threadId)!;
       if (thread.comments.length >= ISSUE_THREAD_COMMENT_LIMIT) {
-        return this.recordReplay(resolved, "agent.result", input, failure("RATE_LIMITED", "The task thread is full."));
+        return this.recordReplay(resolved, operation, input, failure("RATE_LIMITED", "The task thread is full."));
       }
       const timestamp = this.stamp(workspace);
       thread.comments.push({
         commentId: randomUUID(), threadId: thread.threadId, replyToCommentId: null,
         author: actor, origin: "WEBMCP", body: input.resultSummary,
+        createdRevision: workspace.document.revision,
         evidenceRefs: clone(evidenceRefs), createdAt: timestamp,
       });
       task.status = "COMPLETED";
@@ -1219,21 +1481,31 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       task.updatedAt = timestamp;
       task.resolvedAt = timestamp;
       this.resolveTaskThread(workspace, task, task.assignee, timestamp);
-      this.bumpActivity(workspace, timestamp);
+      const resultComment = thread.comments.at(-1)!;
+      this.appendActivity(workspace, {
+        kind: "TASK_COMPLETED",
+        actor,
+        taskId: task.taskId,
+        threadId: task.threadId,
+        commentId: resultComment.commentId,
+        excerpt: input.resultSummary,
+        timestamp,
+      });
+      this.touchAgentProfile(profile, timestamp);
       const result = { ok: true, data: { outcome: "COMMENTED", task: publicTask(task) as IssueTask & { status: "COMPLETED" }, revision: workspace.document.revision, activityVersion: workspace.document.activityVersion } } as const;
       this.notify(workspace.id);
-      return this.recordReplay(resolved, "agent.result", input, result);
+      return this.recordReplay(resolved, operation, input, result);
     }
     if (typeof input.replacementText !== "string") {
-      return this.recordReplay(resolved, "agent.result", input, failure("TASK_MODE_VIOLATION", "This task requires a replacement."));
+      return this.recordReplay(resolved, operation, input, failure("TASK_MODE_VIOLATION", "This task requires a replacement."));
     }
     const live = this.liveSelection(workspace, task);
-    if (!live) return this.recordReplay(resolved, "agent.result", input, failure("STALE_TASK_CONTEXT", "The task target is stale.", false, { currentTask: publicTask(task) }));
-    if (input.replacementText === live.selectedText) return this.recordReplay(resolved, "agent.result", input, failure("INVALID_INPUT", "The replacement must change the target."));
+    if (!live) return this.recordReplay(resolved, operation, input, failure("STALE_TASK_CONTEXT", "The task target is stale.", false, { currentTask: publicTask(task) }));
+    if (input.replacementText === live.selectedText) return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "The replacement must change the target."));
     const max = live.field === "TITLE" ? ISSUE_TITLE_MAX_LENGTH : ISSUE_BODY_MAX_LENGTH;
     const nextField = replaceIssueRange(live.value, live.anchor.rangeStart, live.anchor.rangeEnd, input.replacementText);
     if (issuePointLength(nextField) > max || (live.field === "TITLE" && nextField.trim().length === 0)) {
-      return this.recordReplay(resolved, "agent.result", input, failure("INVALID_INPUT", "The replacement exceeds the document bounds."));
+      return this.recordReplay(resolved, operation, input, failure("INVALID_INPUT", "The replacement exceeds the document bounds."));
     }
     const timestamp = this.stamp(workspace);
     if (task.mode === "REVIEW") {
@@ -1248,10 +1520,18 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         proposedAt: timestamp,
       };
       task.updatedAt = timestamp;
-      this.bumpActivity(workspace, timestamp);
+      this.appendActivity(workspace, {
+        kind: "TASK_PROPOSED",
+        actor,
+        taskId: task.taskId,
+        threadId: task.threadId,
+        excerpt: input.resultSummary,
+        timestamp,
+      });
+      this.touchAgentProfile(profile, timestamp);
       const result = { ok: true, data: { outcome: "PROPOSED", task: publicTask(task) as IssueTask & { status: "PROPOSED" }, revision: workspace.document.revision, activityVersion: workspace.document.activityVersion } } as const;
       this.notify(workspace.id);
-      return this.recordReplay(resolved, "agent.result", input, result);
+      return this.recordReplay(resolved, operation, input, result);
     }
     task.status = "COMPLETED";
     task.result = {
@@ -1281,12 +1561,14 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       evidenceRefs: clone(evidenceRefs),
       ownTaskId: task.taskId,
       ownReplacement: { field: live.field, replacement: input.replacementText },
+      activityKind: "TASK_COMPLETED",
       timestamp,
     });
     this.resolveTaskThread(workspace, task, task.assignee, timestamp);
+    this.touchAgentProfile(profile, timestamp);
     const result = { ok: true, data: { outcome: "COMMITTED", task: publicTask(task) as IssueTask & { status: "COMPLETED" }, revision: clone(revision), activityVersion: workspace.document.activityVersion } } as const;
     this.notify(workspace.id);
-    return this.recordReplay(resolved, "agent.result", input, result);
+    return this.recordReplay(resolved, operation, input, result);
   }
 
   async touchPresence(
@@ -1360,7 +1642,14 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       task.updatedAt = timestamp;
       task.resolvedAt = timestamp;
       this.resolveTaskThread(workspace, task, resolved.member, timestamp);
-      this.bumpActivity(workspace, timestamp);
+      this.appendActivity(workspace, {
+        kind: "TASK_REJECTED",
+        actor: humanActor(resolved.member),
+        taskId: task.taskId,
+        threadId: task.threadId,
+        excerpt: input.note ?? task.proposal.resultSummary,
+        timestamp,
+      });
       const result = { ok: true, data: this.surface(workspace) } as const;
       this.notify(workspace.id);
       return this.recordReplay(resolved, operation, input, result);
@@ -1391,12 +1680,216 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       evidenceRefs: clone(task.proposal.evidenceRefs),
       ownTaskId: task.taskId,
       ownReplacement: { field: live.field, replacement: task.proposal.replacementText },
+      activityKind: "TASK_COMPLETED",
       timestamp,
     });
     this.resolveTaskThread(workspace, task, resolved.member, timestamp);
     const result = { ok: true, data: this.surface(workspace) } as const;
     this.notify(workspace.id);
     return this.recordReplay(resolved, operation, input, result);
+  }
+
+  private async buildPostmortemExample(displayName: string): Promise<IssueSessionBundle> {
+    const { workspace, bundle: priya } = this.createWorkspace(
+      "POSTMORTEM",
+      POSTMORTEM_EXAMPLE.title,
+      POSTMORTEM_EXAMPLE.body,
+      "Priya Shah",
+      POSTMORTEM_EXAMPLE.launchSummary,
+    );
+    const nadia = this.issueBundle(workspace, this.addMember(workspace, "Nadia Chen"), priya.shareToken);
+    const leo = this.issueBundle(workspace, this.addMember(workspace, "Leo Park"), priya.shareToken);
+    const sam = this.issueBundle(workspace, this.addMember(workspace, "Sam Rivera"), priya.shareToken);
+    const nadiaPage = randomUUID();
+    const leoPage = randomUUID();
+    const samPage = randomUUID();
+    this.expectSuccess(await this.connectAgent(nadia.agentSessionToken, {
+      requestId: randomUUID(), name: "Databot",
+    }, nadiaPage), "connect Databot");
+    this.expectSuccess(await this.connectAgent(leo.agentSessionToken, {
+      requestId: randomUUID(), name: "Logbot",
+    }, leoPage), "connect Logbot");
+    this.expectSuccess(await this.connectAgent(sam.agentSessionToken, {
+      requestId: randomUUID(), name: "Builder",
+    }, samPage), "connect Builder");
+
+    const placeholder = "Investigation in progress.";
+    const mentions = [
+      { spec: POSTMORTEM_EXAMPLE.tasks.impact, memberId: nadia.selfMemberId, occurrence: 1 },
+      { spec: POSTMORTEM_EXAMPLE.tasks.timeline, memberId: leo.selfMemberId, occurrence: 2 },
+      { spec: POSTMORTEM_EXAMPLE.tasks.cause, memberId: sam.selfMemberId, occurrence: 3 },
+    ] as const;
+    for (const mention of mentions) {
+      this.expectSuccess(await this.createMentionTask(priya.humanSessionToken, {
+        requestId: randomUUID(),
+        expectedRevision: 1,
+        comment: mention.spec.prompt,
+        mentionedAgentName: mention.spec.agentName,
+        assignedToMemberId: mention.memberId,
+        anchor: anchorForOccurrence(POSTMORTEM_EXAMPLE.body, placeholder, mention.occurrence),
+      }), `create ${mention.spec.agentName} mention`);
+    }
+    const [impactTask, timelineTask, causeTask] = workspace.tasks;
+    this.setExampleContextSides(impactTask!, "## Impact\n\n", "\n\n## Timeline\n\nInvestigation in progress.");
+    this.setExampleContextSides(timelineTask!, "## Timeline\n\n", "\n\n## Root cause\n\nInvestigation in progress.");
+    this.setExampleContextSides(causeTask!, "## Root cause\n\n", "\n\n## Detection and response");
+    this.expectSuccess(await this.submitTaskResult(nadia.agentSessionToken, {
+      requestId: randomUUID(), taskId: impactTask!.taskId, basedOnRevision: 1,
+      resultSummary: POSTMORTEM_EXAMPLE.tasks.impact.summary,
+      replacementText: POSTMORTEM_EXAMPLE.tasks.impact.replacement,
+      evidenceRefs: [...POSTMORTEM_EXAMPLE.tasks.impact.evidence],
+    }, nadiaPage), "complete postmortem impact");
+    this.expectSuccess(await this.submitTaskResult(leo.agentSessionToken, {
+      requestId: randomUUID(), taskId: timelineTask!.taskId, basedOnRevision: 1,
+      resultSummary: POSTMORTEM_EXAMPLE.tasks.timeline.summary,
+      replacementText: POSTMORTEM_EXAMPLE.tasks.timeline.replacement,
+      evidenceRefs: [...POSTMORTEM_EXAMPLE.tasks.timeline.evidence],
+    }, leoPage), "complete postmortem timeline");
+    this.expectSuccess(await this.submitTaskResult(sam.agentSessionToken, {
+      requestId: randomUUID(), taskId: causeTask!.taskId, basedOnRevision: 1,
+      resultSummary: POSTMORTEM_EXAMPLE.tasks.cause.summary,
+      replacementText: POSTMORTEM_EXAMPLE.tasks.cause.replacement,
+      evidenceRefs: [...POSTMORTEM_EXAMPLE.tasks.cause.evidence],
+    }, samPage), "complete postmortem root cause");
+
+    const discussionAnchor = anchorForOccurrence(
+      workspace.document.body,
+      POSTMORTEM_EXAMPLE.tasks.cause.replacement,
+      1,
+    );
+    this.expectSuccess(await this.createThread(priya.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 4,
+      body: POSTMORTEM_EXAMPLE.discussion,
+      anchor: discussionAnchor,
+    }), "create postmortem human discussion");
+    const standaloneThread = workspace.threads.at(-1)!;
+    this.expectSuccess(await this.createMentionTask(priya.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 4,
+      comment: POSTMORTEM_EXAMPLE.tasks.clarification.prompt,
+      mentionedAgentName: POSTMORTEM_EXAMPLE.tasks.clarification.agentName,
+      assignedToMemberId: sam.selfMemberId,
+      anchor: discussionAnchor,
+    }), "create postmortem clarification mention");
+    const clarificationTask = workspace.tasks.at(-1)!;
+    this.setExampleContextSides(clarificationTask, "## Root cause\n\n", "\n\n## Detection and response");
+    this.expectSuccess(await this.submitTaskResult(sam.agentSessionToken, {
+      requestId: randomUUID(), taskId: clarificationTask.taskId, basedOnRevision: 4,
+      resultSummary: POSTMORTEM_EXAMPLE.tasks.clarification.summary,
+      replacementText: POSTMORTEM_EXAMPLE.tasks.clarification.replacement,
+      evidenceRefs: [...POSTMORTEM_EXAMPLE.tasks.clarification.evidence],
+    }, samPage), "complete postmortem clarification");
+    this.expectSuccess(await this.resolveThread(priya.humanSessionToken, {
+      requestId: randomUUID(), threadId: standaloneThread.threadId,
+    }), "close postmortem human discussion");
+
+    const viewer = this.issueBundle(
+      workspace,
+      this.addMember(workspace, displayName),
+      priya.shareToken,
+    );
+    return { ...viewer, surface: this.surface(workspace) };
+  }
+
+  private async buildProductDocumentExample(displayName: string): Promise<IssueSessionBundle> {
+    const { workspace, bundle: jordan } = this.createWorkspace(
+      "PRODUCT_DOCUMENT",
+      PRODUCT_DOCUMENT_EXAMPLE.title,
+      PRODUCT_DOCUMENT_EXAMPLE.body,
+      "Jordan Lee",
+      PRODUCT_DOCUMENT_EXAMPLE.launchSummary,
+    );
+    const morgan = this.issueBundle(workspace, this.addMember(workspace, "Morgan Chen"), jordan.shareToken);
+    const avery = this.issueBundle(workspace, this.addMember(workspace, "Avery Singh"), jordan.shareToken);
+    const elena = this.issueBundle(workspace, this.addMember(workspace, "Elena Ruiz"), jordan.shareToken);
+    const databotPage = randomUUID();
+    const chatgptPage = randomUUID();
+    this.expectSuccess(await this.connectAgent(morgan.agentSessionToken, {
+      requestId: randomUUID(), name: "Databot",
+    }, databotPage), "connect product Databot");
+    this.expectSuccess(await this.connectAgent(avery.agentSessionToken, {
+      requestId: randomUUID(), name: "ChatGPT",
+    }, chatgptPage), "connect product ChatGPT");
+
+    const correctedBody = workspace.document.body.replace(
+      PRODUCT_DOCUMENT_EXAMPLE.capacityBefore,
+      PRODUCT_DOCUMENT_EXAMPLE.capacityAfter,
+    );
+    this.expectSuccess(await this.saveHumanRevision(jordan.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 1,
+      title: workspace.document.title, body: correctedBody,
+    }), "save capacity correction");
+    this.expectSuccess(await this.createMentionTask(jordan.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 2,
+      comment: PRODUCT_DOCUMENT_EXAMPLE.dataTask.prompt,
+      mentionedAgentName: "Databot",
+      assignedToMemberId: morgan.selfMemberId,
+      anchor: anchorForOccurrence(workspace.document.body, "Analysis in progress.", 1),
+    }), "create product data mention");
+    const dataTask = workspace.tasks.at(-1)!;
+    this.setExampleContextSides(dataTask, "## Options and trade-offs\n\n", "\n\n## Milestones");
+    this.expectSuccess(await this.submitTaskResult(morgan.agentSessionToken, {
+      requestId: randomUUID(), taskId: dataTask.taskId, basedOnRevision: 2,
+      resultSummary: PRODUCT_DOCUMENT_EXAMPLE.dataTask.summary,
+      replacementText: PRODUCT_DOCUMENT_EXAMPLE.dataTask.replacement,
+      evidenceRefs: [...PRODUCT_DOCUMENT_EXAMPLE.dataTask.evidence],
+    }, databotPage), "complete product data analysis");
+    this.expectSuccess(await this.createMentionTask(jordan.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 3,
+      comment: PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.prompt,
+      mentionedAgentName: "ChatGPT",
+      assignedToMemberId: avery.selfMemberId,
+      anchor: anchorForOccurrence(workspace.document.body, "Synthesis pending.", 1),
+    }), "create product synthesis mention");
+    const synthesisTask = workspace.tasks.at(-1)!;
+    this.setExampleContextSides(synthesisTask, "## Decision summary\n\n", "\n\n## Customer and business context");
+    this.expectSuccess(await this.submitTaskResult(avery.agentSessionToken, {
+      requestId: randomUUID(), taskId: synthesisTask.taskId, basedOnRevision: 3,
+      resultSummary: PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.summary,
+      replacementText: PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.replacement,
+      evidenceRefs: [...PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.evidence],
+    }, chatgptPage), "complete product synthesis");
+
+    const discussionAnchor = anchorForOccurrence(
+      workspace.document.body,
+      PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.replacement,
+      1,
+    );
+    this.expectSuccess(await this.createThread(elena.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 4,
+      body: PRODUCT_DOCUMENT_EXAMPLE.discussionQuestion,
+      anchor: discussionAnchor,
+    }), "create product human discussion");
+    const discussionThread = workspace.threads.at(-1)!;
+    const questionComment = discussionThread.comments[0]!;
+    this.expectSuccess(await this.addHumanComment(jordan.humanSessionToken, {
+      requestId: randomUUID(), threadId: discussionThread.threadId,
+      replyToCommentId: questionComment.commentId,
+      body: PRODUCT_DOCUMENT_EXAMPLE.discussionReply,
+      evidenceRefs: ["revision:r4"],
+    }), "reply to product discussion");
+    this.expectSuccess(await this.resolveThread(elena.humanSessionToken, {
+      requestId: randomUUID(), threadId: discussionThread.threadId,
+    }), "close product discussion");
+
+    const alternativeBody = workspace.document.body.replace(
+      PRODUCT_DOCUMENT_EXAMPLE.synthesisTask.replacement,
+      PRODUCT_DOCUMENT_EXAMPLE.alternative,
+    );
+    this.expectSuccess(await this.saveHumanRevision(elena.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 4,
+      title: workspace.document.title, body: alternativeBody,
+    }), "save all-customer alternative");
+    this.expectSuccess(await this.restoreRevision(jordan.humanSessionToken, {
+      requestId: randomUUID(), expectedRevision: 5, revision: 4,
+      changeSummary: PRODUCT_DOCUMENT_EXAMPLE.restoreSummary,
+    }), "restore staged product decision");
+
+    const viewer = this.issueBundle(
+      workspace,
+      this.addMember(workspace, displayName),
+      jordan.shareToken,
+    );
+    return { ...viewer, surface: this.surface(workspace) };
   }
 
   private createWorkspace(
@@ -1422,6 +1915,9 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       tasks: [],
       threads: [],
       revisions: [],
+      agentsByMemberId: new Map(),
+      pageConnections: new Map(),
+      activities: [],
       ledger: new Map(),
     } as unknown as StoredWorkspace;
     const member = this.addMember(workspace, displayName, identifiers.memberId);
@@ -1447,6 +1943,19 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       revision: 1, activityVersion: 1, updatedAt: timestamp,
       lastRevision: { revisionId: revision.revisionId, author, authority: "HUMAN", summary },
     };
+    workspace.activities.push({
+      activityId: randomUUID(),
+      activityVersion: 1,
+      kind: "ISSUE_LAUNCHED",
+      documentRevision: 1,
+      actor: author,
+      createdAt: timestamp,
+      revisionId: revision.revisionId,
+      taskId: null,
+      threadId: null,
+      commentId: null,
+      excerpt: summary,
+    });
     this.workspaces.set(id, workspace);
     this.workspaceIdsByShareTokenHash.set(workspace.shareTokenHash, id);
     return { workspace, bundle: this.issueBundle(workspace, member, shareToken) };
@@ -1494,7 +2003,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       title: input.title,
       body: input.body,
       revision: revisionNumber,
-      activityVersion: workspace.document.activityVersion + 1,
+      activityVersion: workspace.document.activityVersion,
       updatedAt: timestamp,
       lastRevision: {
         revisionId: revision.revisionId,
@@ -1503,6 +2012,14 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
         summary: input.changeSummary,
       },
     };
+    this.appendActivity(workspace, {
+      kind: input.activityKind ?? "REVISION_SAVED",
+      actor: input.provenance.author,
+      revisionId: revision.revisionId,
+      taskId: input.provenance.taskId,
+      excerpt: input.changeSummary,
+      timestamp,
+    });
     return revision;
   }
 
@@ -1628,6 +2145,38 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     return member;
   }
 
+  private seedAgentProfile(
+    workspace: StoredWorkspace,
+    member: StoredMember,
+    name: string,
+    accessCount: number,
+    profileId: string = randomUUID(),
+  ): StoredAgentProfile {
+    const timestamp = this.stamp(workspace);
+    const profile: StoredAgentProfile = {
+      profileId,
+      member: this.memberSnapshot(member),
+      name,
+      identitySource: "SELF_DECLARED",
+      firstSeenAt: timestamp,
+      lastAccessedAt: timestamp,
+      accessCount,
+      identityGeneration: 1,
+    };
+    workspace.agentsByMemberId.set(member.memberId, profile);
+    return profile;
+  }
+
+  private setExampleContextSides(
+    task: StoredTask,
+    beforeText: string,
+    afterText: string,
+  ): void {
+    if (!task.context) throw new Error("Example mention is missing its context snapshot.");
+    task.context.beforeText = beforeText;
+    task.context.afterText = afterText;
+  }
+
   private surface(workspace: StoredWorkspace): IssueWorkspaceSurface {
     const history = workspace.revisions.slice().reverse().slice(0, ISSUE_HISTORY_DEFAULT_LIMIT).map(revisionSummary);
     const orderedTasks = workspace.tasks.slice().sort(compareTasks);
@@ -1647,11 +2196,135 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       document: workspace.document,
       presence: this.currentPresence(workspace),
       members: [...workspace.members.values()].map((member) => this.memberSnapshot(member)).sort((a, b) => a.displayName.localeCompare(b.displayName) || a.memberId.localeCompare(b.memberId)),
+      agents: this.publicAgentProfiles(workspace),
       tasks: orderedTasks.map(publicTask),
       threads: orderedThreads.map(publicThread),
       history,
       hasMoreHistory: workspace.revisions.length > history.length,
     });
+  }
+
+  private publicAgentProfile(profile: StoredAgentProfile): IssueAgentProfile {
+    return clone({
+      profileId: profile.profileId,
+      member: profile.member,
+      name: profile.name,
+      identitySource: profile.identitySource,
+      firstSeenAt: profile.firstSeenAt,
+      lastAccessedAt: profile.lastAccessedAt,
+      accessCount: profile.accessCount,
+    });
+  }
+
+  private publicAgentProfiles(workspace: StoredWorkspace): IssueAgentProfile[] {
+    return [...workspace.agentsByMemberId.values()]
+      .map((profile) => this.publicAgentProfile(profile))
+      .sort((left, right) => left.name.localeCompare(right.name)
+        || left.member.displayName.localeCompare(right.member.displayName)
+        || left.profileId.localeCompare(right.profileId));
+  }
+
+  private contextEvent(
+    workspace: StoredWorkspace,
+    activity: StoredActivity,
+  ): IssueCollaborationContextEvent {
+    const task = activity.taskId
+      ? workspace.tasks.find((entry) => entry.taskId === activity.taskId) ?? null
+      : null;
+    const threadId = activity.threadId ?? task?.threadId ?? null;
+    const thread = threadId
+      ? workspace.threads.find((entry) => entry.threadId === threadId) ?? null
+      : null;
+    const comment = activity.commentId
+      ? workspace.threads
+        .flatMap((entry) => entry.comments)
+        .find((entry) => entry.commentId === activity.commentId) ?? null
+      : null;
+    const revision = activity.revisionId
+      ? workspace.revisions.find((entry) => entry.revisionId === activity.revisionId) ?? null
+      : null;
+    return clone({
+      activityId: activity.activityId,
+      activityVersion: activity.activityVersion,
+      kind: activity.kind,
+      documentRevision: activity.documentRevision,
+      actor: activity.actor,
+      createdAt: activity.createdAt,
+      revision: revision ? revisionSummary(revision) : null,
+      task: task ? publicTask(task) : null,
+      thread: thread ? publicThread(thread) : null,
+      comment,
+    });
+  }
+
+  private snapshotPriorContext(workspace: StoredWorkspace): IssueTaskPriorContextEntry[] {
+    return workspace.activities
+      .slice(-ISSUE_TASK_PRIOR_CONTEXT_LIMIT)
+      .reverse()
+      .map((activity): IssueTaskPriorContextEntry => ({
+        activityVersion: activity.activityVersion,
+        kind: activity.kind,
+        documentRevision: activity.documentRevision,
+        revisionId: activity.revisionId,
+        taskId: activity.taskId,
+        threadId: activity.threadId,
+        commentId: activity.commentId,
+        actor: clone(activity.actor),
+        excerpt: this.snapshotActivityExcerpt(workspace, activity),
+      }));
+  }
+
+  private snapshotActivityExcerpt(workspace: StoredWorkspace, activity: StoredActivity): string {
+    const task = activity.taskId
+      ? workspace.tasks.find((entry) => entry.taskId === activity.taskId)
+      : undefined;
+    const comment = activity.commentId
+      ? workspace.threads
+        .flatMap((entry) => entry.comments)
+        .find((entry) => entry.commentId === activity.commentId)
+      : undefined;
+    const revision = activity.revisionId
+      ? workspace.revisions.find((entry) => entry.revisionId === activity.revisionId)
+      : undefined;
+    const threadId = activity.threadId ?? task?.threadId;
+    const thread = threadId
+      ? workspace.threads.find((entry) => entry.threadId === threadId)
+      : undefined;
+    const threadRoot = thread?.comments.find((entry) => entry.replyToCommentId === null);
+    const excerpt = comment?.body
+      ?? revision?.changeSummary
+      ?? task?.instruction
+      ?? threadRoot?.body
+      ?? workspace.document.title;
+    return issueSlice(excerpt, 0, ISSUE_TASK_PRIOR_CONTEXT_EXCERPT_MAX_LENGTH);
+  }
+
+  private readHistoryForWorkspace(
+    workspace: StoredWorkspace,
+    input: ReadIssueHistoryInput,
+  ): RepositoryResult<ReadIssueHistoryOutcome> {
+    if (!hasExactKeys(input, [], ["beforeRevision", "limit"])
+      || (input.beforeRevision !== undefined && (!Number.isSafeInteger(input.beforeRevision) || input.beforeRevision < 1))
+      || (input.limit !== undefined && (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > ISSUE_HISTORY_MAX_LIMIT))) {
+      return failure("INVALID_INPUT", "The history input is invalid.");
+    }
+    const limit = input.limit ?? ISSUE_HISTORY_DEFAULT_LIMIT;
+    const candidates = workspace.revisions
+      .filter((revision) => input.beforeRevision === undefined || revision.revision < input.beforeRevision)
+      .slice()
+      .reverse();
+    const selected = candidates.slice(0, limit);
+    const hasMoreOlder = candidates.length > selected.length;
+    return {
+      ok: true,
+      data: {
+        revisions: selected.map(revisionSummary),
+        hasMoreOlder,
+        nextBeforeRevision: hasMoreOlder ? selected.at(-1)?.revision ?? null : null,
+        currentRevision: workspace.document.revision,
+        currentActivityVersion: workspace.document.activityVersion,
+      },
+    };
   }
 
   private myTasks(resolved: ResolvedSession, includeResolved: boolean): ListMyIssueTasksOutcome {
@@ -1680,9 +2353,41 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     return resolved?.session.actorType === actorType ? resolved : null;
   }
 
-  private matchesPage(resolved: ResolvedSession, pageSessionId: string): boolean {
-    void resolved;
-    return isUuid(pageSessionId);
+  private connectedAgent(
+    token: string,
+    pageSessionId: string,
+  ): ({ ok: true; resolved: ResolvedSession; profile: StoredAgentProfile } | RepositoryFailure) {
+    const resolved = this.authorize(token, "AGENT");
+    if (!resolved) return failure("UNAUTHORIZED", "A valid agent session is required.");
+    if (!isUuid(pageSessionId)) return failure("STALE_PAGE_CONTEXT", "The page session is invalid.");
+    const profile = resolved.workspace.agentsByMemberId.get(resolved.member.memberId);
+    const connection = resolved.workspace.pageConnections.get(this.pageConnectionKey(resolved, pageSessionId));
+    if (!connection) {
+      return failure("AGENT_IDENTITY_REQUIRED", "Call connect_agent for this page before using another tool.");
+    }
+    if (!profile
+      || connection.profileId !== profile.profileId
+      || connection.identityGeneration !== profile.identityGeneration) {
+      return failure("STALE_AGENT_PROFILE", "The connected agent profile changed. Connect again on this page.");
+    }
+    return { ok: true, resolved, profile };
+  }
+
+  private pageConnectionKey(resolved: ResolvedSession, pageSessionId: string): string {
+    return `${resolved.member.memberId}:${resolved.session.sessionInstanceId}:${pageSessionId}`;
+  }
+
+  private agentOperation(
+    resolved: ResolvedSession,
+    pageSessionId: string,
+    operation: string,
+  ): string {
+    return `v4.1:${operation}:${resolved.session.sessionInstanceId}:${pageSessionId}:AGENT`;
+  }
+
+  private touchAgentProfile(profile: StoredAgentProfile, timestamp: string): void {
+    profile.lastAccessedAt = timestamp;
+    profile.accessCount += 1;
   }
 
   private cleanupExpired(): void {
@@ -1697,7 +2402,14 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
   }
 
   private validDisplayName(value: unknown): boolean {
-    return value === undefined || boundedText(value, DISPLAY_NAME_MAX_LENGTH);
+    return boundedText(value, DISPLAY_NAME_MAX_LENGTH);
+  }
+
+  private validAgentName(value: unknown): value is string {
+    return typeof value === "string"
+      && value === value.trim()
+      && boundedText(value, ISSUE_AGENT_NAME_MAX_LENGTH)
+      && !/[@\r\n]/u.test(value);
   }
 
   private validCreateTaskInput(input: CreateIssueTaskServiceInput): boolean {
@@ -1839,9 +2551,36 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
     return new Date(workspace.lastTimestampMs).toISOString();
   }
 
-  private bumpActivity(workspace: StoredWorkspace, timestamp: string): void {
-    workspace.document.activityVersion += 1;
-    workspace.document.updatedAt = timestamp;
+  private appendActivity(
+    workspace: StoredWorkspace,
+    input: {
+      kind: IssueActivityKind;
+      actor: IssueActorSnapshot;
+      revisionId?: string | null;
+      taskId?: string | null;
+      threadId?: string | null;
+      commentId?: string | null;
+      excerpt: string;
+      timestamp: string;
+    },
+  ): StoredActivity {
+    const activity: StoredActivity = {
+      activityId: randomUUID(),
+      activityVersion: workspace.document.activityVersion + 1,
+      kind: input.kind,
+      documentRevision: workspace.document.revision,
+      actor: clone(input.actor),
+      createdAt: input.timestamp,
+      revisionId: input.revisionId ?? null,
+      taskId: input.taskId ?? null,
+      threadId: input.threadId ?? null,
+      commentId: input.commentId ?? null,
+      excerpt: issueSlice(input.excerpt, 0, ISSUE_TASK_PRIOR_CONTEXT_EXCERPT_MAX_LENGTH),
+    };
+    workspace.activities.push(activity);
+    workspace.document.activityVersion = activity.activityVersion;
+    workspace.document.updatedAt = input.timestamp;
+    return activity;
   }
 
   private resolveTaskThread(workspace: StoredWorkspace, task: StoredTask, resolver: IssueMemberSnapshot, timestamp: string): void {
@@ -1865,7 +2604,7 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
   private setHeroTaskIdentity(
     workspace: StoredWorkspace,
     task: StoredTask,
-    identity: { taskId: string; threadId: string; taskKey: string },
+    identity: { taskId: string; threadId: string; commentId?: string; taskKey: string },
   ): void {
     const oldTaskId = task.taskId;
     const oldThreadId = task.threadId;
@@ -1878,9 +2617,17 @@ export class LocalRepositoryService implements RepositoryServicePort, Repository
       thread.taskId = identity.taskId;
       for (const comment of thread.comments) {
         comment.threadId = identity.threadId;
+        if (identity.commentId && comment.replyToCommentId === null) {
+          comment.commentId = identity.commentId;
+        }
       }
     }
-    if (oldTaskId === identity.taskId) return;
+    for (const activity of workspace.activities) {
+      if (activity.taskId === oldTaskId) activity.taskId = identity.taskId;
+      if (activity.threadId === oldThreadId) activity.threadId = identity.threadId;
+      if (identity.commentId && activity.taskId === identity.taskId
+        && activity.kind === "TASK_CREATED") activity.commentId = identity.commentId;
+    }
   }
 
   private bootstrapPath(bundle: IssueSessionBundle): string {

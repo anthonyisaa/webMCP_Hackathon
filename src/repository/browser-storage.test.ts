@@ -83,3 +83,17 @@ test("discards malformed stored state instead of trusting it", async () => {
   assert.equal(readRepositoryCredential(storage, bundle.shareToken), null);
   assert.equal(readLastRepositoryShareToken(storage), null);
 });
+
+test("normalizes an old cached v4 surface without agent profiles", async () => {
+  const storage = new MemoryStorage();
+  const bundle = await issueSession();
+  const legacy = structuredClone(bundle) as unknown as {
+    surface: Omit<IssueSessionBundle["surface"], "agents"> & { agents?: unknown };
+  };
+  delete legacy.surface.agents;
+  storage.setItem(
+    `ratiflow.issue.session.v4:${bundle.shareToken}`,
+    JSON.stringify(legacy),
+  );
+  assert.deepEqual(readRepositoryTabSession(storage, bundle.shareToken)?.surface.agents, []);
+});

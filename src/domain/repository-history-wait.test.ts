@@ -27,7 +27,6 @@ async function saveRevisions(
       expectedRevision,
       title: `History oracle r${nextRevision}`,
       body: `Immutable body for revision ${nextRevision}.`,
-      changeSummary: `Append revision ${nextRevision}.`,
     }));
     assert.equal(saved.document.revision, nextRevision);
   }
@@ -120,6 +119,9 @@ test("wait returns owned work immediately and ignores unrelated activity until t
   const owner = success(await service.launch({ kind: "POSTMORTEM", displayName: "Owner" }));
   const assignee = success(await service.join({ shareToken: owner.shareToken, displayName: "Assignee" }));
   const pageSessionId = randomUUID();
+  success(await service.connectAgent(assignee.agentSessionToken, {
+    requestId: randomUUID(), name: "Assignee agent",
+  }, pageSessionId));
 
   const future = await service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 2,

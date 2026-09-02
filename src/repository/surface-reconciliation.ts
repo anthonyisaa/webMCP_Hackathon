@@ -1,7 +1,31 @@
-import type { IssuePresence, IssueWorkspaceSurface } from "@/repository/contracts";
+import type {
+  IssueAgentProfile,
+  IssuePresence,
+  IssueWorkspaceSurface,
+} from "@/repository/contracts";
 
 function clone<T>(value: T): T {
   return structuredClone(value);
+}
+
+function mergeAgents(
+  current: readonly IssueAgentProfile[] | undefined,
+  incoming: readonly IssueAgentProfile[] | undefined,
+): IssueAgentProfile[] {
+  const byMember = new Map<string, IssueAgentProfile>();
+  for (const profile of [...(current ?? []), ...(incoming ?? [])]) {
+    const existing = byMember.get(profile.member.memberId);
+    if (!existing
+      || profile.accessCount > existing.accessCount
+      || (profile.accessCount === existing.accessCount
+        && profile.lastAccessedAt > existing.lastAccessedAt)) {
+      byMember.set(profile.member.memberId, clone(profile));
+    }
+  }
+  return [...byMember.values()].sort((left, right) =>
+    left.name.localeCompare(right.name)
+    || left.member.displayName.localeCompare(right.member.displayName)
+    || left.profileId.localeCompare(right.profileId));
 }
 
 function mergePresence(
@@ -46,5 +70,6 @@ export function reconcileIssueSurface(
   return {
     ...clone(durable),
     presence: mergePresence(current.presence, incoming.presence),
+    agents: mergeAgents(current.agents, incoming.agents),
   };
 }

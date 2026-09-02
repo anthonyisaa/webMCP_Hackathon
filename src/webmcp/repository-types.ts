@@ -1,4 +1,5 @@
 import type {
+  IssueAgentProfile,
   IssueWorkspaceSurface,
   RepositoryBrowserClientPort,
   RepositoryToolName,
@@ -31,13 +32,20 @@ export interface MutableRepositoryWebMCPRuntimeRef {
   current: RepositoryWebMCPRuntimeState;
 }
 
+/** Successful self-declared identity for this mounted top-level page only. */
+export interface MutableRepositoryAgentConnectionRef {
+  current: IssueAgentProfile | null;
+}
+
 export interface RepositoryWebMCPRuntimeDependencies {
   latest: MutableRepositoryWebMCPRuntimeRef;
+  connection: MutableRepositoryAgentConnectionRef;
   service: RepositoryBrowserClientPort;
   activitySignal: RepositoryActivitySignalPort;
   activeWaitKeys: Set<string>;
   createRequestId?: () => string;
   onAuthoritativeSurface?: (surface: IssueWorkspaceSurface) => void;
+  onAgentConnectionChange?: (profile: IssueAgentProfile | null) => void;
   onToolExecutionChange?: (
     tool: "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null,
   ) => void;

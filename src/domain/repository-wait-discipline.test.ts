@@ -28,6 +28,7 @@ async function launchWorkspace(waitSecondMs = 1): Promise<{
   service: LocalRepositoryService;
   owner: IssueSessionBundle;
   assignee: IssueSessionBundle;
+  pageSessionId: string;
 }> {
   const service = new LocalRepositoryService({ waitSecondMs });
   const owner = success(await service.launch({
@@ -38,7 +39,11 @@ async function launchWorkspace(waitSecondMs = 1): Promise<{
     shareToken: owner.shareToken,
     displayName: "Wait assignee",
   }));
-  return { service, owner, assignee };
+  const pageSessionId = randomUUID();
+  success(await service.connectAgent(assignee.agentSessionToken, {
+    requestId: randomUUID(), name: "Wait agent",
+  }, pageSessionId));
+  return { service, owner, assignee, pageSessionId };
 }
 
 async function createCommentTask(
@@ -79,8 +84,7 @@ afterEach(() => {
 test("D18 uses one absolute deadline across repeated unrelated notifications", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, owner, assignee } = await launchWorkspace();
-  const pageSessionId = randomUUID();
+  const { service, owner, assignee, pageSessionId } = await launchWorkspace();
   let settled = false;
   const waiting = service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 1,
@@ -107,13 +111,13 @@ test("D18 uses one absolute deadline across repeated unrelated notifications", a
 test("D18 enforces the default and maximum 20-second boundary without real sleeps", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, assignee } = await launchWorkspace();
+  const { service, assignee, pageSessionId } = await launchWorkspace();
 
   const maximum = service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 1,
     afterRevision: 1,
     timeoutSeconds: ISSUE_WAIT_MAX_SECONDS,
-  }, randomUUID());
+  }, pageSessionId);
   await vi.advanceTimersByTimeAsync(ISSUE_WAIT_MAX_SECONDS - 1);
   let maximumSettled = false;
   void maximum.then(() => {
@@ -128,7 +132,7 @@ test("D18 enforces the default and maximum 20-second boundary without real sleep
   const defaulted = service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 1,
     afterRevision: 1,
-  }, randomUUID());
+  }, pageSessionId);
   await vi.advanceTimersByTimeAsync(ISSUE_WAIT_DEFAULT_SECONDS);
   assertTimeout(success(await defaulted), 1);
   assert.equal(Date.now(), ISSUE_WAIT_MAX_SECONDS + ISSUE_WAIT_DEFAULT_SECONDS);
@@ -137,14 +141,13 @@ test("D18 enforces the default and maximum 20-second boundary without real sleep
     afterActivityVersion: 1,
     afterRevision: 1,
     timeoutSeconds: ISSUE_WAIT_MAX_SECONDS + 1,
-  }, randomUUID()), "INVALID_INPUT");
+  }, pageSessionId), "INVALID_INPUT");
 });
 
 test("D18 rejects both future cursors before reserving the page wait", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, assignee } = await launchWorkspace();
-  const pageSessionId = randomUUID();
+  const { service, assignee, pageSessionId } = await launchWorkspace();
 
   assertFailureCode(await service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 2,
@@ -169,8 +172,7 @@ test("D18 rejects both future cursors before reserving the page wait", async () 
 test("D18 rejects a duplicate page wait and abort releases listener and wait key", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, assignee } = await launchWorkspace();
-  const pageSessionId = randomUUID();
+  const { service, assignee, pageSessionId } = await launchWorkspace();
   const controller = new AbortController();
   const removeListener = vi.spyOn(controller.signal, "removeEventListener");
 
@@ -205,7 +207,7 @@ test("D18 rejects a duplicate page wait and abort releases listener and wait key
 test("D18 returns owned Open work immediately", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, owner, assignee } = await launchWorkspace();
+  const { service, owner, assignee, pageSessionId } = await launchWorkspace();
   await createCommentTask(service, owner, assignee.selfMemberId, 1);
 
   const before = Date.now();
@@ -213,7 +215,7 @@ test("D18 returns owned Open work immediately", async () => {
     afterActivityVersion: 2,
     afterRevision: 1,
     timeoutSeconds: ISSUE_WAIT_MAX_SECONDS,
-  }, randomUUID()));
+  }, pageSessionId));
   assert.equal(Date.now(), before);
   assert.equal(available.outcome, "TASKS_AVAILABLE");
   assert.equal(available.revision, 1);
@@ -226,7 +228,7 @@ test("D18 returns owned Open work immediately", async () => {
 test("D18 observes mutations issued immediately after wait subscription", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, owner, assignee } = await launchWorkspace();
+  const { service, owner, assignee, pageSessionId } = await launchWorkspace();
 
   // waitForMyTasks installs its in-process listener synchronously before yielding its
   // Promise, so this is the tightest lost-wake interleaving exposed by the public API.
@@ -234,7 +236,7 @@ test("D18 observes mutations issued immediately after wait subscription", async 
     afterActivityVersion: 1,
     afterRevision: 1,
     timeoutSeconds: ISSUE_WAIT_MAX_SECONDS,
-  }, randomUUID());
+  }, pageSessionId);
   await createCommentTask(service, owner, assignee.selfMemberId, 1);
   await vi.advanceTimersByTimeAsync(0);
 
@@ -248,19 +250,18 @@ test("D18 observes mutations issued immediately after wait subscription", async 
 test("D18 returns DOCUMENT_CHANGED when the revision advances during a wait", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
-  const { service, owner, assignee } = await launchWorkspace();
+  const { service, owner, assignee, pageSessionId } = await launchWorkspace();
 
   const waiting = service.waitForMyTasks(assignee.agentSessionToken, {
     afterActivityVersion: 1,
     afterRevision: 1,
     timeoutSeconds: ISSUE_WAIT_MAX_SECONDS,
-  }, randomUUID());
+  }, pageSessionId);
   success(await service.saveHumanRevision(owner.humanSessionToken, {
     requestId: randomUUID(),
     expectedRevision: 1,
     title: "Changed while waiting",
     body: "A new immutable document revision.",
-    changeSummary: "Exercise the document-change wait outcome.",
   }));
   await vi.advanceTimersByTimeAsync(0);
 

@@ -1,5 +1,6 @@
 import {
   ISSUE_AGENT_LABEL_MAX_LENGTH,
+  ISSUE_AGENT_NAME_MAX_LENGTH,
   ISSUE_BODY_MAX_LENGTH,
   ISSUE_CHANGE_SUMMARY_MAX_LENGTH,
   ISSUE_COMMENT_MAX_LENGTH,
@@ -14,11 +15,16 @@ import {
   type AddHumanIssueCommentServiceInput,
   type CancelIssueTaskServiceInput,
   type CommentOnIssueTaskServiceInput,
+  type ConnectIssueAgentOutcome,
+  type ConnectIssueAgentServiceInput,
+  type CreateMentionTaskServiceInput,
   type CreateIssueTaskServiceInput,
   type CreateIssueThreadServiceInput,
   type DecideIssueTaskServiceInput,
+  type IssueAgentProfile,
   type IssueActorSnapshot,
   type IssueAnchor,
+  type IssueCollaborationContextEvent,
   type IssueComment,
   type IssueDocument,
   type IssueMemberSnapshot,
@@ -28,6 +34,7 @@ import {
   type IssueRevisionSummary,
   type IssueSessionBundle,
   type IssueTask,
+  type IssueTaskContextSnapshot,
   type IssueTaskDecision,
   type IssueTaskProposal,
   type IssueTaskResult,
@@ -41,6 +48,8 @@ import {
   type ListMyIssueTasksOutcome,
   type ReadIssueHistoryInput,
   type ReadIssueHistoryOutcome,
+  type ReadCollaborationContextInput,
+  type ReadCollaborationContextOutcome,
   type RepositoryEvaluationPort,
   type RepositoryFailure,
   type RepositoryResult,
@@ -81,6 +90,9 @@ const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const COLOR = /^#[0-9A-F]{6}$/iu;
 const ERROR_CODES = new Set<string>(REPOSITORY_ERROR_CODES);
 const ISSUE_WAIT_FINAL_REFRESH_GRACE_MS = 1_000;
+const ISSUE_WAIT_CLEANUP_GRACE_MS = 250;
+const BOOTSTRAP_FRAGMENT_MAX_LENGTH = 65_536;
+const RESPONSE_CONTRACT = "v4.1" as const;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -139,21 +151,44 @@ function isMember(value: unknown): value is IssueMemberSnapshot {
     && bounded(value.displayName, 80, true);
 }
 
+function isAgentProfile(value: unknown): value is IssueAgentProfile {
+  return exact(value, [
+    "profileId", "member", "name", "identitySource", "firstSeenAt",
+    "lastAccessedAt", "accessCount",
+  ])
+    && uuid(value.profileId)
+    && isMember(value.member)
+    && bounded(value.name, ISSUE_AGENT_NAME_MAX_LENGTH, true)
+    && value.name === value.name.trim()
+    && !/[@\r\n]/u.test(value.name)
+    && value.identitySource === "SELF_DECLARED"
+    && timestamp(value.firstSeenAt)
+    && timestamp(value.lastAccessedAt)
+    && value.firstSeenAt <= value.lastAccessedAt
+    && counter(value.accessCount);
+}
+
 function isActor(value: unknown): value is IssueActorSnapshot {
-  if (!exact(value, ["actorType", "displayName", "member", "agentLabel"])) return false;
+  if (!isObject(value)) return false;
   if (value.actorType === "HUMAN") {
-    return bounded(value.displayName, 80, true)
+    return exact(value, ["actorType", "displayName", "member", "agentLabel"])
+      && bounded(value.displayName, 80, true)
       && isMember(value.member)
       && value.displayName === value.member.displayName
       && value.agentLabel === null;
   }
   if (value.actorType === "AGENT") {
-    return bounded(value.displayName, ISSUE_AGENT_LABEL_MAX_LENGTH, true)
+    return exact(value, [
+      "actorType", "displayName", "member", "agentProfileId", "agentLabel",
+    ])
+      && bounded(value.displayName, ISSUE_AGENT_LABEL_MAX_LENGTH, true)
       && isMember(value.member)
+      && nullable(value.agentProfileId, uuid)
       && bounded(value.agentLabel, ISSUE_AGENT_LABEL_MAX_LENGTH, true)
       && value.displayName === value.agentLabel;
   }
-  return value.actorType === "SYSTEM"
+  return exact(value, ["actorType", "displayName", "member", "agentLabel"])
+    && value.actorType === "SYSTEM"
     && bounded(value.displayName, 80, true)
     && value.member === null
     && value.agentLabel === null;
@@ -218,12 +253,13 @@ function hasSameAnchorLineage(creation: IssueAnchor, live: IssueAnchor): boolean
 function isComment(value: unknown): value is IssueComment {
   if (!exact(value, [
     "commentId", "threadId", "replyToCommentId", "author", "origin", "body",
-    "evidenceRefs", "createdAt",
+    "createdRevision", "evidenceRefs", "createdAt",
   ])
     || !uuid(value.commentId)
     || !uuid(value.threadId)
     || !nullable(value.replyToCommentId, uuid)
     || !isActor(value.author)
+    || !counter(value.createdRevision, 1)
     || !bounded(value.body, ISSUE_COMMENT_MAX_LENGTH, true)
     || !evidenceRefs(value.evidenceRefs)
     || !timestamp(value.createdAt)) return false;
@@ -295,6 +331,8 @@ function sameMember(left: IssueMemberSnapshot, right: IssueMemberSnapshot): bool
 function sameActor(left: IssueActorSnapshot, right: IssueActorSnapshot): boolean {
   if (left.actorType !== right.actorType || left.displayName !== right.displayName
     || left.agentLabel !== right.agentLabel) return false;
+  if (left.actorType === "AGENT" && right.actorType === "AGENT"
+    && left.agentProfileId !== right.agentProfileId) return false;
   if (left.member === null || right.member === null) return left.member === right.member;
   return sameMember(left.member, right.member);
 }
@@ -316,10 +354,53 @@ function taskOrderIsValid(tasks: readonly IssueTask[]): boolean {
 function isTaskAgent(actor: IssueActorSnapshot, task: {
   assignee: IssueMemberSnapshot;
   agentLabel: string;
+  agentProfileId: string | null;
 }): boolean {
   return actor.actorType === "AGENT"
     && sameMember(actor.member, task.assignee)
-    && actor.agentLabel === task.agentLabel;
+    && (task.agentProfileId === null
+      ? actor.agentProfileId === null && actor.agentLabel === task.agentLabel
+      : actor.agentProfileId === task.agentProfileId);
+}
+
+function isPriorContextEntry(value: unknown): boolean {
+  return exact(value, [
+    "activityVersion", "kind", "documentRevision", "revisionId", "taskId",
+    "threadId", "commentId", "actor", "excerpt",
+  ])
+    && counter(value.activityVersion, 1)
+    && [
+      "ISSUE_LAUNCHED", "REVISION_SAVED", "TASK_CREATED", "THREAD_CREATED",
+      "COMMENT_ADDED", "THREAD_RESOLVED", "TASK_CANCELLED", "TASK_PROPOSED",
+      "TASK_COMPLETED", "TASK_REJECTED", "REVISION_RESTORED",
+    ].includes(String(value.kind))
+    && counter(value.documentRevision, 1)
+    && nullable(value.revisionId, uuid)
+    && nullable(value.taskId, uuid)
+    && nullable(value.threadId, uuid)
+    && nullable(value.commentId, uuid)
+    && isActor(value.actor)
+    && bounded(value.excerpt, 600);
+}
+
+function isTaskContext(value: unknown): value is IssueTaskContextSnapshot {
+  return exact(value, [
+    "sourceRevision", "sourceDigest", "documentTitle", "field", "rangeStart",
+    "rangeEnd", "targetText", "beforeText", "afterText", "priorContext",
+  ])
+    && counter(value.sourceRevision, 1)
+    && typeof value.sourceDigest === "string" && DIGEST.test(value.sourceDigest)
+    && bounded(value.documentTitle, ISSUE_TITLE_MAX_LENGTH, true)
+    && (value.field === "TITLE" || value.field === "BODY")
+    && counter(value.rangeStart) && counter(value.rangeEnd)
+    && value.rangeStart < value.rangeEnd
+    && bounded(value.targetText, value.field === "TITLE" ? ISSUE_TITLE_MAX_LENGTH : ISSUE_BODY_MAX_LENGTH)
+    && Array.from(value.targetText).length === value.rangeEnd - value.rangeStart
+    && bounded(value.beforeText, 600) && bounded(value.afterText, 600)
+    && Array.isArray(value.priorContext) && value.priorContext.length <= 10
+    && value.priorContext.every(isPriorContextEntry)
+    && value.priorContext.every((entry, index, all) => index === 0
+      || all[index - 1]!.activityVersion > entry.activityVersion);
 }
 
 function isDecision(value: unknown): value is IssueTaskDecision {
@@ -363,6 +444,7 @@ function isTaskResult(value: unknown): value is IssueTaskResult {
 function isTask(value: unknown): value is IssueTask {
   if (!exact(value, [
     "taskId", "taskKey", "title", "category", "instruction", "agentLabel",
+    "agentProfileId", "context",
     "creator", "assignee", "threadId", "creationAnchor", "createdAt", "updatedAt",
     "mode", "anchor", "status", "proposal", "result", "decision", "resolvedAt",
   ])) return false;
@@ -373,6 +455,9 @@ function isTask(value: unknown): value is IssueTask {
       .includes(String(value.category))
     || !bounded(value.instruction, ISSUE_TASK_INSTRUCTION_MAX_LENGTH, true)
     || !bounded(value.agentLabel, ISSUE_AGENT_LABEL_MAX_LENGTH, true)
+    || !nullable(value.agentProfileId, uuid)
+    || !nullable(value.context, isTaskContext)
+    || (value.agentProfileId === null) !== (value.context === null)
     || !isMember(value.creator) || !isMember(value.assignee)
     || !timestamp(value.createdAt) || !timestamp(value.updatedAt)
     || !isCreationAnchor(value.creationAnchor)
@@ -381,7 +466,11 @@ function isTask(value: unknown): value is IssueTask {
   if ((value.mode === "REVIEW" || value.mode === "DIRECT")
     && value.anchor.scope !== "SELECTION") return false;
   if (!["COMMENT", "REVIEW", "DIRECT"].includes(String(value.mode))) return false;
-  const taskIdentity = { assignee: value.assignee, agentLabel: value.agentLabel };
+  const taskIdentity = {
+    assignee: value.assignee,
+    agentLabel: value.agentLabel,
+    agentProfileId: value.agentProfileId,
+  };
   if (value.status === "OPEN") {
     return value.proposal === null && value.result === null && value.decision === null
       && value.resolvedAt === null;
@@ -524,6 +613,37 @@ function isRevision(value: unknown): value is IssueRevision {
     && bounded(body, ISSUE_BODY_MAX_LENGTH);
 }
 
+function isDirectTaskRevisionCoherent(
+  task: IssueTask,
+  revision: IssueRevisionSummary,
+): boolean {
+  if (task.status !== "COMPLETED" || task.mode !== "DIRECT"
+    || task.result?.outcome !== "COMMITTED"
+    || revision.provenance.authority !== "DIRECT") return false;
+  const { provenance } = revision;
+  const { result } = task;
+  const directDiff = revision.diffs[0];
+  return provenance.taskId === task.taskId
+    && revision.revision === result.resultRevision
+    && provenance.sourceRevision === result.sourceRevision
+    && revision.diffs.length === 1
+    && directDiff !== undefined
+    && directDiff.field === result.liveAnchor.field
+    && directDiff.rangeStart === result.liveAnchor.rangeStart
+    && directDiff.rangeEnd === result.liveAnchor.rangeEnd
+    && directDiff.before === result.liveAnchor.selectedText
+    && directDiff.after === result.replacementText
+    && revision.changeSummary === result.resultSummary
+    && revision.evidenceRefs.length === result.evidenceRefs.length
+    && revision.evidenceRefs.every((reference, index) =>
+      reference === result.evidenceRefs[index])
+    && sameMember(provenance.grantedBy, task.creator)
+    && isTaskAgent(provenance.author, task)
+    && isTaskAgent(provenance.committer, task)
+    && sameActor(provenance.author, result.submittedBy)
+    && sameActor(provenance.committer, result.submittedBy);
+}
+
 function isDocument(value: unknown): value is IssueDocument {
   return exact(value, [
     "id", "protocolVersion", "kind", "title", "body", "revision", "activityVersion",
@@ -544,11 +664,13 @@ function isDocument(value: unknown): value is IssueDocument {
 
 export function isIssueWorkspaceSurface(value: unknown): value is IssueWorkspaceSurface {
   if (!exact(value, [
-    "document", "presence", "members", "tasks", "threads", "history", "hasMoreHistory",
+    "document", "presence", "members", "agents", "tasks", "threads", "history",
+    "hasMoreHistory",
   ])
     || !isDocument(value.document)
     || !Array.isArray(value.presence) || !value.presence.every(isPresence)
     || !Array.isArray(value.members) || !value.members.every(isMember)
+    || !Array.isArray(value.agents) || !value.agents.every(isAgentProfile)
     || !Array.isArray(value.tasks) || value.tasks.length > 500 || !value.tasks.every(isTask)
     || !Array.isArray(value.threads) || !value.threads.every(isThread)
     || !Array.isArray(value.history) || value.history.length < 1
@@ -559,6 +681,16 @@ export function isIssueWorkspaceSurface(value: unknown): value is IssueWorkspace
     || value.presence.some((presence) => !members.has(presence.memberId))
     || new Set(value.presence.map((presence) => presence.memberId)).size !== value.presence.length) {
     return false;
+  }
+  const agentMembers = new Set<string>();
+  const agentProfileOwners = new Map<string, IssueMemberSnapshot>();
+  for (const agent of value.agents) {
+    const owner = members.get(agent.member.memberId);
+    if (!owner || !sameMember(owner, agent.member)
+      || agentMembers.has(agent.member.memberId)
+      || agentProfileOwners.has(agent.profileId)) return false;
+    agentMembers.add(agent.member.memberId);
+    agentProfileOwners.set(agent.profileId, agent.member);
   }
   const taskIds = new Set(value.tasks.map((task) => task.taskId));
   const threadIds = new Set(value.threads.map((thread) => thread.threadId));
@@ -578,6 +710,10 @@ export function isIssueWorkspaceSurface(value: unknown): value is IssueWorkspace
       || !thread || thread.taskId !== task.taskId
       || JSON.stringify(thread.creationAnchor) !== JSON.stringify(task.creationAnchor)
       || JSON.stringify(thread.anchor) !== JSON.stringify(task.anchor)) return false;
+    if (task.agentProfileId !== null) {
+      const profileOwner = agentProfileOwners.get(task.agentProfileId);
+      if (!profileOwner || !sameMember(profileOwner, task.assignee)) return false;
+    }
     if (task.status === "OPEN" || task.status === "PROPOSED") {
       const count = (activePerAssignee.get(task.assignee.memberId) ?? 0) + 1;
       if (count > 50) return false;
@@ -603,6 +739,11 @@ export function isIssueWorkspaceSurface(value: unknown): value is IssueWorkspace
     || value.history.some((revision, index, all) => index > 0
       && all[index - 1]!.revision !== revision.revision + 1)
     || value.hasMoreHistory !== (value.document.revision > value.history.length)) return false;
+  for (const revision of value.history) {
+    if (revision.provenance.authority !== "DIRECT") continue;
+    const task = value.tasks.find((entry) => entry.taskId === revision.provenance.taskId);
+    if (!task || !isDirectTaskRevisionCoherent(task, revision)) return false;
+  }
   return true;
 }
 
@@ -680,6 +821,96 @@ function isHistory(
     : value.nextBeforeRevision === null;
 }
 
+function isConnectOutcome(value: unknown): value is ConnectIssueAgentOutcome {
+  return exact(value, ["profile", "revision", "activityVersion"])
+    && isAgentProfile(value.profile)
+    && counter(value.revision, 1)
+    && counter(value.activityVersion, 1);
+}
+
+function isWaitLease(value: unknown): value is { leaseId: string; expiresAt: string } {
+  return exact(value, ["leaseId", "expiresAt"])
+    && uuid(value.leaseId) && timestamp(value.expiresAt);
+}
+
+function isWaitRelease(value: unknown): value is { released: true } {
+  return exact(value, ["released"]) && value.released === true;
+}
+
+function isContextEvent(value: unknown): value is IssueCollaborationContextEvent {
+  if (!exact(value, [
+    "activityId", "activityVersion", "kind", "documentRevision", "actor",
+    "createdAt", "revision", "task", "thread", "comment",
+  ])
+    || !uuid(value.activityId)
+    || !counter(value.activityVersion, 1)
+    || ![
+      "ISSUE_LAUNCHED", "REVISION_SAVED", "TASK_CREATED", "THREAD_CREATED",
+      "COMMENT_ADDED", "THREAD_RESOLVED", "TASK_CANCELLED", "TASK_PROPOSED",
+      "TASK_COMPLETED", "TASK_REJECTED", "REVISION_RESTORED",
+    ].includes(String(value.kind))
+    || !counter(value.documentRevision, 1)
+    || !isActor(value.actor)
+    || !timestamp(value.createdAt)
+    || !nullable(value.revision, isRevisionSummary)
+    || !nullable(value.task, isTask)
+    || !nullable(value.thread, isThread)
+    || !nullable(value.comment, isComment)) return false;
+  if (value.revision !== null && value.revision.revision !== value.documentRevision
+    || value.task !== null && value.thread !== null
+      && value.task.threadId !== value.thread.threadId
+    || value.comment !== null && (value.thread === null
+      || value.comment.threadId !== value.thread.threadId)) return false;
+  return value.revision?.provenance.authority !== "DIRECT"
+    || value.task !== null && isDirectTaskRevisionCoherent(value.task, value.revision);
+}
+
+function isCollaborationContext(
+  value: unknown,
+  input: ReadCollaborationContextInput,
+): value is ReadCollaborationContextOutcome {
+  if (!exact(value, [
+    "agents", "events", "hasMoreOlder", "nextBeforeActivityVersion",
+    "currentRevision", "currentActivityVersion",
+  ])
+    || !Array.isArray(value.agents) || !value.agents.every(isAgentProfile)
+    || !Array.isArray(value.events) || value.events.length > 50
+    || !value.events.every(isContextEvent)
+    || value.events.some((event, index, all) => index > 0
+      && all[index - 1]!.activityVersion !== event.activityVersion + 1)
+    || typeof value.hasMoreOlder !== "boolean"
+    || !nullable(value.nextBeforeActivityVersion, (entry): entry is number => counter(entry, 1))
+    || !counter(value.currentRevision, 1)
+    || !counter(value.currentActivityVersion, 1)) return false;
+  const agentProfileOwners = new Map(value.agents.map((agent) => [
+    agent.profileId,
+    agent.member,
+  ]));
+  const agentMemberIds = new Set(value.agents.map((agent) => agent.member.memberId));
+  if (agentProfileOwners.size !== value.agents.length
+    || agentMemberIds.size !== value.agents.length
+    || value.events.some((event) => {
+      const task = event.task;
+      if (task === null || task.agentProfileId === null) return false;
+      const profileOwner = agentProfileOwners.get(task.agentProfileId);
+      return !profileOwner || !sameMember(profileOwner, task.assignee);
+    })) return false;
+  const currentRevision = value.currentRevision;
+  const currentActivityVersion = value.currentActivityVersion;
+  if (value.events.some((event) => event.activityVersion > currentActivityVersion
+    || event.documentRevision > currentRevision)) return false;
+  const newestExpected = input.beforeActivityVersion === undefined
+    ? currentActivityVersion
+    : Math.min(currentActivityVersion, input.beforeActivityVersion - 1);
+  const expectedLength = Math.min(input.limit ?? 20, Math.max(0, newestExpected));
+  if (value.events.length !== expectedLength
+    || expectedLength > 0 && value.events[0]!.activityVersion !== newestExpected) return false;
+  const oldest = value.events.at(-1)?.activityVersion ?? null;
+  return value.hasMoreOlder
+    ? oldest !== null && oldest > 1 && value.nextBeforeActivityVersion === oldest
+    : value.nextBeforeActivityVersion === null;
+}
+
 function isList(value: unknown, includeResolved = true): value is ListMyIssueTasksOutcome {
   return exact(value, ["tasks", "revision", "activityVersion"])
     && Array.isArray(value.tasks) && value.tasks.length <= 500 && value.tasks.every(isTaskView)
@@ -705,12 +936,8 @@ function isSubmitOutcome(value: unknown): value is SubmitIssueTaskResultOutcome 
   if (!exact(value, ["outcome", "task", "revision", "activityVersion"])) return false;
   if (!isTask(value.task) || !counter(value.activityVersion, 1)) return false;
   if (value.outcome === "COMMITTED") {
-    return value.task.status === "COMPLETED" && value.task.mode === "DIRECT"
-      && value.task.result?.outcome === "COMMITTED"
-      && isRevision(value.revision)
-      && value.revision.revision === value.task.result.resultRevision
-      && value.revision.provenance.authority === "DIRECT"
-      && value.revision.provenance.taskId === value.task.taskId;
+    return isRevision(value.revision)
+      && isDirectTaskRevisionCoherent(value.task, value.revision);
   }
   return (value.outcome === "COMMENTED" && value.task.status === "COMPLETED"
         && value.task.mode === "COMMENT" && value.task.result?.outcome === "COMMENTED"
@@ -731,8 +958,12 @@ function isReset(value: unknown): value is ResetPostmortemHeroOutcome {
     value.priyaBootstrapPath, value.nadiaBootstrapPath,
     value.leoBootstrapPath, value.samBootstrapPath,
   ];
-  return paths.every((path) => typeof path === "string" && path.startsWith(prefix)
-      && /^[A-Za-z0-9_-]{32,16384}$/u.test(path.slice(prefix.length)))
+  return paths.every((path) => {
+    if (typeof path !== "string" || !path.startsWith(prefix)) return false;
+    const fragment = path.slice(prefix.length);
+    return fragment.length >= 32 && fragment.length <= BOOTSTRAP_FRAGMENT_MAX_LENGTH
+      && /^[A-Za-z0-9_-]+$/u.test(fragment);
+  })
     && new Set(paths).size === paths.length;
 }
 
@@ -828,34 +1059,83 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
   }
 
   async launch(input: LaunchIssueHttpInput, signal?: AbortSignal) {
+    if (!exact(input, ["kind", "displayName"])
+      || !["POSTMORTEM", "PRODUCT_DOCUMENT"].includes(String(input.kind))
+      || !bounded(input.displayName, 80, true)) {
+      return this.invalidInput<IssueSessionBundle>(
+        "A valid issue kind and display name are required.",
+      );
+    }
     return normalizeRepositoryResult(
-      await this.rpc("ratiflow_launch_issue_v4", { p_input: input }, signal),
+      await this.rpc("ratiflow_launch_issue_v4", {
+        p_input: input,
+        p_response_contract: RESPONSE_CONTRACT,
+      }, signal),
       isSession,
     );
   }
 
   async launchExample(input: LaunchIssueExampleHttpInput, signal?: AbortSignal) {
-    if (!exact(input, [])) {
-      return this.invalidInput<IssueSessionBundle>("The example request must be empty.");
+    if (!exact(input, ["kind", "displayName"])
+      || !["POSTMORTEM", "PRODUCT_DOCUMENT"].includes(String(input.kind))
+      || !bounded(input.displayName, 80, true)) {
+      return this.invalidInput<IssueSessionBundle>(
+        "A valid example kind and display name are required.",
+      );
     }
     return normalizeRepositoryResult(
-      await this.rpc("ratiflow_launch_issue_v4", { p_input: {}, p_example: true }, signal),
+      await this.rpc("ratiflow_launch_issue_v4", {
+        p_input: input,
+        p_example: true,
+        p_response_contract: RESPONSE_CONTRACT,
+      }, signal),
       isSession,
     );
   }
 
   async join(input: JoinIssueHttpInput, signal?: AbortSignal) {
+    if (!exact(input, ["shareToken", "displayName"])
+      || !token(input.shareToken)
+      || !bounded(input.displayName, 80, true)) {
+      return this.invalidInput<IssueSessionBundle>(
+        "A valid share token and display name are required.",
+      );
+    }
     const { shareToken, ...joinInput } = input;
     return normalizeRepositoryResult(await this.rpc(
       "ratiflow_join_issue_v4",
-      { p_share_token: shareToken, p_input: joinInput },
+      {
+        p_share_token: shareToken,
+        p_input: joinInput,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
       signal,
     ), isSession);
   }
 
   async inspect(sessionToken: string, signal?: AbortSignal) {
     return normalizeRepositoryResult(await this.rpc(
-      "ratiflow_inspect_issue_v4", { p_handle: sessionToken }, signal,
+      "ratiflow_inspect_issue_v4", {
+        p_handle: sessionToken,
+        p_response_contract: RESPONSE_CONTRACT,
+      }, signal,
+    ), isIssueWorkspaceSurface);
+  }
+
+  async inspectAsAgent(
+    agentSessionToken: string,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!uuid(pageSessionId)) return this.invalidPage<IssueWorkspaceSurface>();
+    return normalizeRepositoryResult(await this.rpc(
+      "ratiflow_inspect_issue_v4",
+      {
+        p_handle: agentSessionToken,
+        p_page_session_id: pageSessionId,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
+      signal,
     ), isIssueWorkspaceSurface);
   }
 
@@ -864,6 +1144,13 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     input: SaveIssueRevisionServiceInput,
     signal?: AbortSignal,
   ) {
+    if (!exact(input, ["requestId", "expectedRevision", "title", "body"])
+      || !uuid(input.requestId)
+      || !counter(input.expectedRevision)
+      || !bounded(input.title, ISSUE_TITLE_MAX_LENGTH, true)
+      || !bounded(input.body, ISSUE_BODY_MAX_LENGTH)) {
+      return this.invalidInput<IssueWorkspaceSurface>("The revision input is invalid.");
+    }
     return this.surfaceMutation("ratiflow_save_issue_revision_v4", sessionToken, input, signal);
   }
 
@@ -873,6 +1160,14 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     signal?: AbortSignal,
   ) {
     return this.surfaceMutation("ratiflow_create_issue_task_v4", sessionToken, input, signal);
+  }
+
+  async createMentionTask(
+    sessionToken: string,
+    input: CreateMentionTaskServiceInput,
+    signal?: AbortSignal,
+  ) {
+    return this.surfaceMutation("ratiflow_create_issue_mention_v4", sessionToken, input, signal, false);
   }
 
   async createThread(
@@ -940,16 +1235,90 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     signal?: AbortSignal,
   ) {
     return normalizeRepositoryResult(await this.rpc(
-      "ratiflow_read_issue_history_v4", { p_handle: sessionToken, p_input: input }, signal,
+      "ratiflow_read_issue_history_v4", {
+        p_handle: sessionToken,
+        p_input: input,
+        p_response_contract: RESPONSE_CONTRACT,
+      }, signal,
     ), (value): value is ReadIssueHistoryOutcome => isHistory(value, input));
   }
 
   async readRevision(sessionToken: string, revision: number, signal?: AbortSignal) {
     return normalizeRepositoryResult(await this.rpc(
       "ratiflow_read_issue_revision_v4",
-      { p_handle: sessionToken, p_input: { revision } },
+      {
+        p_handle: sessionToken,
+        p_input: { revision },
+        p_response_contract: RESPONSE_CONTRACT,
+      },
       signal,
     ), isRevision);
+  }
+
+  async readHistoryAsAgent(
+    agentSessionToken: string,
+    input: ReadIssueHistoryInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!uuid(pageSessionId)) return this.invalidPage<ReadIssueHistoryOutcome>();
+    return normalizeRepositoryResult(await this.rpc(
+      "ratiflow_read_issue_history_v4",
+      {
+        p_handle: agentSessionToken,
+        p_input: input,
+        p_page_session_id: pageSessionId,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
+      signal,
+    ), (value): value is ReadIssueHistoryOutcome => isHistory(value, input));
+  }
+
+  async readRevisionAsAgent(
+    agentSessionToken: string,
+    revision: number,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!uuid(pageSessionId)) return this.invalidPage<IssueRevision>();
+    return normalizeRepositoryResult(await this.rpc(
+      "ratiflow_read_issue_revision_v4",
+      {
+        p_handle: agentSessionToken,
+        p_input: { revision },
+        p_page_session_id: pageSessionId,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
+      signal,
+    ), isRevision);
+  }
+
+  async connectAgent(
+    agentSessionToken: string,
+    input: ConnectIssueAgentServiceInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!uuid(pageSessionId)) return this.invalidPage<ConnectIssueAgentOutcome>();
+    return normalizeRepositoryResult(await this.rpc(
+      "ratiflow_connect_issue_agent_v4",
+      { p_handle: agentSessionToken, p_page_session_id: pageSessionId, p_input: input },
+      signal,
+    ), isConnectOutcome);
+  }
+
+  async readCollaborationContext(
+    agentSessionToken: string,
+    input: ReadCollaborationContextInput,
+    pageSessionId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!uuid(pageSessionId)) return this.invalidPage<ReadCollaborationContextOutcome>();
+    return normalizeRepositoryResult(await this.rpc(
+      "ratiflow_read_issue_collaboration_context_v4",
+      { p_handle: agentSessionToken, p_page_session_id: pageSessionId, p_input: input },
+      signal,
+    ), (value): value is ReadCollaborationContextOutcome => isCollaborationContext(value, input));
   }
 
   async listMyTasks(
@@ -961,7 +1330,12 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     if (!uuid(pageSessionId)) return this.invalidPage<ListMyIssueTasksOutcome>();
     return normalizeRepositoryResult(await this.rpc(
       "ratiflow_list_my_issue_tasks_v4",
-      { p_handle: agentSessionToken, p_page_session_id: pageSessionId, p_input: input },
+      {
+        p_handle: agentSessionToken,
+        p_page_session_id: pageSessionId,
+        p_input: input,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
       signal,
     ), (value): value is ListMyIssueTasksOutcome => isList(value, input.includeResolved === true));
   }
@@ -986,7 +1360,9 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     );
     const deadlineSignal = createWaitDeadlineSignal(deadline, deadlineReason, signal);
     const key = `${agentSessionToken}:${pageSessionId}`;
+    const leaseId = globalThis.crypto.randomUUID();
     let registeredWait = false;
+    let leaseAcquired = false;
     let lastSnapshot: ListMyIssueTasksOutcome = {
       tasks: [],
       revision: input.afterRevision,
@@ -1116,6 +1492,28 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       const immediate = readyOutcome(listed.data);
       if (immediate) return immediate;
 
+      let lease: RepositoryResult<{ leaseId: string; expiresAt: string }>;
+      try {
+        lease = normalizeRepositoryResult(await this.rpc(
+          "ratiflow_begin_issue_task_wait_v4",
+          {
+            p_handle: agentSessionToken,
+            p_page_session_id: pageSessionId,
+            p_lease_id: leaseId,
+            p_deadline: new Date(deadline).toISOString(),
+          },
+          deadlineSignal.signal,
+        ), isWaitLease);
+      } catch (error) {
+        if (signal?.aborted) throw abortError(signal);
+        if (deadlineSignal.signal.reason === deadlineReason) {
+          return await finalRefresh();
+        }
+        throw error;
+      }
+      if (!lease.ok) return lease;
+      leaseAcquired = true;
+
       while (Date.now() < deadline) {
         if (signal?.aborted) throw abortError(signal);
         const remaining = deadline - Date.now();
@@ -1143,6 +1541,32 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       }
       return await finalRefresh();
     } finally {
+      if (leaseAcquired) {
+        const cleanupReason = new DOMException(
+          "The task-wait lease cleanup exceeded its bounded grace period.",
+          "TimeoutError",
+        );
+        const cleanupSignal = createWaitDeadlineSignal(
+          Date.now() + ISSUE_WAIT_CLEANUP_GRACE_MS,
+          cleanupReason,
+        );
+        try {
+          normalizeRepositoryResult(await this.rpc(
+            "ratiflow_end_issue_task_wait_v4",
+            {
+              p_handle: agentSessionToken,
+              p_page_session_id: pageSessionId,
+              p_lease_id: leaseId,
+            },
+            cleanupSignal.signal,
+          ), isWaitRelease);
+        } catch {
+          // The database lease has a bounded server-clock expiry. A transport
+          // failure here cannot let an old waiter delete a successor's UUID.
+        } finally {
+          cleanupSignal.dispose();
+        }
+      }
       if (registeredWait) this.activeWaits.delete(key);
       deadlineSignal.dispose();
     }
@@ -1168,7 +1592,12 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     }
     return normalizeRepositoryResult(await this.rpc(
       "ratiflow_comment_on_issue_task_v4",
-      { p_handle: agentSessionToken, p_page_session_id: pageSessionId, p_input: input },
+      {
+        p_handle: agentSessionToken,
+        p_page_session_id: pageSessionId,
+        p_input: input,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
       signal,
     ), isAgentCommentOutcome);
   }
@@ -1187,7 +1616,12 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     }
     return normalizeRepositoryResult(await this.rpc(
       "ratiflow_submit_issue_task_result_v4",
-      { p_handle: agentSessionToken, p_page_session_id: pageSessionId, p_input: input },
+      {
+        p_handle: agentSessionToken,
+        p_page_session_id: pageSessionId,
+        p_input: input,
+        p_response_contract: RESPONSE_CONTRACT,
+      },
       signal,
     ), isSubmitOutcome);
   }
@@ -1227,9 +1661,14 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     sessionToken: string,
     input: object,
     signal?: AbortSignal,
+    includeResponseContract = true,
   ): Promise<RepositoryResult<IssueWorkspaceSurface>> {
     return normalizeRepositoryResult(await this.rpc(
-      name, { p_handle: sessionToken, p_input: input }, signal,
+      name, {
+        p_handle: sessionToken,
+        p_input: input,
+        ...(includeResponseContract ? { p_response_contract: RESPONSE_CONTRACT } : {}),
+      }, signal,
     ), isIssueWorkspaceSurface);
   }
 

@@ -4,22 +4,21 @@
 
 Ratiflow is a shared issue document where people and the agents they bring work on one
 durable artifact. Anyone with the link can read and edit through the ordinary web UI.
+Select a passage and leave a comment; `@Databot check these figures` becomes durable
+agent work, while an ordinary comment remains a human discussion. There is no authority
+form and no pre-approval queue in the flagship interaction.
+
 A compatible browser agent gets a page-native WebMCP surface for its assigned work,
-discussion, and document history—without a proprietary bot runtime or an integration
-for each model.
-
-The task creator decides the authority boundary:
-
-- **Comment only** — the agent returns a finding to the task discussion.
-- **Review required** — the agent proposes a scoped change; its creator accepts or
-  rejects it.
-- **Can edit directly** — the agent may commit only inside the exact range stored on
-  that task. No Ratiflow approval step is added.
+discussion, and complete collaboration history—without a proprietary bot runtime or an
+integration for each model. Agent changes commit directly inside the exact stored range.
+The completed comment shows the prompt, source context, owner-bound agent identity,
+rationale, evidence, highlighted diff, and revision, and a person can restore it.
 
 Every content change becomes an immutable, reconstructable revision. History records
-the author, committer, task, grantor, approver, source revision, evidence, summary,
-complete snapshot, and diff. Agents cannot choose or escalate their own authority,
-forge identity, or write outside a task's anchor.
+the author, committer, task, grantor, source revision, evidence, summary, complete
+snapshot, and diff. An agent self-declares its name once per page; the server binds that
+profile to the authenticated human owner. Agents cannot forge their owner or write
+outside a task's anchor.
 
 Ratiflow deliberately supports exactly two document types:
 
@@ -35,81 +34,83 @@ account system, or background agent runner.
 
 The deterministic example is **INC-482 · Checkout outage postmortem**.
 
-1. Priya opens a readable r1 postmortem and creates three anchored tasks together:
-   DATA-17, LOG-22, and CODE-9.
-2. The Data and Logging agents receive **Can edit directly**. Each can commit only its
-   stored selection. Their disjoint stale-r1 changes safely land as r2 and r3 without
-   overwriting one another.
-3. The Builder agent receives **Review required**. It identifies commit `7d3c9e1` as
-   the retry amplifier, submits a proposal, and leaves the document unchanged at r3.
-4. Priya asks a question in the durable task thread. The Builder replies with evidence.
-5. Priya accepts once. Ratiflow creates r4 with the Builder as author and Priya as
-   approver and committer.
-6. A fresh agent later reads the resolved task and immutable history, then correctly
-   explains that provider throttling was the trigger while the retry change sustained
-   the outage.
+1. Priya selects the Impact, Timeline, and Root cause placeholders and leaves three
+   comments: `@Databot …`, `@Logbot …`, and `@Builder …`.
+2. Those comments atomically become `TASK-1` through `TASK-3`, each with its exact r1
+   source passage and the coordination context that existed when it was created.
+3. Databot adds verified totals, a GFM table, and a revisioned bar chart as r2. Logbot's
+   disjoint stale-r1 timeline safely lands as r3. Builder separates the provider trigger
+   from the retry amplifier in r4.
+4. Priya leaves a normal human comment challenging that wording. The discussion closes;
+   it is not an approval event. She then assigns `TASK-4` to Builder from the revised
+   passage, and Builder's evidence-backed clarification commits as r5.
+5. A genuinely new `Contextbot` reads the activity ledger and recovers the prompts,
+   closed discussion, evidence, revisions, and the decision that changed the final text.
 
-The public **Open incident example** creates a fresh completed r4/av10 clone of this
-scenario. The protected evaluation reset creates the executable r1/av4 starting state
+The Product document example is equally complete: a corrected capacity assumption,
+Databot comparison table and chart, ChatGPT synthesis, a closed launch-language
+discussion, an intentionally broadened r5 edit, and a new r6 Restore that preserves r5.
+
+The public examples create fresh completed Postmortem r5/av11 or Product r6/av11
+workspaces. The protected reset retains its executable Postmortem r1/av4 starting state
 with four isolated collaborator bootstrap paths.
 
-## Six page-native tools
+## Eight page-native tools
 
-The top-level v4 issue page registers exactly six tools through
+The top-level v4.1 issue page registers exactly eight tools through
 `document.modelContext`. The page captures its current document, session, and ephemeral
 page identity; the server remains authoritative for every read and mutation.
 
 | Tool | Purpose |
 | --- | --- |
+| `connect_agent` | Self-declare the page's agent name; the server binds it to the authenticated human owner. |
 | `inspect_document` | Read the authoritative document, collaborators, tasks, comments, and current counters. |
 | `read_document_history` | Read newest-first revision summaries or one complete immutable historical snapshot. |
+| `read_collaboration_context` | Page the immutable activity ledger with prompts, comments, revisions, rationale, evidence, and owner-bound profiles. |
 | `list_my_tasks` | List only this collaborator's delegated agent tasks, with complete bounded discussions. |
 | `wait_for_my_tasks` | Long-poll from explicit cursors for owned work or a document change. |
 | `comment_on_task` | Append an ownership-checked agent reply to its task discussion. |
-| `submit_task_result` | Let the server derive `COMMENTED`, `PROPOSED`, or `COMMITTED` from the task's stored mode. |
+| `submit_task_result` | Commit a bounded agent result with rationale and evidence, or preserve compatibility behavior for legacy tasks. |
 
-There is no agent tool to create, reassign, cancel, accept, reject, restore, select a
-mode, or directly name an actor. Tool presence guides the agent; session ownership,
-page identity, revision checks, task mode, and range constraints enforce authority.
+There is no agent tool to create, reassign, cancel, accept, reject, or restore work.
+Tool presence guides the agent; server-bound ownership, page generation, revision
+checks, and exact source ranges enforce authority.
 
 ```text
 shared issue document
-  ├─ people → edit, comment, assign, decide, restore
-  └─ their agents → inspect, history, owned tasks, wait, discuss, submit result
-                                         │
-                           server derives task authority
-                     ┌───────────────────┼───────────────────┐
-                  COMMENT              REVIEW              DIRECT
-                  finding              proposal       scoped revision
-                     └───────────────────┼───────────────────┘
-                              immutable provenance
+  ├─ people → edit, comment, @assign, close, restore
+  └─ their agents → connect, inspect context, do owned work
+                              │
+                     exact scoped revision
+                              │
+                   immutable provenance
 ```
 
 ## A document interface first
 
-`/` resumes the most recent valid workspace when one exists; `/new` always presents the
-two templates and the completed incident example without silently reopening old work.
-`/issue/[shareToken]` is a shareable workspace whose document remains visually primary.
-The quiet **Threads | History** rail contains open and completed tasks, anchored
-discussion, proposals, diffs, full historical snapshots, and restore controls.
+`/` and `/new` always present nickname setup, the two templates, and both completed
+examples instead of silently reopening old work. `/issue/[shareToken]` resumes its
+matching stored session and remains the shareable workspace whose rendered Markdown
+document is visually primary. Tables render as tables; validated `chart` fences render
+accessible static SVG plus a tabular fallback. A quiet Edit action reveals Markdown
+source only when someone needs it, and save summaries are derived rather than typed.
 
-Completed documents also surface a compact **Revision path** above the fold. It names
-who started the document, which agents committed directly, where a stale-base result was
-safely rebased, and which reviewed change a person accepted—so provenance is useful
-before anyone opens the full history rail.
+After a document opens, a dismissible setup strip explains how to bring one current
+agent for that collaborator. In a WebMCP-capable client, name the agent locally, copy the
+generated instruction, and send it to the agent. The profile is not created until the
+agent itself calls `connect_agent`; the status then changes from tool-ready to the exact
+page-scoped `agent · owner` connection. Teammates connect their own agents.
 
-Human edits use an explicit **Save revision** action and a nonblank change summary.
-Native undo/redo remains available. If remote activity advances the head while someone
-has a draft, Ratiflow preserves the draft and offers a deliberate merge choice; an
-asynchronous task result never silently owns or erases local writing.
-
-A non-empty selection exposes **Comment** and **Create task**. The task composer makes
-the assignee, instruction, target, and native access radios explicit. **Review required**
-is the default. Comment tasks may instead target the entire document.
+A text or whole-block selection opens one compact anchored comment composer. Selecting
+an autocomplete result creates `@Agent` work; literal or unselected `@` text creates a
+normal comment. The unified comment rail shows discussion and completed work in place.
+History is a quiet Git-like view with immutable snapshots, provenance, diffs, and
+Restore—useful to people, but primarily the durable context plane agents read.
 
 WebMCP is optional. With it absent, people can still create, read, edit, share, comment,
-reply, create/cancel/decide tasks, inspect history, and restore a revision. The UI never
-pretends that an external agent is connected or running.
+reply, close discussions, inspect history, and restore a revision. A recorded agent
+profile is an assignment target, not a live-presence claim; Ratiflow never pretends it
+can wake a dormant external agent.
 
 ## Why WebMCP matters
 
@@ -118,29 +119,29 @@ into copied prompts, pasted findings, ad hoc permissions, and lost reasoning. Ra
 turns the live document into a discoverable capability and context plane:
 
 - agents find assigned work and complete discussion without a vendor-specific adapter;
-- results are applied according to task authority chosen by a person, not by model
-  instructions;
+- new `@Agent` results commit only to the exact passage a person selected; legacy task
+  modes remain readable for compatibility but are absent from the flagship UI;
 - concurrent disjoint work can land without a global approval queue;
 - completed reasoning remains recoverable by a fresh agent; and
 - people keep a complete ordinary web workflow when no agent is present.
 
 The host browser may still apply its own safety confirmation. That platform policy is
-separate from Ratiflow's Comment/Review/Direct product authority and is reported
-separately in evidence.
+separate from Ratiflow's no-preapproval product flow and is reported separately in
+evidence.
 
 ## Architecture
 
 ```text
 Next.js issue page
   ├─ ordinary human UI → authenticated repository-v4 routes
-  └─ document.modelContext → checked six-tool WebMCP lifecycle
+  └─ document.modelContext → checked eight-tool WebMCP lifecycle
                                     ↓
                          authoritative service port
                       ┌─────────────┴─────────────┐
                  local reference service   Supabase RPC adapter
                       └─────────────┬─────────────┘
                 full snapshots + revision/activity counters
-                     tasks + discussions + replay ledger
+            profiles + tasks + discussions + replay/context ledger
 ```
 
 - Next.js App Router, React, TypeScript, CSS Modules, pnpm, and Vercel provide the web
@@ -213,7 +214,7 @@ pnpm eval:reset:v4
 ```
 
 Browser automation and adapter calls are never labeled native WebMCP evidence. Native
-proof requires a supported client discovering and invoking the six tools on the
+proof requires a supported client discovering and invoking the eight tools on the
 top-level deployed issue page.
 
 ## Evaluation and release status
@@ -222,12 +223,11 @@ The checked [evaluation contract](EVALS.md) defines 25 domain/persistence rows, 
 ordinary-browser rows, 10 deployed-native rows, six five-run agent trajectories, four
 visual rows, five release gates, an ablation, and four independent competition judges.
 
-The v4 implementation is currently a verified local candidate: `.codex/verify.sh`
-passes 408 tests across 55 files, the production build passes, the ordinary-browser
-suite passes 10/10, and the same ten journeys pass 50/50 across five consecutive
-rehearsals. A local supported-client diagnostic discovered exactly six tools, completed
-the read-only document/history/task calls, and observed clean teardown on `/new`; it is
-not deployed native release evidence.
+The previous v4 implementation was a verified release candidate. The v4.1 comment-first
+redesign must re-run the complete local, browser, persistence, and native evidence gates
+before inheriting any of those claims. A supported-client run must discover exactly
+eight tools, begin with `connect_agent`, exercise collaboration context, and observe
+clean teardown on `/new`; adapter-only calls are not deployed native evidence.
 
 Supabase remote apply/advisors, native write/authority matrices on the exact deployed
 SHA, real-agent trajectories and ablation, independent visual approval, public video,
@@ -240,11 +240,13 @@ separate release actions and require explicit authorization.
 
 ## Project documents
 
-- [Product specification](product_spec.md) — frozen v4 product and authority contract.
+- [Product specification](product_spec.md) — frozen v4.1 collaboration and authority contract.
 - [Repository contract](docs/contracts/repository-contract.md) — checked entities,
   routes, lifecycle, replay, security, and concurrency behavior.
-- [Postmortem hero](docs/contracts/postmortem-hero-scenario.md) — exact INC-482 r1-r4
+- [Postmortem hero](docs/contracts/postmortem-hero-scenario.md) — exact INC-482 r1-r5
   scenario and fresh-agent answer key.
+- [Product-document hero](docs/contracts/product-document-hero-scenario.md) — exact
+  capacity-planning r1-r6 scenario, including the preserved broadened edit and Restore.
 - [Evaluation contract](EVALS.md) — automated, browser, native, trajectory, visual,
   rehearsal, and competition-judge gates.
 - [Current evidence ledger](EVAL_RESULTS.md) — observed proof; older v3 rows remain

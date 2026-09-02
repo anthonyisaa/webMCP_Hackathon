@@ -37,18 +37,23 @@ function requestIds(): () => string {
 
 async function workspace(memberCount: number) {
   const service = new LocalRepositoryService({ now: () => FIXED_NOW });
+  const nextRequestId = requestIds();
   const owner = success(await service.launch({
     kind: "POSTMORTEM",
     displayName: "Limit owner",
   }));
   const assignees: IssueSessionBundle[] = [];
   for (let index = 0; index < memberCount; index += 1) {
-    assignees.push(success(await service.join({
+    const assignee = success(await service.join({
       shareToken: owner.shareToken,
       displayName: `Limit assignee ${index + 1}`,
-    })));
+    }));
+    success(await service.connectAgent(assignee.agentSessionToken, {
+      requestId: nextRequestId(), name: "Boundary agent",
+    }, assignee.sessionInstanceId));
+    assignees.push(assignee);
   }
-  return { service, owner, assignees, nextRequestId: requestIds() };
+  return { service, owner, assignees, nextRequestId };
 }
 
 function taskInput(

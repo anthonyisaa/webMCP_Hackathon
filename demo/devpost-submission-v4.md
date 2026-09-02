@@ -1,142 +1,184 @@
-# Ratiflow — Devpost submission draft (v4)
+# Ratiflow — Devpost submission draft (v4.1)
 
-**Tagline:** Git-grade history and task-scoped autonomy for important documents.
+**Tagline:** A shared document that remembers why.
 
-**Short description:** Ratiflow is a shared postmortem or product document where people
-delegate exact passages to the agents they bring. Humans choose Comment, Review, or
-Direct authority per task; the server enforces the range and every accepted or direct
-change becomes an immutable, reconstructable revision with complete provenance.
+**Short description:** Ratiflow lets a person select a passage, leave an anchored
+`@Agent` comment, and keep writing. The assigned agent can commit only that passage.
+Its prompt, source context, rationale, evidence, owner, diff, and revision remain
+attached to the document so another person—or a completely new agent—can understand
+how the current version came to be.
 
-This is candidate copy. Replace every bracketed release field only after it is observed
-on one clean public SHA. Local browser or adapter evidence must not be described as
-native WebMCP evidence.
+> Candidate copy only. Do not describe the current build as deployed, live-database
+> verified, or natively proven through a supported WebMCP client until those checks have
+> been observed against one release SHA.
 
 ## Inspiration
 
-Teams already collaborate with several people and several agents, but an important
-document still ends up with the weakest possible history: pasted chat fragments,
-untraceable rewrites, and a review queue where every machine edit needs the same human
-approval.
+Collaborative documents make human editing feel effortless, but agent collaboration
+often starts by leaving the document: copy context into a chat, paste the answer back,
+then lose the prompt and reasoning that produced it. Approval forms do not fix that.
+They just make every agent edit feel heavier.
 
-Git solved a related problem for code: durable revisions, authorship, diffs, and the
-ability to inspect how the result came to be. Task systems solved delegation. Ratiflow
-combines those ideas around one readable document without turning the page into a Git
-client or requiring everyone to use the same agent vendor.
+Ratiflow borrows durable snapshots, authorship, diffs, and Restore from Git, then hides
+the machinery behind a document interface. The page stays readable. The history is
+quiet until a person—or WebMCP—needs it.
 
 ## What it does
 
-Ratiflow supports exactly two focused artifacts: an Incident postmortem and a Product
-document. Anyone with the shared URL can use the ordinary web UI to read, edit, comment,
-delegate, review, inspect history, and restore. WebMCP is optional.
+After entering a name, a person opens either an **Incident postmortem** or a **Product
+document**. To delegate work they select rendered text, open one anchored comment, and
+write something natural:
 
-For agent work, the task creator selects one immutable authority mode:
+```text
+@ChatGPT Rework this paragraph so the decision and tradeoff are explicit.
+```
 
-- **Comment only** appends a finding to the task discussion.
-- **Review required** stores a scoped proposal while the document stays unchanged.
-- **Can edit directly** commits exactly the assigned range with no additional Ratiflow
-  approval step.
+```text
+@Databot Use the latest numbers to replace this placeholder with a GFM table and chart.
+```
 
-The model cannot name an actor, choose a mode, expand a range, approve itself, or restore
-history. The server derives those facts from the paired session and stored task. Direct
-does not mean broad write access.
+Autocomplete selects a known, owner-bound agent profile. A recognized leading mention
+atomically becomes `TASK-n`; any other comment remains a human discussion. There is no
+task form, authority checkbox, or document-approval queue.
 
-Every content mutation appends a complete title/body snapshot and SHA-256 digest. Its
-provenance records the source and parent revisions, exact diff, author, committer,
-grantor, approver, task, origin, evidence, summary, and timestamp. Restore creates a new
-revision; it never rewrites an old one.
+The selected agent can discuss its task or submit a scoped replacement. A successful
+result commits immediately as the next immutable revision. The completed comment shows
+the highlighted before/after change, rationale, evidence, revision link, agent name,
+and human owner. A person can **Restore** a prior snapshot afterward; Restore appends a
+new revision instead of deleting the change. Human discussions use **Close**, which
+records who closed them without pretending that a content change was accepted.
 
-## Why WebMCP is essential
+Markdown is real source, not decoration. Reading mode safely renders headings, lists,
+links, and GFM tables. A validated fenced `chart` object renders an accessible bar or
+line chart plus its data table; unsafe HTML, executable content, remote images, and
+unvalidated chart options never run.
 
-Bring-your-own-agent collaboration needs live page context that a pasted prompt or
-vendor-specific bot cannot safely preserve: which document is open, which paired person
-owns the task, which exact passage was granted, which revision it came from, and whether
-the human chose Comment, Review, or Direct.
+## The history agents can actually use
 
-The top-level issue page exposes exactly six stable tools through
-`document.modelContext`:
+Every content revision stores a full title/body snapshot and SHA-256 digest. Agent work
+also retains its exact `@` prompt, immutable source range, source revision and digest,
+bounded surrounding and prior collaboration context, submitted rationale, evidence,
+server-computed diff, agent profile, human owner, and source/parent revision lineage.
+Human saves, comments, replies, closures, agent assignments, completions, and Restore
+events form a separate ordered collaboration ledger.
 
-1. `inspect_document`
-2. `read_document_history`
-3. `list_my_tasks`
-4. `wait_for_my_tasks`
-5. `comment_on_task`
-6. `submit_task_result`
+This distinction keeps the human view simple while giving a newly connected agent the
+facts behind the head revision—including decisions that only occurred in comments.
 
-The catalog deliberately omits human management and authority operations: agents cannot
-create, reassign, cancel, accept, reject, restore, or select a mode. One generic result
-tool returns `COMMENTED`, `PROPOSED`, or `COMMITTED` according to the task authority the
-server already knows. That makes the page a portable capability and context plane for
-any compatible agent while keeping enforcement out of the prompt.
+## Bring your own agent through WebMCP
 
-## The flagship scenario
+The top-level document page exposes exactly eight tools through
+`document.modelContext`, in this order:
 
-In `INC-482`, Priya creates three tasks from r1. The Data agent commits verified impact
-figures directly as r2. The Logging agent also started from r1; after Data lands, its
-disjoint Direct change safely rebases to r3 without overwriting anything. The Builder
-agent has Review authority, so its root-cause result remains a proposal.
+1. `connect_agent`
+2. `inspect_document`
+3. `read_document_history`
+4. `read_collaboration_context`
+5. `list_my_tasks`
+6. `wait_for_my_tasks`
+7. `comment_on_task`
+8. `submit_task_result`
 
-Priya challenges whether the team is blaming its own code when provider throttling
-happened first. The Builder replies with the retry and rollback evidence. Priya accepts
-after separating the external trigger from the internal amplifier, creating r4 with the
-Builder as author and Priya as approver and committer.
+The first call in each page-registration lifetime is `connect_agent({ name })`. The
+name is explicitly self-declared—not vendor-verified—and the server binds it to the
+authenticated human member behind that page. Later calls derive the document, owner,
+actor, assignee, scope, and Direct authority from the page credential and stored task;
+the model cannot forge or widen them.
 
-A fresh agent later reads the resolved task and revision history and correctly explains
-that provider throttling triggered the incident, while commit `7d3c9e1` ignored
-`Retry-After`, amplified traffic 5.8×, and sustained the outage. The reasoning survives
-because it belongs to the document, not an old chat.
+`read_collaboration_context` pages a newest-first ledger joined to revisions, prompts,
+canonical source context, rationales, evidence, complete task discussions, closed human
+comments, and agent-owner profiles. It is the continuity layer for agents arriving from
+different platforms. No agent tool creates a human comment, chooses authority, closes a
+discussion, or performs Restore.
 
-## How we built it
+## Detailed postmortem example
 
-Ratiflow uses Next.js, React, TypeScript, and a checked service boundary. The ordinary
-UI and WebMCP callbacks call the same authoritative operations. Registration is owned by
-the top-level page, uses `document.modelContext`, captures an ephemeral page identity,
-and tears tools and waits down through `AbortSignal` on route or session changes.
+The completed **INC-482 · Checkout outage postmortem** ends at **r5 / activity 11**.
+Priya Shah starts at r1 with three `Investigation in progress.` placeholders and leaves
+anchored comments for three owner-bound agents:
 
-The reference runtime exercises the complete semantics locally. The production adapter
-targets additive Supabase Postgres RPCs. Transactions derive identity and authority
-server-side, lock the document before task rows, use hashed bearer lookup, enforce
-document isolation and idempotent request IDs, and update separate content-revision and
-coordination-activity counters atomically.
+- `TASK-1` asks Nadia Chen's `Databot` to use `impact.csv`. Its r2 replacement records
+  28,417 attempts, 21,675 successes, 6,742 failures, 311 affected merchants, zero
+  duplicate charges, a GFM table, and a checkout-outcomes chart.
+- `TASK-2` asks Leo Park's `Logbot` to use `checkout.log`. Starting from the same r1,
+  its disjoint selection safely rebases and becomes r3 with the 09:43–10:21 UTC
+  timeline.
+- `TASK-3` asks Sam Rivera's `Builder` to use `commit:7d3c9e1` and the log. Its r4
+  change separates provider throttling—the external trigger—from retry middleware that
+  ignored `Retry-After`, retried immediately up to five times, drove traffic to 5.8×,
+  and exhausted the queue—the internal amplifier.
 
-Anchors use Unicode code-point ranges and retain both the immutable creation target and
-the current live target. A single-splice rebase allows disjoint stale-base work to land;
-overlap, enclosure, ambiguity, or changed selected text fails closed. This is deliberate
-concurrent work, not a CRDT claim.
+Priya then leaves an ordinary human comment questioning whether the root-cause wording
+overclaims the team's code. A second `@Builder` assignment becomes `TASK-4`; Builder
+uses that discussion and prior history to clarify r5. Priya closes the separate human
+thread. Both the completed task and closed challenge remain visible, but neither creates
+a fake approval event.
 
-## Challenges
+## Detailed Product document example
 
-The hardest design decision was avoiding a universal approval queue without granting an
-agent document-wide power. The answer was task-scoped authority enforced in the same
-transaction as mutation. A second challenge was preserving dual provenance: a Review
-revision needs the agent as author and the human as approver/committer, while a Direct
-revision has an agent author/committer and a human grantor. A third was keeping a dirty
-human draft safe when remote human or agent work advances the head.
+The completed **Northstar · CSV export launch decision** ends at **r6 / activity 11**.
+Jordan Lee first makes a human r2 correction: incident rotation reduces pre-beta
+capacity from 18 to 14 engineering days.
 
-## Accomplishments
+- `TASK-1` asks Morgan Chen's `Databot` to compare options. Its r3 analysis shows that
+  10 reliability days plus 4 beta-export days exactly fit 14; doing all 8 export days
+  before beta would require 18 and exceed capacity by 4. The GFM table and chart make
+  the arithmetic inspectable.
+- `TASK-2` asks Avery Singh's `ChatGPT` to synthesize the decision. Its r4 recommendation
+  keeps October 15 as an invite-only design-partner beta, finishes the remaining four
+  export days afterward, reaches full GA by November 1, and protects the $180,000
+  renewal.
 
-- The final document stays primary; collaboration detail is available but quiet.
-- Direct and Review work share one closed tool without letting the agent choose its own
-  authority.
-- Disjoint stale-base changes land in order; conflicting work fails without mutation.
-- Completed tasks retain their complete question, answer, proposal, decision, and
-  evidence for a fresh agent.
-- Both templates, sharing, editing, comments, tasks, history, and restore remain usable
-  when WebMCP is absent.
-- The local candidate passes the checked repository gate, production build, ten browser
-  journeys, and 50/50 five-repeat browser rehearsals. Exact counts and SHA will be bound
-  in the final evidence ledger.
+Elena Ruiz opens a human discussion about whether “invite-only beta” sounds like general
+availability; Jordan replies and Elena closes it. Elena later saves an alternative r5
+that ships to every customer on October 15. Jordan restores r4 as a new r6. History
+preserves the alternative and its author while making the restored head explicit.
+
+## The Contextbot continuity moment
+
+Quinn Patel opens either completed example as a new, non-authoring viewer and brings a
+fresh agent. Only then does that agent call `connect_agent({"name":"Contextbot"})`, so
+it has no pre-seeded profile, task, or authorship. Contextbot pages the collaboration
+ledger and revision history to reconstruct the postmortem's trigger-versus-amplifier
+decision or the Product document's capacity and staged-launch decision. That is the
+core demonstration: provenance is useful context, not a history screen people must
+manually decode.
+
+## How it is built
+
+Ratiflow uses Next.js, React, TypeScript, and an additive Supabase/Postgres persistence
+path behind the same checked domain operations used by the ordinary UI and WebMCP
+bridge. Tool registration belongs to the top-level issue page and tears down on route or
+session changes. Server transactions enforce identity, document isolation, replay-safe
+mutations, exact-range writes, and revision/activity ordering.
+
+Anchors use Unicode code-point ranges. Disjoint stale-base work may rebase exactly;
+overlap, changed selected text, ambiguity, or a stale task fails without a partial
+mutation. This is deliberate scoped collaboration, not a character-level CRDT claim.
+
+## What we are proud of
+
+- Delegation is one anchored comment, not a workflow builder.
+- Agents do useful work immediately while every edit remains reversible.
+- A completed thread explains the change without pulling attention away from the
+  document.
+- Human discussion and document revision history remain distinct but connected.
+- Postmortem and Product examples contain enough real history to test a genuinely new
+  agent's understanding.
+- The ordinary document experience remains usable when WebMCP is absent.
 
 ## What is next
 
-The challenge prototype intentionally uses possession-of-link collaboration and two
-document types. A production path would add organizational identity and access control,
-long-term retention policy, verified agent principals, and connectors that agents bring
-for logs, data, and code—without changing the task authority or revision model.
+The prototype intentionally supports two document types and possession-of-link
+collaboration. A production path would add organizational identity and policy,
+longer-lived retention, verified agent principals, and connectors for live logs, data,
+and code—without adding complexity to the `@Agent` interaction.
 
-## Release fields
+## Release evidence fields
 
 - Live app: **[PENDING exact-SHA deployment]**
-- Public source and MIT license: **[PENDING verified public HEAD]**
-- Public narrated video: **[PENDING verified YouTube URL]**
-- Supported-client native evidence: **[PENDING exact-SHA capture]**
+- Public source and license: **[PENDING verified public HEAD]**
+- Public narrated video: **[PENDING verified URL]**
+- Supported-client native WebMCP evidence: **[PENDING exact-SHA capture]**
+- Live Supabase v4.1 migration/security verification: **[PENDING]**
 - Devpost submission: **[PENDING observed submission URL]**

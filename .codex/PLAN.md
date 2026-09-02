@@ -1,4 +1,197 @@
-# Plan — Versioned issue documents for people and their own agents
+# Plan — Comments that become agent work
+_Updated: 2026-09-02T19:47:14+08:00_
+
+## Goal and ambition mode
+
+Replace the form-heavy v4 flagship with an Apple-simple document collaboration model:
+select an exact passage, leave a comment, and an `@Agent` mention becomes durable scoped
+work. A named brought agent may edit the granted passage immediately; no Ratiflow
+proposal approval is required. The completed task keeps the exact prompt, immutable
+source context, self-declared agent name bound to its server-known human owner, concise
+rationale, evidence, resulting diff, and revision. A human can inspect and restore the
+change. Plain human comments close without inventing an approval state.
+
+This is a brownfield flagship refreeze over the existing v4 repository document. Keep
+v3 and old v4 compatibility data readable, preserve applied migrations, and reuse the
+proven revision/anchor/idempotency model. Expand the body renderer to safe GFM Markdown
+and validated revisioned chart fences; do not build a general rich-text editor, model
+host, background wake service, spreadsheet, attachment system, or identity provider.
+
+## Chokepoint — freeze first
+
+Freeze the collaboration contract before implementation in `product_spec.md`,
+`docs/contracts/repository-contract.md`, `src/repository/contracts.ts`, the two detailed
+hero scenarios/goldens, and `EVALS.md`:
+
+1. This is protocol v4.1 in the existing v4 namespace, not protocol v5. Existing
+   `COMMENT`/`REVIEW` data and compatibility decision routes remain valid/readable, but
+   the flagship cannot create or surface those controls.
+2. `@Agent prompt` is entered in one anchored comment composer. Only choosing an agent
+   autocomplete result creates mention work; unselected/literal `@` text is a normal
+   comment. One replay-safe server mutation atomically validates the current profile and
+   exact selection, derives hidden title/category/label/Direct authority, snapshots
+   context, creates task+thread+initial human comment, and increments activity once.
+   Duplicate visible names are disambiguated by owner; the request carries member ID,
+   exact profile name, exact visible comment, and anchor. Unknown/renamed profiles fail.
+3. People provide a display name on create/join. `/` and `/new` always expose that setup
+   instead of silently reopening a stored document; direct `/issue/[shareToken]` reloads
+   retain credential-only resume. The workspace then exposes a truthful agent-setup
+   handoff that distinguishes tool availability from a successful page-scoped agent
+   connection. The current WebMCP draft supplies no caller/model identity to `execute`;
+   `connect_agent({ name })` records a self-declared agent name and server-binds it to the
+   authenticated member owner. The bridge supplies page-session freshness outside model
+   JSON, and connect records an exact credential-session/page-session binding that every
+   later server call must match. The UI never presents the name as vendor-verified.
+4. Exactly one current agent profile exists per document member. Reconnect with the same
+   name updates access; a new name renames the current profile while immutable tasks keep
+   their original snapshot. Profile expiry follows the document. Task execution remains
+   member-authorized because one profile maps to one member; page session scopes only
+   the live tool call/wait. A recorded current profile is the autocomplete/assignment
+   target but is never presented as a live-presence signal.
+   Work is durable and
+   is picked up immediately only while the external agent is active; Ratiflow never
+   claims it can wake a dormant model.
+5. Body source remains immutable revisioned Markdown. The reading surface safely renders
+   GFM headings, lists, task lists, links, code, and tables. A fenced `chart` JSON block
+   is schema-validated and renders an accessible SVG chart plus a tabular fallback. Raw
+   HTML and network-backed embeds are not executed.
+6. Rendered selection endpoints must map exactly back to raw source offsets. Exact text
+   leaves permit interior endpoints and exact cross-leaf selections preserve intervening
+   Markdown delimiters; ambiguous entity/escape interiors, inline/fenced code, generated
+   nodes, images, and surrogate-pair interiors fail with a clear recovery message. A
+   block comment affordance may target the exact whole-block source range, including
+   tables and chart fences. DOM offsets are UTF-16 and convert once to the checked
+   Unicode code-point anchor. Invalid chart fences save as inert source with an inline
+   error; they never execute or fetch.
+7. Every agent task snapshots its prompt, source revision/digest, exact anchor, bounded
+   surrounding context, and the ten newest prior coordination-event excerpts at its
+   creation cutoff. Completion requires
+   a concise agent-authored rationale (`resultSummary`), evidence, replacement, author,
+   owner, and resulting revision/diff. Hidden chain-of-thought and raw transcripts are
+   never requested or stored.
+8. `read_collaboration_context` pages the immutable activity ledger, not only content
+   revisions, so comment-only decisions cannot disappear. Each newest-first activity
+   event joins its revision/task/thread/comment context at read time. It is the canonical
+   cross-contributor continuity surface for a genuinely new agent identity.
+9. Agent changes commit directly under the existing exact-range and stale-overlap checks.
+   Task cards and History show the highlighted before/after change and link to Restore;
+   restore appends a new revision and never rewrites history.
+10. Both Postmortem and Product document have detailed completed examples with multiple
+   humans, multiple named agents, direct revisions, a closed human comment, Markdown
+   tables, rendered charts, evidence, rationale, and a fresh-agent continuity answer.
+
+## Streams
+
+### C0 — collaboration and rendering contract — completed
+- Owner / worktree: coordinating task; current checkout.
+- Scope and key files: `.codex/PLAN.md`, `product_spec.md`,
+  `docs/contracts/repository-contract.md`, hero scenario docs,
+  `src/repository/contracts.ts`, `src/repository/comment-first-contract.test.ts`,
+  `EVALS.md`, independent goldens.
+- Must not touch: applied migrations, user-owned demo media, implementation paths.
+- Verification: `pnpm exec vitest run src/repository/comment-first-contract.test.ts`
+  passes its exact tool/golden/context assertions; `git diff --check` passes; fresh plan
+  reviewer reports no ownership/verification blocker. Full typecheck is intentionally an
+  S1–S4 integration gate because C0 advances checked interfaces ahead of implementations.
+
+### S1 — domain, profiles, context, and examples — completed
+- Owner / worktree: shared-checkout worker after C0; strict paths below.
+- Scope and key files: `src/domain/repository-service.ts`, its focused tests,
+  `src/domain/repository-runtime.ts`, `src/capabilities/mention-compiler.ts` plus its test,
+  completed example builders, `src/repository/surface-reconciliation.ts` plus its test,
+  and `src/repository/browser-storage.ts` plus its test.
+- Must not touch: UI/CSS, WebMCP registration, API routes, Supabase.
+- Inputs / frozen contracts: C0 checked types, exact examples, mention compiler/context
+  projection, profile lifecycle, existing revision/anchor invariants.
+- Verification: focused tests cover identity binding, @ task creation, direct completion,
+  context snapshot/recovery by a new member, both examples, and restore provenance.
+
+### S2 — additive persistence and HTTP boundary — completed
+- Owner / worktree: shared-checkout worker after C0; strict paths below.
+- Scope and key files: one new migration, Supabase adapter/tests,
+  `src/app/api/repository-v4/**`, and
+  `src/components/repository/repository-http-service.ts` plus its test.
+- Must not touch: applied migrations, UI/CSS, WebMCP registration, demo media.
+- Inputs / frozen contracts: C0 service inputs/results and security rules.
+- Verification: static migration/adapter parity, RLS/grant/search-path checks, agent name
+  bound from hashed session rather than model-supplied owner, cross-instance wait leases,
+  migration-first exact legacy response/input projection (including old-client Save), and
+  v4.1 context surviving reload.
+
+### S3 — WebMCP identity and collaboration context — completed
+- Owner / worktree: shared-checkout worker after C0; strict paths below.
+- Scope and key files: `src/webmcp/repository-*`, their tests, and
+  `src/components/repository/RepositoryWebMCPBridge.tsx`.
+- Must not touch: UI, domain, migration, contracts after freeze.
+- Inputs / frozen contracts: `connect_agent`, expanded inspection, bounded
+  `read_collaboration_context`, existing cancellation/page lifecycle rules.
+- Verification: exact schemas/results, first-contact identity, new-agent cross-history
+  continuity, JSON safety, abort teardown, and no claim of dormant-agent wakeup.
+
+### S4 — rendered editor and comment-first interface — completed
+- Owner / worktree: shared-checkout UI worker after C0; strict paths below.
+- Scope and key files: `RepositoryWorkspace.tsx`, `RepositoryLanding.tsx`,
+  `RepositoryJoin.tsx`, `RepositoryApp.tsx`, new Markdown/chart renderer/tests, focused
+  repository CSS, repository UI tests, `package.json`, and `pnpm-lock.yaml`. Explicitly
+  exclude the HTTP service and WebMCP bridge.
+- Must not touch: domain, routes, migration, WebMCP runtime, user-owned demo media.
+- Inputs / frozen contracts: C0 browser client port and deterministic fake.
+- Verification: rendered Markdown/table/chart; selection-to-comment; @ autocomplete;
+  plain comment close; completed task diff/rationale/restore; quiet History; keyboard,
+  390px, WebMCP-off, and reduced-motion behavior.
+
+### I1 — serialized integration, evals, and release proof — completed locally; external evidence pending
+- Owner / worktree: coordinator after S1-S4.
+- Scope and key files: runtime/page seams, example selection, scripts/e2e/evals, README and
+  new sanitized v4.1 demo assets only.
+- Must not touch: legacy untracked walkthrough assets or applied migrations.
+- Verification: `.codex/verify.sh`, focused v4.1 gates, `pnpm build`, driven desktop/390px
+  flows, supported-client native discovery/invocation, WebMCP-off ablation, repair-free
+  rehearsals, fresh `dev-visual-review`, and requirement-by-requirement completion audit.
+
+## Checkpoints
+
+- `@Agent` still opens a task/authority form -> block integration and remove the form.
+- Agent identity is inferred from vendor/model claims or can forge its human owner ->
+  block release; keep name explicitly self-declared and owner server-derived.
+- Markdown source appears raw in reading mode, chart JSON is executable/unvalidated, or
+  rendered content cannot be selected/commented -> block UI completion.
+- A new member's agent cannot recover other contributors' prompts, rationale, comments,
+  and revision context -> block the continuity claim.
+- Direct work can escape its exact stored anchor or overlap silently -> block release.
+- The comment/history chrome competes with the document -> simplify before visual review.
+
+## Integration order
+
+`C0 freeze + adversarial review -> (S1 || S2 || S3 || S4) -> I1 serialized integration
+and contract parity -> automated/browser/native gates -> dev-visual-review -> corrections
+-> full completion audit`.
+
+Requirements and contract decisions remain in the coordinating task. Collaboration
+workers share this checkout, so streams use the strict disjoint paths above rather than
+pretend worktrees. Workers do not run Git, do not revert others' edits, and return focused
+diffs plus evidence. The coordinator resolves shared seams and stages an explicit-file
+allowlist only. User-owned `.gitignore`, `--annotate`, and legacy walkthrough media are
+never staged or overwritten.
+
+Release order is additive migration -> database advisors and old-code smoke -> new
+adapter/profile/context smoke -> application deployment -> native v4.1 capture. Any
+unavailable external step remains `PENDING`; static SQL never substitutes for parity.
+
+## Risks and open decisions
+
+- The WebMCP draft currently exposes tool arguments and `AbortSignal`, not a trustworthy
+  caller/model identity. `connect_agent` is therefore self-declaration, not verification.
+- The body remains Markdown source to preserve exact snapshots/ranges. Rendered comment
+  anchoring must fail clearly on an ambiguous source mapping rather than attach silently.
+- Existing `REVIEW` records remain readable compatibility data, but new flagship @ work
+  is Direct and no approval controls appear in the primary interface.
+- A Restore can supersede later revisions. The UI must show which complete revision will
+  become the new head and keep intervening history intact.
+
+---
+
+# Archived plan — Versioned issue documents for people and their own agents
 _Updated: 2026-09-02T01:51:28+08:00_
 
 ## Goal and ambition mode

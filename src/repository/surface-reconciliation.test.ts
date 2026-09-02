@@ -31,6 +31,7 @@ function surface(revision: number, activityVersion: number, body: string): Issue
       },
     },
     members: [],
+    agents: [],
     presence: [],
     tasks: [],
     threads: [],
@@ -44,6 +45,28 @@ test("higher revision wins content and delayed lower revisions cannot regress it
   const delayed = surface(2, 99, "r2");
   assert.equal(reconcileIssueSurface(current, delayed).document.body, "r3");
   assert.equal(reconcileIssueSurface(delayed, current).document.body, "r3");
+});
+
+test("profile-only updates merge independently from document counters", () => {
+  const current = surface(3, 9, "r3");
+  current.agents = [{
+    profileId: "00000000-0000-4000-8000-000000000004",
+    member: { memberId: "00000000-0000-4000-8000-000000000003", displayName: "Priya" },
+    name: "Databot",
+    identitySource: "SELF_DECLARED",
+    firstSeenAt: "2026-09-01T00:00:01.000Z",
+    lastAccessedAt: "2026-09-01T00:00:08.000Z",
+    accessCount: 1,
+  }];
+  const incoming = surface(3, 9, "r3");
+  incoming.agents = [{
+    ...current.agents[0]!,
+    name: "Numbers",
+    lastAccessedAt: "2026-09-01T00:00:09.000Z",
+    accessCount: 2,
+  }];
+  const merged = reconcileIssueSurface(current, incoming);
+  assert.deepEqual(merged.agents.map(({ name, accessCount }) => [name, accessCount]), [["Numbers", 2]]);
 });
 
 test("higher activity wins at equal revision while presence merges independently", () => {

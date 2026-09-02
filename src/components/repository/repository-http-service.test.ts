@@ -28,7 +28,7 @@ test("credential issuance sends exact public JSON without idempotency headers", 
   const client = new RepositoryHttpService(() => REQUEST_ID);
 
   await client.launch({ kind: "POSTMORTEM", displayName: "Priya" });
-  await client.launchExample({});
+  await client.launchExample({ kind: "POSTMORTEM", displayName: "Priya" });
   await client.join({ shareToken: "share", displayName: "Nadia" });
 
   assert.deepEqual(calls.map((call) => call.path), [
@@ -38,7 +38,7 @@ test("credential issuance sends exact public JSON without idempotency headers", 
   ]);
   assert.deepEqual(calls.map((call) => JSON.parse(String(call.init.body))), [
     { kind: "POSTMORTEM", displayName: "Priya" },
-    {},
+    { kind: "POSTMORTEM", displayName: "Priya" },
     { shareToken: "share", displayName: "Nadia" },
   ]);
   for (const call of calls) {
@@ -54,7 +54,6 @@ test("human mutations keep request identity in the header and out of JSON", asyn
     expectedRevision: 1,
     title: "Title",
     body: "Body",
-    changeSummary: "Clarify impact.",
   });
 
   assert.equal(calls[0]?.path, "/api/repository-v4/revision/save");
@@ -64,7 +63,6 @@ test("human mutations keep request identity in the header and out of JSON", asyn
     expectedRevision: 1,
     title: "Title",
     body: "Body",
-    changeSummary: "Clarify impact.",
   });
   assert.equal(String(calls[0]!.init.body).includes("requestId"), false);
 });
@@ -73,6 +71,10 @@ test("agent reads and waits carry page identity but no idempotency key", async (
   const calls = installFetchRecorder();
   const client = new RepositoryHttpService(() => REQUEST_ID);
 
+  await client.inspectAsAgent("agent-token", PAGE_ID);
+  await client.readHistoryAsAgent("agent-token", { limit: 20 }, PAGE_ID);
+  await client.readRevisionAsAgent("agent-token", 2, PAGE_ID);
+  await client.readCollaborationContext("agent-token", { limit: 20 }, PAGE_ID);
   await client.listMyTasks("agent-token", { includeResolved: true }, PAGE_ID);
   await client.waitForMyTasks(
     "agent-token",
@@ -81,6 +83,10 @@ test("agent reads and waits carry page identity but no idempotency key", async (
   );
 
   assert.deepEqual(calls.map((call) => call.path), [
+    "/api/repository-v4/surface",
+    "/api/repository-v4/revision/history",
+    "/api/repository-v4/revision/read",
+    "/api/repository-v4/agent/context",
     "/api/repository-v4/agent/tasks",
     "/api/repository-v4/agent/tasks/wait",
   ]);
@@ -96,6 +102,7 @@ test("agent mutations carry page and request headers while preserving tool JSON"
   const client = new RepositoryHttpService(() => REQUEST_ID);
   const taskId = "323e4567-e89b-42d3-a456-426614174000";
 
+  await client.connectAgent("agent-token", { name: "Databot" }, PAGE_ID);
   await client.commentOnTask(
     "agent-token",
     { taskId, body: "The retry path ignored Retry-After." },
@@ -120,9 +127,25 @@ test("agent mutations carry page and request headers while preserving tool JSON"
     assert.equal(String(call.init.body).includes("requestId"), false);
   }
   assert.deepEqual(calls.map((call) => call.path), [
+    "/api/repository-v4/agent/connect",
     "/api/repository-v4/agent/comment",
     "/api/repository-v4/agent/result",
   ]);
+});
+
+test("selected @ mentions use the dedicated human mutation boundary", async () => {
+  const calls = installFetchRecorder();
+  const client = new RepositoryHttpService(() => REQUEST_ID);
+  await client.createMentionTask("human-token", {
+    expectedRevision: 1,
+    comment: "@Databot Replace this paragraph.",
+    mentionedAgentName: "Databot",
+    assignedToMemberId: "323e4567-e89b-42d3-a456-426614174000",
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 4 },
+  });
+  assert.equal(calls[0]?.path, "/api/repository-v4/task/mention");
+  assert.equal(headersOf(calls[0]!).get("Idempotency-Key"), REQUEST_ID);
+  assert.equal(String(calls[0]!.init.body).includes("requestId"), false);
 });
 
 test("revision read serializes the checked public input", async () => {

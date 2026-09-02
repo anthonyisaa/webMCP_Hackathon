@@ -11,7 +11,8 @@ const RESET_PATH = "/api/repository-v4/eval/reset";
 const RESULT_FILE = "reset-result.json";
 const TEMP_DIRECTORY_PREFIX = "ratiflow-repository-hero-v4-";
 const TOKEN = /^[A-Za-z0-9_-]{32,128}$/u;
-const BOOTSTRAP_VALUE = /^[A-Za-z0-9_-]{64,8192}$/u;
+const BOOTSTRAP_VALUE = /^[A-Za-z0-9_-]+$/u;
+const BOOTSTRAP_VALUE_MAX_LENGTH = 65_536;
 const FIXTURE_VERSION = "repo-document-v4.postmortem.v1";
 const MAX_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;
 
@@ -36,8 +37,11 @@ function hasExactKeys(value, expectedKeys) {
 function isBootstrapPath(value, shareToken) {
   if (typeof value !== "string") return false;
   const prefix = `/issue/${shareToken}#ratiflow-bootstrap=`;
-  return value.startsWith(prefix)
-    && BOOTSTRAP_VALUE.test(value.slice(prefix.length));
+  if (!value.startsWith(prefix)) return false;
+  const fragment = value.slice(prefix.length);
+  return fragment.length >= 64
+    && fragment.length <= BOOTSTRAP_VALUE_MAX_LENGTH
+    && BOOTSTRAP_VALUE.test(fragment);
 }
 
 export function validateResetResult(value, now = Date.now()) {

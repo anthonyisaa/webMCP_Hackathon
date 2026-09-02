@@ -1,6 +1,13 @@
 # Ratiflow versioned issue-document contract
 
-Version 4.0 · Contract freeze candidate · 2026-09-01
+Version 4.1 · Comment-first collaboration refreeze · 2026-09-02
+
+This refreeze keeps the `/api/repository-v4/**` compatibility namespace and immutable
+v4 storage, but supersedes the flagship human workflow, new-work contract, WebMCP
+catalog, examples, and evaluation oracle. Historical `COMMENT`/`REVIEW` records remain
+readable; existing Review decision routes remain decision-capable for compatibility but
+are absent from the flagship. New work created by the flagship is an anchored @ mention with server-derived
+`DIRECT` authority and never enters a proposal/approval state.
 
 ## 1. Boundary, routes, and retention
 
@@ -8,11 +15,16 @@ Protocol v4 owns `/`, `/issue/[shareToken]`, and `/api/repository-v4/**`. Protoc
 remains isolated at `/document/[shareToken]` and `/api/document-v3/**`; its tools and
 data never register or appear on a v4 page.
 
-The root page renders exactly three choices: **Incident postmortem**, **Product
-document**, and **Open incident example**. Launch inserts an immutable r1 template
+The root page first requires a nonblank human display name, then renders **Incident
+postmortem**, **Product document**, **Explore postmortem**, and **Explore product
+document**. Launch inserts an immutable r1 template
 revision before returning a session. A shared v4 issue remains live for 30 days. Its
 human and delegated-agent session credentials have the same upper-bound expiry and are
 invalid once the issue expires.
+
+Human display names are 1–80 trimmed code points. A document admits at most 100 members
+over its lifetime, making the complete member/profile roster bounded; an over-cap join
+fails atomically with `RATE_LIMITED`.
 
 Possession of the high-entropy URL grants account-free collaboration during that window.
 The share token and session bearers are independent high-entropy secrets; only SHA-256
@@ -80,16 +92,66 @@ only Review may be Proposed or Rejected; completed Comment has one COMMENTED res
 completed Direct has one COMMITTED result; completed Review has a proposal plus Accepted
 decision; Open/Cancelled have none. Runtime validators enforce same-actor and creator /
 grantor / approver identity equality that TypeScript cannot express structurally.
+For new Direct work, submitted/comment/revision agent actors must match both the task's
+assignee member and stable `agentProfileId`; their captured name may differ only because
+that same profile was renamed after assignment. Compatibility tasks with a null profile
+ID retain the prior member-only rule.
+For every new agent action, `actor.displayName === actor.agentLabel ===` the current
+profile name at the locked action boundary.
 
 ### Actors and members
 
-`IssueMemberSnapshot` contains a stable workspace UUID and display name. An agent actor
-contains the server-derived member principal plus the human-authored agent label stored
-on its task. The label is descriptive, not authority or verified model identity. System
-actors have no member.
+`IssueMemberSnapshot` contains a stable workspace UUID and display name. A new agent actor
+contains the server-derived member principal, stable agent-profile UUID, and current
+self-declared profile name captured at that action. Compatibility actors may have a null
+profile UUID. The task separately keeps the name that the human originally selected;
+when a profile has since been renamed, the UI can truthfully show “assigned to ChatGPT,
+completed by Databot” under the same owner/profile instead of falsifying attribution.
+The label is descriptive, not authority or verified model identity. System actors have
+no member.
 
 No model input accepts actor, member, origin, agent label, document, page session,
 grantor, approver, or task mode.
+
+`IssueAgentProfile` contains a stable UUID, the owning immutable member snapshot, a
+1–80 code-point self-declared `name`, identity source `SELF_DECLARED`, `firstSeenAt`,
+`lastAccessedAt`, and a nonnegative safe-integer `accessCount`. Ordinary profiles start at
+1 on their first committed connect; only the protected deterministic reset may seed a
+profile at 0 before any real page access. Names are trimmed, contain
+neither `@` nor CR/LF, and may duplicate another member's name. There is exactly zero or
+one current profile per document member; autocomplete therefore displays both name and
+owner. Historical tasks keep their immutable assigned profile-ID/name snapshot when the
+current profile is renamed. Already-authored comments and revisions keep the profile
+name captured when each action occurred.
+
+The WebMCP execute callback receives only its JSON input and execution options containing
+`AbortSignal`; no caller/model identity is available. `connect_agent({ name })` is the
+only name source. The agent bearer resolves document/member/owner and the bridge supplies
+the page session outside model JSON. Connecting upserts the profile; same-name reconnect
+preserves the stable ID and first-seen time, while a different valid name is a last-write-
+wins rename. The bridge requires a successful connect in every top-level page registration
+lifetime and clears that in-memory connection on navigation/session teardown. A successful
+connect also records a server-side page connection keyed by document, member, credential
+session-instance UUID, and page-session UUID, capturing the stable profile ID and a private
+identity generation. Profiles start at generation 1; a same-name connect preserves it and
+every committed rename increments it once. Every non-connect request must match that
+connection, current profile ID, and current generation; merely having a profile from an
+older page does not satisfy the check. This prevents an `X → Y → X` rename from silently
+reauthorizing the original X page. The generation is server authority, not model input or
+user-facing verification.
+
+Agent access metadata never changes document revision/activity. `accessCount` counts
+successful first-commit connects and agent-authored mutations, not read calls. For
+request-ledger mutations (`connect_agent`, agent comment, and result), only the first
+committed logical request touches the profile; an identical replay returns the recorded
+result without a second touch. Inspect, history, context, task-list, wait, internal wait
+polls, and post-mutation refreshes are no-touch reads, preserving their read-only and
+idempotent contract. A required connect therefore records every top-level page access even
+when the agent only reads. Page UUID scopes live wait/freshness behavior, not member
+authority. An old open task remains executable after profile rename because authorization
+is the authenticated owner/member plus stable profile ID and stored assignee, never the
+mutable name. Its task card keeps the assigned name, while any new comment/result captures
+the connected profile's current self-declared name.
 
 ### Anchors
 
@@ -126,18 +188,58 @@ Every `IssueTask` has immutable creator, assignee, agent label, mode, instructio
 category, target, and thread. Assignment requires an existing, unexpired workspace
 member but never requires current presence.
 
-Mode is exact:
+Historical mode remains exact:
 
 - `COMMENT`: Document or Selection target; result contains no replacement.
 - `REVIEW`: Selection target; result stores one proposal and does not mutate content.
 - `DIRECT`: Selection target; result atomically applies one replacement.
+
+New flagship creation does not accept mode, category, title, or agent label. Exact
+`CreateMentionTaskHttpInput` is `{ expectedRevision, comment, mentionedAgentName,
+assignedToMemberId, anchor }`. Mention work is created only after the human explicitly
+chooses an autocomplete profile; an unselected literal `@` stays a plain comment.
+The exact visible `comment` must fit the 2,000-code-point comment bound and begin with
+exact `@${mentionedAgentName}` followed by one or more ASCII
+space, tab, CR, or LF code points and a nonblank instruction. The compiler removes that
+exact prefix/separator and trims only those four ASCII whitespace characters at both
+instruction ends; interior instruction text is preserved exactly and must independently
+fit the 1,000-code-point instruction bound. A selected mention whose full comment or
+compiled instruction exceeds either bound fails atomically rather than becoming a plain
+comment. The name must exactly match the current profile owned by
+`assignedToMemberId`; duplicate names are disambiguated by that owner ID. Later @ text is
+ordinary prompt text. Unknown/renamed profiles fail `STALE_AGENT_PROFILE`. The server
+derives `GENERAL`, immutable agent label/profile, and `DIRECT`. It derives the title by
+replacing every run of those four ASCII whitespace characters in the instruction with
+one U+0020 space and taking the first 120 Unicode code points without an ellipsis. The
+task key is `TASK-${n}`, where `n` is the next document-lifetime task number shared with
+compatibility task creation.
+The anchor must be a non-empty active title/body Selection.
+
+One request-ledger-protected `ratiflow_create_issue_mention_v4` transaction creates the task, its thread, its initial human
+comment containing the exact visible `comment`, and its context snapshot, then increments
+activity exactly once as one `TASK_CREATED` row whose task, thread, and comment IDs are
+all populated. The initial comment's `createdRevision` is the locked source revision.
+Replay returns the same graph. No task/thread/comment subset may
+commit on validation failure, cancellation before dispatch, or stale profile/revision.
+
+Every new task also stores `IssueTaskContextSnapshot`: source revision, source digest,
+document title, immutable target text/field/range, and at most 600 code points of source
+before and after the target. It also freezes the newest ten earlier activity entries at
+the pre-create activity cutoff. Each entry stores activity/version/kind, linked IDs,
+actor, and a deterministic excerpt of at most 600 Unicode code points: linked comment
+body first, otherwise linked revision summary, task instruction, thread root comment, or
+document title. The excerpt is copied from that precedence source and truncated to the
+first 600 code points without an ellipsis. Entries are newest-first and never change
+when later discussion or revisions arrive. This is canonical
+server-built context, not model text.
 
 Lifecycle is:
 
 - `OPEN -> PROPOSED | COMPLETED | CANCELLED | STALE`
 - `PROPOSED -> COMPLETED | REJECTED | STALE`
 
-The creator alone may cancel or decide. Only the delegated agent session belonging to
+The creator alone may cancel any `OPEN` task, including queued new mention work; terminal,
+stale, and Proposed work cannot be cancelled. Only the delegated agent session belonging to
 the immutable assignee may list, wait, comment as that agent, or submit. Cross-task and
 cross-assignee access returns `UNAUTHORIZED` without confirming the target exists.
 
@@ -157,8 +259,11 @@ Resolving a standalone thread requires a workspace human. A task thread follows 
 lifecycle and remains readable after completion/rejection/cancellation/stale. Resolving
 never deletes or rewrites a comment.
 
-Each comment stores server-derived author/origin, exact bounded body, bounded evidence
-references, optional reply link, and timestamp. Every returned body, instruction,
+Each comment stores server-derived author/origin, the authoritative `createdRevision`,
+exact bounded body, bounded evidence references, optional reply link, and timestamp.
+Closing a standalone human thread records `RESOLVED`, resolver, and time; it is never
+called accepted and applies no content. A task thread resolves on completion and remains
+visible with its change. Every returned body, instruction,
 selection, label, summary, and evidence reference is untrusted content.
 
 A workspace may create at most 500 standalone threads; task-owned threads are bounded by
@@ -176,21 +281,19 @@ protocol/expiry/authority/replay, performs all validation, then changes state.
 |---|---:|---:|---|
 | Launch template | r1 | av1 | head + full r1 snapshot |
 | Changed human Save revision | +1 | +1 | head + full Human revision |
-| Create/cancel task | — | +1 | task/thread state |
+| Connect/access agent profile | — | — | profile first/last access + count only |
+| Create/cancel @ task | — | +1 | Direct task + prompt/context thread state |
 | Create/resolve thread | — | +1 | thread state |
 | Human/agent comment | — | +1 | append comment |
-| Comment task result | — | +1 | append finding + complete task |
-| Review result | — | +1 | store proposal |
-| Reject Review | — | +1 | store terminal decision |
-| Accept Review | +1 | +1 | head + full Review revision + decision |
-| Direct result | +1 | +1 | head + full Direct revision + completed task |
+| Compatibility Comment/Review operations | v4 rules | +1 | historical endpoint behavior only |
+| @Agent result | +1 | +1 | head + full Direct revision + rationale + completed task |
 | Restore | +1 | +1 | head + full Restore revision |
 | Presence/read/wait/timeout/pre-dispatch abort/no-op/failure/replay | — | — | none |
 
 One transaction appends exactly one activity record with the resulting activity
 version. Content-changing operations insert exactly one revision and update head in the
-same transaction. There is no state where head advanced without its snapshot, or work
-completed without its Direct/Review revision.
+same transaction. There is no state where head advanced without its snapshot, or new @
+work completed without its Direct revision, rationale, linked task, and resolved thread.
 
 Every authenticated human or agent mutation after credential issuance has a UUID request
 ID outside model JSON. The ledger key is document plus request ID. Identical canonical
@@ -198,6 +301,16 @@ input returns the original result without new counters; changed canonical input 
 `REQUEST_REPLAY_MISMATCH`. A browser client creates one request ID per logical mutation
 and reuses it only for transport retries of that same call. A separately invoked comment
 is a new logical append even when its model-visible arguments are identical.
+For a `v4.1` agent mutation, the server-built canonical fingerprint additionally includes
+the literal response-contract selector, resolved credential session-instance UUID,
+page-session UUID, and actor kind outside model JSON. A request ID therefore cannot replay
+a successful connect/comment/result onto another page or credential. The compatibility
+`v4` branch deliberately computes the byte-for-byte applied legacy fingerprint, with no
+new selector/scope material, so request IDs committed before migration still replay. A
+v4.1 attempt reusing such an ID mismatches rather than inheriting legacy authority.
+Profile/page-authority failures are checked before recording and are never inserted into
+the ledger; a same-page ambiguous retry may still retrieve its already committed result
+without touching the profile again.
 
 For mutations that name a task, the server validates only enough UUID shape to locate
 the target, proves creator/assignee authority, and only then consults the document replay
@@ -214,8 +327,12 @@ that cancellation rolled back a dispatched request.
 
 ## 4. Result submission and concurrency
 
-`submit_task_result` accepts only task ID, `basedOnRevision`, result summary, optional
-replacement, and optional evidence references. The server performs the mode branch.
+`submit_task_result` accepts only task ID, `basedOnRevision`, nonblank `resultSummary`
+(the concise rationale), required changed replacement, and optional evidence references
+for new @ work. The server reads stored authority; model input cannot choose it. A new
+Direct revision copies `resultSummary` byte-for-byte into its `changeSummary`; there is no
+second model-supplied summary or hidden prose generator. The same value therefore explains
+the task completion and labels its history revision.
 
 For `COMMENT`, replacement must be absent. The result is appended to the task thread as
 an agent finding, task becomes Completed, and outcome is `COMMENTED`.
@@ -224,9 +341,11 @@ For `REVIEW`, replacement is required and must differ from the live target. A pr
 captures replacement, summary, evidence, source revision, agent, and time. Head/revision
 do not change and outcome is `PROPOSED`.
 
-For `DIRECT`, replacement is required and must differ from the live target. In one
+For new `DIRECT` mention work, replacement is required and must differ from the live target. In one
 transaction the replacement is applied to the current stored anchor, other anchors are
-rebased/staled, full revision is inserted, task completes, and outcome is `COMMITTED`.
+rebased/staled, full revision is inserted, task/thread complete, and outcome is
+`COMMITTED`. Compatibility `COMMENT`/`REVIEW` records retain their prior mode branches
+but cannot be created from the flagship.
 
 `basedOnRevision` may equal the task's creation revision or any observed revision at or
 after it. A value greater than current head is invalid. A value below current head is
@@ -240,12 +359,18 @@ rebase a proposal. Any overlap stales it before acceptance. First terminal decis
 
 ## 5. Human operations
 
-The human service supports launch, example, join, inspect, explicit Save revision,
-create task, create standalone thread, add/reply comment, resolve thread, cancel task,
-accept/reject Review proposal, read history, read exact revision, restore revision, and
-presence.
+The primary human service supports named launch/example/join, inspect, Save revision,
+create @ mention, create standalone thread, add/reply comment, close thread, cancel open
+mention, read history/exact revision, restore revision, and presence. Collaboration
+context is an agent-only continuity surface. Compatibility
+accept/reject endpoints remain valid for existing Review records but are not linked from
+the flagship and cannot decide new mention work.
 
-Save revision requires current head, full bounded title/body, and a nonblank summary. An
+Save revision requires current head and full bounded title/body; its public input contains
+no summary. After locking and comparing the current head, the service derives exactly
+`Edited the document title.` when only title changed, `Edited the document.` when only
+body changed, and `Edited the document title and body.` when both changed. The flagship
+exposes no summary form. An
 unchanged save is a no-op with no counter. A stale save returns current counters and
 head; the UI preserves the local draft and offers Use latest or retry after manual merge.
 
@@ -255,7 +380,8 @@ the current byte-identical content is an invalid no-op.
 
 ## 6. History, surfaces, and pagination
 
-The human surface returns current document, presence, durable member list, all tasks and
+The human surface returns current document, presence, durable member list, current agent
+profiles, all tasks and
 threads within the checked lifetime caps, and newest revision summaries. It never treats
 presence as membership. Tasks are ordered active before terminal, then `updatedAt`
 descending and task ID ascending. Threads follow their task's order, followed by
@@ -269,21 +395,37 @@ strict revision-descending (newest-first) order for both HTTP/UI and WebMCP. Lim
 else null. Reading one revision returns its complete snapshot and provenance. Tests
 prevent duplicates, gaps, or order reversal.
 
+`read_collaboration_context` uses `{ beforeActivityVersion?, limit? }`, with the same
+1–50/default-20 bounds, to select immutable activity rows strictly below the optional
+cursor and return them newest-first. Every event includes its actor and document revision
+and joins the referenced revision, task, complete current thread, and exact comment when
+present. This activity cursor includes comment-only and thread-close decisions that a
+revision cursor would skip. `nextBeforeActivityVersion` is the oldest returned activity
+version when more exist. Current profiles are returned alongside the window. The stored
+task context remains immutable; joined task/thread state is explicitly live as of the
+read. Returned context is document-wide for any connected agent because every link-holder
+human already sees it.
+
 Surface reconciliation is monotonic: higher document revision wins content; at equal
 revision, higher activity wins tasks/threads/history; presence merges independently by
-newest heartbeat. A delayed equal-revision response cannot hide a comment, proposal, or
-terminal task.
+newest heartbeat. Profiles merge independently by member, preferring higher
+`accessCount`, then later `lastAccessedAt`, so access/rename updates are not lost when
+document counters are unchanged. Missing `agents` in an old cached v4 bundle normalizes
+to `[]` before the first authoritative fetch. A delayed equal-revision response cannot
+hide a comment, newer profile, or terminal task.
 
 ## 7. Exact WebMCP catalog
 
-All six tools register from page start in this order:
+All eight tools register from page start in this order:
 
-1. `inspect_document({ revision? })`
-2. `read_document_history({ beforeRevision?, limit? })`
-3. `list_my_tasks({ includeResolved? })`
-4. `wait_for_my_tasks({ afterActivityVersion, afterRevision, timeoutSeconds? })`
-5. `comment_on_task({ taskId, body, replyToCommentId?, evidenceRefs? })`
-6. `submit_task_result({ taskId, basedOnRevision, resultSummary,
+1. `connect_agent({ name })`
+2. `inspect_document({ revision? })`
+3. `read_document_history({ beforeRevision?, limit? })`
+4. `read_collaboration_context({ beforeActivityVersion?, limit? })`
+5. `list_my_tasks({ includeResolved? })`
+6. `wait_for_my_tasks({ afterActivityVersion, afterRevision, timeoutSeconds? })`
+7. `comment_on_task({ taskId, body, replyToCommentId?, evidenceRefs? })`
+8. `submit_task_result({ taskId, basedOnRevision, resultSummary,
    replacementText?, evidenceRefs? })`
 
 Schemas reject additional properties. Bounds come only from
@@ -295,9 +437,16 @@ a new invocation is a new logical operation. One callback execution still uses a
 bridge-generated request ID across ambiguous transport retries. A Direct result is
 reversible through revision Restore; tool annotations and copy must not call it read-only.
 
-`inspect_document` returns current document for omitted revision, or the exact stored
+`connect_agent` upserts and returns the self-declared profile whose owner is derived from
+the agent bearer, records the current page connection, and touches the profile once on its
+first committed request. The bridge blocks all other callbacks until connect succeeds in
+the current registration lifetime; the server independently requires the matching page
+connection. Read tools do not mutate profile metadata. `inspect_document` returns current
+document for omitted revision, or the exact stored
 historical snapshot for a supplied revision, plus collaborators and bounded task
 summary. `read_document_history` returns immutable revision provenance/diffs.
+`read_collaboration_context` returns the joined bounded continuity projection defined in
+section 6, including other agents' completed reasoning and closed human discussions.
 
 `list_my_tasks` returns only tasks assigned to the current member's agent. Each task is
 paired with its dedicated thread and complete, oldest-first discussion (at most 100
@@ -309,12 +458,21 @@ seconds. It fetches, subscribes, refetches, and returns owned Open work immediat
 Otherwise a higher document revision returns `DOCUMENT_CHANGED`; unrelated activity
 advances the internal activity cursor without producing a false task wake; deadline
 returns `TIMEOUT`. Future cursors fail before installing a listener. One page/member wait
-may be active; a second returns `WAIT_ALREADY_ACTIVE`. The wait exists only during the
-open page/tool turn and never claims to wake a dormant model.
+may be active; a second returns `WAIT_ALREADY_ACTIVE`. After cursor validation and before
+subscription, the adapter generates an opaque lease UUID and acquires a database-backed
+lease for the exact document/member, credential-session, and page-session tuple. Begin is
+one atomic compare-and-swap: insert an absent row or replace it only when its server-clock
+expiry is already past; zero affected rows returns `WAIT_ALREADY_ACTIVE`. Expiry is five
+seconds after the requested deadline. `finally` performs an idempotent conditional delete
+on the full authority tuple and the same lease UUID, so an expired wait can never delete
+its successor's lease. Process-local deduplication is only an optimization. This remains
+ephemeral coordination state, not a
+document/profile/activity mutation. The wait exists only during the open page/tool turn
+and never claims to wake a dormant model.
 
 `comment_on_task` checks paired ownership and appends an agent comment/reply.
-`submit_task_result` returns one of `COMMENTED | PROPOSED | COMMITTED` from stored mode.
-The model does not choose the outcome.
+`submit_task_result` returns `COMMITTED` for new @ work. Compatibility tasks may retain
+old outcomes; the model never chooses or escalates authority.
 
 Callbacks capture document, protocol, browser session, page session, member, and agent
 token when registered. They read mutable current state through a live ref, honor tool
@@ -337,6 +495,7 @@ The exact v4 route namespace is:
 - `POST /api/repository-v4/revision/read`
 - `POST /api/repository-v4/revision/restore`
 - `POST /api/repository-v4/task/create`
+- `POST /api/repository-v4/task/mention`
 - `POST /api/repository-v4/task/cancel`
 - `POST /api/repository-v4/task/accept`
 - `POST /api/repository-v4/task/reject`
@@ -346,12 +505,18 @@ The exact v4 route namespace is:
 - `POST /api/repository-v4/presence`
 - `POST /api/repository-v4/agent/tasks`
 - `POST /api/repository-v4/agent/tasks/wait`
+- `POST /api/repository-v4/agent/connect`
+- `POST /api/repository-v4/agent/context`
 - `POST /api/repository-v4/agent/comment`
 - `POST /api/repository-v4/agent/result`
 - `POST /api/repository-v4/eval/reset` in preview/eval only
 
-Human routes require human bearer except launch/join/example. Agent routes require agent
-bearer and a valid per-page UUID header. The page UUID is distinct from the credential's
+Mutation routes under revision/task/thread/presence require a human bearer. The read-only
+surface/history/revision routes accept a human bearer for the UI or an agent bearer for
+WebMCP; agent use additionally requires the matching current-profile page connection and
+valid per-page UUID header, but does not touch profile metadata. Agent routes require an
+agent bearer and the same header.
+The page UUID is distinct from the credential's
 session-instance UUID: the server uses it to scope concurrent waits, while the registered
 callback compares both captured identities to reject stale navigation. Credential-issuing
 launch, example, join, and protected
@@ -364,8 +529,34 @@ transport retry of the same logical call.
 
 ## 9. Persistence namespace and security
 
-Applied v2/v3 migrations are immutable. One additive v4 migration may extend the
-document protocol constraint and request-ledger operations, add document kind, and add:
+All applied migrations, including `20260901154147_repository_v4_issue_documents.sql`,
+are immutable. One new additive v4.1 migration adds:
+
+- `ratiflow_issue_agent_profiles_v4` keyed by document/member with bounded name,
+  stable profile UUID, private positive identity generation, first/last access, count, and
+  fixed `SELF_DECLARED` source;
+- `ratiflow_document_private.issue_agent_page_connections_v4`, keyed by document/member,
+  credential session-instance UUID, and page-session UUID, referencing the current stable
+  profile and recording its identity generation plus `connected_at`; non-connect lookup
+  requires that generation to equal the current profile generation;
+- `ratiflow_document_private.issue_agent_wait_leases_v4`, keyed by the same authority
+  tuple with an opaque lease UUID and bounded expiry, for cross-instance duplicate-wait
+  exclusion;
+- nullable `agent_profile_id` plus a checked JSON context snapshot on
+  `ratiflow_issue_tasks_v4` for new @ work; the migration replaces the applied immutable
+  task trigger so both new fields join the immutable identity set;
+- an extended request-ledger operation CHECK that preserves every applied operation and
+  adds exactly `CONNECT_ISSUE_AGENT_V4` and `CREATE_ISSUE_MENTION_V4`; and
+- authoritative `created_revision` on issue comments. The migration adds it nullable,
+  temporarily disables the named append-only comment trigger inside the migration
+  transaction, backfills from the earliest activity row carrying the exact `comment_id`
+  and its authoritative `revision`, and uses the owning thread's immutable
+  `created_revision` only for a proven compatibility row with no linked activity. It
+  asserts no null remains, sets the column `NOT NULL`, and re-enables the trigger. The
+  mutable thread `anchor_revision` is never a backfill source.
+
+It may replace existing v4 RPC function bodies to include the additive fields, but it
+does not rewrite or drop the existing tables:
 
 - `ratiflow_issue_revisions_v4`
 - `ratiflow_issue_tasks_v4`
@@ -387,6 +578,7 @@ The exact RPC names are:
 - `ratiflow_inspect_issue_v4`
 - `ratiflow_save_issue_revision_v4`
 - `ratiflow_create_issue_task_v4`
+- `ratiflow_create_issue_mention_v4`
 - `ratiflow_create_issue_thread_v4`
 - `ratiflow_add_issue_comment_v4`
 - `ratiflow_resolve_issue_thread_v4`
@@ -396,7 +588,11 @@ The exact RPC names are:
 - `ratiflow_restore_issue_revision_v4`
 - `ratiflow_read_issue_history_v4`
 - `ratiflow_read_issue_revision_v4`
+- `ratiflow_connect_issue_agent_v4`
+- `ratiflow_read_issue_collaboration_context_v4`
 - `ratiflow_list_my_issue_tasks_v4`
+- `ratiflow_begin_issue_task_wait_v4`
+- `ratiflow_end_issue_task_wait_v4`
 - `ratiflow_comment_on_issue_task_v4`
 - `ratiflow_submit_issue_task_result_v4`
 - `ratiflow_touch_issue_presence_v4`
@@ -406,20 +602,59 @@ Reset is revoked from `public`, `anon`, and `authenticated`. Canonical productio
 not expose the HTTP reset. Example creation composes ordinary service operations or a
 separately proven public example builder; it never calls the protected reset.
 
-The public **Open incident example** builder is production behavior owned by the domain
-service and adapter parity: it returns a fresh completed r4/av10 clone of the exact golden
-to its opening human as Priya Shah; its public input is the exact empty object and cannot
-rename, replace, or add a fixture member. Exact comparison normalizes only fresh document,
+No exposed RPC name is overloaded. The migration drops and recreates the single inspect,
+history, and exact-revision signatures with a trailing optional page-session UUID that
+defaults to null: legacy/human calls remain valid, while agent calls must supply a UUID
+whose page connection matches. Exact old and new signatures are explicitly revoked and
+the intended replacements regranted.
+
+Migration-first response compatibility is explicit. Every replaced pre-v4.1 RPC that
+returns a session, surface, task, comment, history, or revision gains one final optional
+`p_response_contract text default 'v4'`; the new adapter always supplies `v4.1`, while the
+still-running old deployment omits it. Default `v4` preserves the old accepted launch /
+example / join inputs, legacy delegated-agent page behavior without named-profile
+connection for null-profile compatibility tasks, and exact old JSON projection, omitting
+`agents`, profile/context fields, and comment `createdRevision`. The legacy task-list/result
+branch never exposes or executes a new nonnull-profile mention; any action through it
+therefore remains a compatibility action with null profile identity in the v4.1
+projection. `v4.1` enforces the new checked
+inputs/page connection and emits the new projection. The server-only selector is never
+accepted in HTTP/model JSON. It enters only v4.1 mutation fingerprints; the default branch
+retains the exact applied legacy fingerprint for pre-migration replay. New-only connect,
+mention, context, and wait-lease RPCs need no legacy branch. This compatibility projection
+may be removed only in a later gated migration after the old app can no longer call it.
+
+For migration-first rollout only, the `v4` Save branch accepts the old app's optional
+bounded `changeSummary` key but ignores it and derives the frozen summary from the locked
+head. The `v4.1` branch, new HTTP route, and all checked TypeScript inputs reject that key.
+This narrow database compatibility allowance prevents the additive migration from
+breaking the still-running pre-v4.1 deployment.
+
+The public example builder is production behavior owned by domain/adapter parity. Exact
+input is `{ kind: "POSTMORTEM" | "PRODUCT_DOCUMENT", displayName }`; it returns the
+corresponding fresh completed historical graph plus one non-authoring viewer member/session
+whose name exactly equals the input. Historical fixture members/content/profiles are
+immutable and the viewer is never retroactively attributed to a task, comment, revision,
+or pre-existing agent profile. The fresh continuity agent profile is absent initially and
+is created only by that viewer's later `connect_agent`; its expected overlay is frozen
+separately in the golden continuity probe. Exact comparison
+normalizes only fresh document,
 revision, member, task, thread, comment, session, request, and share identifiers; all
 credentials/bootstrap paths; every creation/update/resolution/expiry timestamp; and
-derived display colors. The referential graph must remain isomorphic. Document kind,
+derived display colors, and the viewer's fresh member ID; its display name must equal the
+input. The historical referential graph must remain isomorphic. Document kind,
 title/body snapshots and digests, human names, agent labels, task keys/modes/statuses/
 anchors, thread and reply relationships, comments, results, decisions, evidence,
-revision numbers/parents/sources/diffs/summaries/provenance roles, and r4/av10 counters
-must equal the golden. Timestamps must retain golden event order even though values vary.
+revision numbers/parents/sources/diffs/summaries/provenance roles, historical profiles, context
+snapshots, Markdown/chart source, and final counters must equal the selected golden.
+Timestamps must retain golden event order even though values vary.
 The protected
-reset instead creates the executable starting state r1/av4 with Priya, Nadia, Leo, and
-Sam plus the three Open tasks. Its checked `ResetPostmortemHeroOutcome` returns fixture
+reset instead creates the executable comment-first starting state r1/av4 with Priya,
+Nadia, Leo, and Sam. It seeds the three historical self-declared profiles at access count
+0 and the first three golden Direct mentions with exact initial comments, task contexts,
+and linked `TASK_CREATED` activities; it seeds no page connection, so each real agent must
+still call `connect_agent` on its actual page before executing. Its checked
+`ResetPostmortemHeroOutcome` returns fixture
 version, share token, four named top-level bootstrap paths, expiry, revision 1,
 and activity 4. A bootstrap path is a bearer secret until opened and scrubbed; raw paths,
 fragments, or exchanged session bundles never enter logs or evidence. Reset response
@@ -432,6 +667,10 @@ Errors use the checked codes:
 - `INVALID_INPUT` — malformed shape, future counter, no-op, blank/overlong text, bad
   reply/evidence, or a replacement where mode forbids it;
 - `UNAUTHORIZED` — invalid/expired/cross-member/cross-task authority without disclosure;
+- `AGENT_IDENTITY_REQUIRED` — a non-connect agent tool ran before `connect_agent` for
+  the current authenticated owner/page context;
+- `STALE_AGENT_PROFILE` — human @ submission no longer exactly matches the selected
+  member's current profile name;
 - `NOT_FOUND` — issue or same-authority requested entity absent;
 - `STALE_DOCUMENT` — strict human save/restore expected revision differs;
 - `STALE_TASK_CONTEXT` — task anchor/result/proposal cannot safely apply;
@@ -443,27 +682,64 @@ Errors use the checked codes:
 - `PROTOCOL_MISMATCH` — v4 operation against a non-v4 issue.
 
 Text limits, history/wait limits, 500-task and 500-standalone-thread lifetime caps, and
-active/comment capacities are exactly the exported constants.
+the 100-member, active-task, and comment capacities are exactly the exported constants.
 Unknown properties and unsafe integers fail at schema and server layers. Evidence refs
 are 1–240 nonblank code points, at most 12 per comment/result/revision, and are labels or
 URLs—not fetched or certified by Ratiflow.
 
-## 11. Deterministic hero and product-document smoke
+## 11. Deterministic postmortem and Product document heroes
 
 `docs/contracts/postmortem-hero-scenario.md` and independent JSON goldens freeze
-`INC-482`, r1-r4, task IDs, exact facts, comment thread, replacements, digests, and fresh
+`INC-482`, r1-r5, profile names/owners, exact @ prompts/context, facts, closed human
+discussion, replacements, rationales, chart source, digests, and fresh
 agent answer. Production seed code may import checked types but tests compare it to the
 independent JSON; it cannot import that production builder as its oracle.
 
-The Product document smoke creates the exact template from `product_spec.md`, r1/av1,
-one human member, no tasks/threads, and a valid full initial revision. It proves the same
-human and WebMCP surface without inventing a second complex hero.
+`docs/contracts/product-document-hero-scenario.md` and its independent golden freeze the
+completed Northstar CSV launch Product document: human capacity correction, @Databot
+option arithmetic/table/chart, @ChatGPT synthesis, closed human discussion, multiple
+owners, exact revision provenance, and a fresh connected agent continuity answer.
 
-## 12. Accessibility and fallback
+## 12. Markdown and chart rendering
 
-The title/body remain native spellchecked controls. Modified pointer right-click,
-keyboard context-menu invocation, empty selections, and non-editor targets retain native
-behavior. Selection actions, task composer, radio fieldset, thread replies, History,
+Revision content remains the exact Markdown source. Reading mode renders GFM without raw
+HTML. Links receive safe protocols and external rel attributes. A fenced block whose info
+string is exactly `chart` contains one JSON object with only `version`, `type`, `title`,
+`description`, `labels`, `series`, `xLabel`, and `yLabel`. `version` is exactly `1`;
+`type` is `bar | line`; the fence is at most 20,000 code points; title is 1–120,
+description 1–500, and optional axis labels 1–80 nonblank code points; labels contains
+1–12 strings (at least two for a line); series contains 1–4
+`{ name, values }` entries, with labels and unique series names each 1–80 code points,
+whose finite numeric arrays exactly match label count and stay
+within ±1e12. Duplicate names and unknown fields are invalid. Colors come only from the
+fixed application palette; chart source cannot provide CSS, URLs, or formatters.
+
+Valid chart source renders an accessible labelled SVG and the same values in a visually
+available/collapsible HTML table. Invalid JSON/schema renders a non-executable inline
+error and keeps the source editable. No chart block fetches a URL, evaluates code, or
+injects HTML. The entire fence is ordinary revisioned source and can be diffed/restored.
+
+The renderer keeps exact source positions. HAST text leaves whose raw UTF-16 slice equals
+their visible text permit interior endpoints. Cross-leaf selections are valid when both
+endpoints are exact; the stored raw slice intentionally includes intervening Markdown
+delimiters. Entity/escape interiors, inline or fenced code, generated footnote chrome,
+image replacement text, chart internals, and an offset inside a surrogate pair fail
+closed. A chart or table block may instead use its keyboard-accessible whole-block source
+anchor. DOM UTF-16 offsets convert once to Unicode code-point offsets before the existing
+exact selected-text check. Active highlights split exact leaves at anchor boundaries;
+ambiguous leaves may be highlighted only when fully covered.
+
+Rendering uses no raw-HTML plugin or unsafe HTML injection. HTML is skipped, the Markdown
+URL transform and an explicit element allow-list remain active, remote images never load,
+and task-list controls are disabled. Invalid chart source stays inert; persistence accepts
+it as ordinary bounded Markdown rather than pretending it is a valid chart.
+
+## 13. Accessibility and fallback
+
+The title and Markdown source editor remain native spellchecked controls. Reading mode
+is semantic and selectable; each rendered block has a keyboard-accessible comment
+affordance and a source range. Modified pointer right-click, empty selections, and
+non-document targets retain native behavior. Comment composer, @ autocomplete, replies, History,
 revision detail, restore, conflicts, and errors are keyboard reachable with visible
 focus.
 
@@ -471,7 +747,8 @@ At 390 px there is no horizontal overflow; the rail is a non-modal labelled draw
 touch controls are at least 44 px, long untrusted text wraps, Escape closes and restores
 focus, and reduced-motion preferences are honored.
 
-With WebMCP absent, a human can create either template, edit/save, share/join, create and
-manage tasks, discuss, decide proposals, inspect full history, compare, and restore. The
+With WebMCP absent, a human can create either template, render/edit/save Markdown,
+share/join, leave/close comments, inspect full history, compare, and restore. @ mentions
+remain visibly queued rather than pretending an agent ran. The
 agent status says WebMCP unavailable and never claims an agent was connected, notified,
 or started.

@@ -1,0 +1,805 @@
+{
+  "oracleSchemaVersion": "ratiflow.comment-first-scenario-oracle/v1",
+  "fixtureVersion": "repo-document-v4.1.product-document-comment-first.v1",
+  "protocolVersion": "4.1",
+  "scenarioId": "NORTHSTAR-CSV-COMMENT-FIRST",
+  "title": "Northstar · CSV export launch decision",
+  "documentKind": "PRODUCT_DOCUMENT",
+  "digestAlgorithm": "sha256 of UTF-8 JSON.stringify({title,body}) in that property order",
+  "normalizationPolicy": {
+    "productionMayNormalize": [
+      "document, revision, owner, profile, task, thread, comment, request, session, and share UUIDs",
+      "credentials and bootstrap paths",
+      "created, updated, resolved, submitted, expiry, and profile-access timestamps",
+      "derived display colors"
+    ],
+    "productionMustMatch": [
+      "all human and agent display names",
+      "all Markdown source and chart JSON",
+      "all prompts, selections, context, rationales, evidence, comments, and closure state",
+      "revision parent/source/authority/author/owner/restore links and activity counters",
+      "continuity question, answer key, required references, and forbidden claims"
+    ]
+  },
+  "exampleInstantiation": {
+    "publicInputShape": {
+      "kind": "PRODUCT_DOCUMENT",
+      "displayName": "string supplied by the caller"
+    },
+    "canonicalDemoInput": {
+      "kind": "PRODUCT_DOCUMENT",
+      "displayName": "Quinn Patel"
+    },
+    "currentViewerOwnerKey": "quinn",
+    "historicalContributorOwnerKeys": [
+      "jordan",
+      "morgan",
+      "avery",
+      "elena"
+    ],
+    "rules": [
+      "The completed historical contributors and their provenance remain exact.",
+      "The input displayName creates only a fresh current non-authoring viewer with a fresh normalized owner ID.",
+      "Example creation does not pre-seed an agent profile for that viewer; the continuity probe creates Contextbot with connect_agent.",
+      "The viewer is never retroactively attributed a revision, prompt, task, or discussion."
+    ]
+  },
+  "owners": [
+    {
+      "ownerKey": "jordan",
+      "ownerId": "00000000-0000-4000-8000-000000006111",
+      "displayName": "Jordan Lee",
+      "scenarioRole": "launch owner, capacity editor, discussion respondent, and restorer"
+    },
+    {
+      "ownerKey": "morgan",
+      "ownerId": "00000000-0000-4000-8000-000000006112",
+      "displayName": "Morgan Chen",
+      "scenarioRole": "Databot owner"
+    },
+    {
+      "ownerKey": "avery",
+      "ownerId": "00000000-0000-4000-8000-000000006113",
+      "displayName": "Avery Singh",
+      "scenarioRole": "ChatGPT owner"
+    },
+    {
+      "ownerKey": "elena",
+      "ownerId": "00000000-0000-4000-8000-000000006114",
+      "displayName": "Elena Ruiz",
+      "scenarioRole": "human discussion author/closer and alternative-r5 editor"
+    },
+    {
+      "ownerKey": "quinn",
+      "ownerId": "00000000-0000-4000-8000-000000006115",
+      "displayName": "Quinn Patel",
+      "scenarioRole": "unrelated fresh-agent owner"
+    }
+  ],
+  "agentProfiles": [
+    {
+      "profileKey": "databot",
+      "profileId": "00000000-0000-4000-8000-000000006121",
+      "ownerKey": "morgan",
+      "name": "Databot",
+      "identitySource": "SELF_DECLARED",
+      "accessCountAtFinal": 2,
+      "historicalTaskNameSnapshot": "Databot"
+    },
+    {
+      "profileKey": "chatgpt",
+      "profileId": "00000000-0000-4000-8000-000000006122",
+      "ownerKey": "avery",
+      "name": "ChatGPT",
+      "identitySource": "SELF_DECLARED",
+      "accessCountAtFinal": 2,
+      "historicalTaskNameSnapshot": "ChatGPT"
+    }
+  ],
+  "sourceFacts": {
+    "northstar-renewal.md": {
+      "renewalValueUsd": 180000,
+      "requiredCapability": "production-ready CSV export",
+      "requiredBy": "November 1"
+    },
+    "capacity-plan.md": {
+      "originalPreBetaCapacityDays": 18,
+      "incidentRotationDays": 4,
+      "correctedPreBetaCapacityDays": 14,
+      "checkedEquation": "18 - 4 = 14"
+    },
+    "export-estimate.md": {
+      "reliabilityDays": 10,
+      "inviteOnlyBetaExportDays": 4,
+      "fullGaExportDaysTotal": 8,
+      "stagedPreBetaDays": 14,
+      "fullExportNowDays": 18,
+      "fullExportNowOverCapacityDays": 4,
+      "remainingExportDaysAfterBeta": 4,
+      "checkedEquations": [
+        "10 + 4 = 14",
+        "10 + 8 = 18",
+        "18 - 14 = 4",
+        "8 - 4 = 4"
+      ]
+    },
+    "launchDates": {
+      "inviteOnlyBeta": "October 15",
+      "fullGa": "November 1"
+    }
+  },
+  "chart": {
+    "fenceInfo": "chart",
+    "json": {
+      "version": 1,
+      "type": "bar",
+      "title": "Pre-beta engineering-day options",
+      "description": "Required engineering days for each October 15 option compared with 14 days of corrected capacity.",
+      "labels": [
+        "Reliability only",
+        "Staged beta",
+        "Full export now"
+      ],
+      "series": [
+        {
+          "name": "Required days",
+          "values": [
+            10,
+            14,
+            18
+          ]
+        },
+        {
+          "name": "Available days",
+          "values": [
+            14,
+            14,
+            14
+          ]
+        }
+      ],
+      "xLabel": "Option",
+      "yLabel": "Engineering days"
+    },
+    "labelCount": 3,
+    "maximumAllowedLabels": 12
+  },
+  "r1MarkdownSource": "## Decision summary\n\nSynthesis pending.\n\n## Customer and business context\n\nNorthstar's **$180,000 renewal** requires production-ready CSV export by **November 1**. The customer needs reliable exports for finance reconciliation, not a one-off internal download.\n\n## Capacity and constraints\n\n- Engineering capacity before October 15: **18 days**.\n- Reliability work: **10 engineering days**.\n- Invite-only beta export: **4 engineering days**.\n- Full GA export: **8 engineering days total**.\n\n## Options and trade-offs\n\nAnalysis in progress.\n\n## Milestones\n\n- **October 15** — Candidate invite-only beta checkpoint.\n- **November 1** — Contractual production-ready CSV deadline.\n\n## Scope\n\nIn scope: CSV download for approved Northstar datasets, audit metadata, export correctness monitoring, and a support runbook.\n\nOut of scope: scheduled delivery, custom schemas, and exports for the full customer base before GA.\n\n## Success measures\n\n- Reliability work completes before beta.\n- Design partners can export correct CSV files on October 15.\n- Full GA support and the renewal-critical commitment are ready by November 1.\n\n## Risks and guardrails\n\nThe beta must remain invite-only until correctness and support signals are reviewed. No milestone label may imply general availability before November 1.",
+  "humanCapacityCorrection": {
+    "revision": 2,
+    "activityVersion": 2,
+    "authorOwnerKey": "jordan",
+    "field": "BODY",
+    "before": "- Engineering capacity before October 15: **18 days**.",
+    "after": "- Engineering capacity before October 15: **14 days after reserving 4 days for incident rotation**.",
+    "summary": "Edited the document.",
+    "evidenceRefs": []
+  },
+  "tasks": [
+    {
+      "semanticKey": "PD-DATA-1",
+      "taskKey": "TASK-1",
+      "taskId": "00000000-0000-4000-8000-000000006131",
+      "threadKey": "PD-DATA-THREAD-1",
+      "threadId": "00000000-0000-4000-8000-000000006141",
+      "creatorOwnerKey": "jordan",
+      "assigneeOwnerKey": "morgan",
+      "agentProfileKey": "databot",
+      "agentNameSnapshot": "Databot",
+      "mode": "DIRECT",
+      "createdRevision": 2,
+      "createdActivityVersion": 3,
+      "visiblePrompt": "@Databot Compare the reliability-only, staged beta, and full-export-now options using the corrected 14-day pre-beta capacity. Add the arithmetic, a GFM table, and a bar chart, then recommend a sequence that protects the $180,000 renewal and November 1 CSV commitment.",
+      "instruction": "Compare the reliability-only, staged beta, and full-export-now options using the corrected 14-day pre-beta capacity. Add the arithmetic, a GFM table, and a bar chart, then recommend a sequence that protects the $180,000 renewal and November 1 CSV commitment.",
+      "promptCommentId": "00000000-0000-4000-8000-000000006151",
+      "contextSnapshot": {
+        "sourceRevision": 2,
+        "sourceDigest": "sha256:9b01d816af01ec0ac44811a98835cf5f5406f7f0aa64f48ce52a322b1fe46873",
+        "documentTitle": "Northstar · CSV export launch decision",
+        "field": "BODY",
+        "selectedText": "Analysis in progress.",
+        "codePointRange": {
+          "start": 563,
+          "end": 584
+        },
+        "beforeExcerpt": "## Options and trade-offs\n\n",
+        "afterExcerpt": "\n\n## Milestones",
+        "priorContext": [
+          {
+            "activityVersion": 2,
+            "kind": "REVISION_SAVED",
+            "documentRevision": 2,
+            "revisionId": "00000000-0000-4000-8000-000000006162",
+            "taskId": null,
+            "threadId": null,
+            "commentId": null,
+            "actor": {
+              "actorType": "HUMAN",
+              "displayName": "Jordan Lee",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006111",
+                "displayName": "Jordan Lee"
+              },
+              "agentLabel": null
+            },
+            "excerpt": "Edited the document."
+          },
+          {
+            "activityVersion": 1,
+            "kind": "ISSUE_LAUNCHED",
+            "documentRevision": 1,
+            "revisionId": "00000000-0000-4000-8000-000000006161",
+            "taskId": null,
+            "threadId": null,
+            "commentId": null,
+            "actor": {
+              "actorType": "HUMAN",
+              "displayName": "Jordan Lee",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006111",
+                "displayName": "Jordan Lee"
+              },
+              "agentLabel": null
+            },
+            "excerpt": "Created the Northstar CSV launch decision."
+          }
+        ]
+      },
+      "collaborationInputs": [
+        "human capacity correction r2",
+        "northstar-renewal.md",
+        "capacity-plan.md",
+        "export-estimate.md"
+      ],
+      "completion": {
+        "basedOnRevision": 2,
+        "resultRevision": 3,
+        "activityVersion": 4,
+        "outcome": "COMMITTED",
+        "replacementText": "The corrected pre-beta window is **14 engineering days**. Reliability-only uses 10 days and fits, but it does not deliver CSV. A staged beta uses 10 reliability days + 4 beta-export days = 14 days and exactly fits. Building all 8 export days before beta would require 10 + 8 = 18 days, exceeding capacity by 4.\n\n| Option | Reliability | CSV work before Oct 15 | Total days | Fits 14 days? | Customer outcome |\n|---|---:|---:|---:|---|---|\n| Reliability only | 10 | 0 | 10 | Yes | No CSV; renewal commitment remains at risk |\n| Staged invite-only beta | 10 | 4 | 14 | Yes, exactly | Design-partner beta Oct 15; 4 export days remain |\n| Full export before beta | 10 | 8 | 18 | No, 4 over | GA scope too early and reliability competes for capacity |\n\n```chart\n{\n  \"version\": 1,\n  \"type\": \"bar\",\n  \"title\": \"Pre-beta engineering-day options\",\n  \"description\": \"Required engineering days for each October 15 option compared with 14 days of corrected capacity.\",\n  \"labels\": [\"Reliability only\", \"Staged beta\", \"Full export now\"],\n  \"series\": [\n    {\"name\": \"Required days\", \"values\": [10, 14, 18]},\n    {\"name\": \"Available days\", \"values\": [14, 14, 14]}\n  ],\n  \"xLabel\": \"Option\",\n  \"yLabel\": \"Engineering days\"\n}\n```\n\n**Recommendation:** complete reliability plus the four-day invite-only beta slice by October 15, then use beta feedback while finishing the remaining four export days for full GA on November 1. This is the only option that fits corrected pre-beta capacity and preserves the $180,000 renewal commitment.",
+        "resultSummary": "Compared all three options against corrected capacity, showed that 10 + 4 = 14 fits while 10 + 8 = 18 is four days over, and recommended an October 15 staged beta followed by November 1 GA.",
+        "evidenceRefs": [
+          "northstar-renewal.md",
+          "capacity-plan.md",
+          "export-estimate.md",
+          "revision:r2"
+        ],
+        "highlightedChange": {
+          "before": "Analysis in progress.",
+          "after": "Three-option arithmetic, GFM comparison table, capacity chart, and staged-beta recommendation."
+        }
+      }
+    },
+    {
+      "semanticKey": "PD-SYNTH-1",
+      "taskKey": "TASK-2",
+      "taskId": "00000000-0000-4000-8000-000000006132",
+      "threadKey": "PD-SYNTH-THREAD-1",
+      "threadId": "00000000-0000-4000-8000-000000006142",
+      "creatorOwnerKey": "jordan",
+      "assigneeOwnerKey": "avery",
+      "agentProfileKey": "chatgpt",
+      "agentNameSnapshot": "ChatGPT",
+      "mode": "DIRECT",
+      "createdRevision": 3,
+      "createdActivityVersion": 5,
+      "visiblePrompt": "@ChatGPT Synthesize the decision using the corrected capacity and Databot analysis. State the October 15 audience, November 1 GA commitment, renewal consequence, scope, and guardrails without describing the beta as customer-ready GA.",
+      "instruction": "Synthesize the decision using the corrected capacity and Databot analysis. State the October 15 audience, November 1 GA commitment, renewal consequence, scope, and guardrails without describing the beta as customer-ready GA.",
+      "promptCommentId": "00000000-0000-4000-8000-000000006152",
+      "contextSnapshot": {
+        "sourceRevision": 3,
+        "sourceDigest": "sha256:e8575dab0eed50cbdaa9f945038f97cb1842b044d65ceb9c96658e5054a70db1",
+        "documentTitle": "Northstar · CSV export launch decision",
+        "field": "BODY",
+        "selectedText": "Synthesis pending.",
+        "codePointRange": {
+          "start": 21,
+          "end": 39
+        },
+        "beforeExcerpt": "## Decision summary\n\n",
+        "afterExcerpt": "\n\n## Customer and business context",
+        "priorContext": [
+          {
+            "activityVersion": 4,
+            "kind": "TASK_COMPLETED",
+            "documentRevision": 3,
+            "revisionId": "00000000-0000-4000-8000-000000006163",
+            "taskId": "00000000-0000-4000-8000-000000006131",
+            "threadId": null,
+            "commentId": null,
+            "actor": {
+              "actorType": "AGENT",
+              "displayName": "Databot",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006112",
+                "displayName": "Morgan Chen"
+              },
+              "agentProfileId": "00000000-0000-4000-8000-000000006121",
+              "agentLabel": "Databot"
+            },
+            "excerpt": "Compared all three options against corrected capacity, showed that 10 + 4 = 14 fits while 10 + 8 = 18 is four days over, and recommended an October 15 staged beta followed by November 1 GA."
+          },
+          {
+            "activityVersion": 3,
+            "kind": "TASK_CREATED",
+            "documentRevision": 2,
+            "revisionId": null,
+            "taskId": "00000000-0000-4000-8000-000000006131",
+            "threadId": "00000000-0000-4000-8000-000000006141",
+            "commentId": "00000000-0000-4000-8000-000000006151",
+            "actor": {
+              "actorType": "HUMAN",
+              "displayName": "Jordan Lee",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006111",
+                "displayName": "Jordan Lee"
+              },
+              "agentLabel": null
+            },
+            "excerpt": "@Databot Compare the reliability-only, staged beta, and full-export-now options using the corrected 14-day pre-beta capacity. Add the arithmetic, a GFM table, and a bar chart, then recommend a sequence that protects the $180,000 renewal and November 1 CSV commitment."
+          },
+          {
+            "activityVersion": 2,
+            "kind": "REVISION_SAVED",
+            "documentRevision": 2,
+            "revisionId": "00000000-0000-4000-8000-000000006162",
+            "taskId": null,
+            "threadId": null,
+            "commentId": null,
+            "actor": {
+              "actorType": "HUMAN",
+              "displayName": "Jordan Lee",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006111",
+                "displayName": "Jordan Lee"
+              },
+              "agentLabel": null
+            },
+            "excerpt": "Edited the document."
+          },
+          {
+            "activityVersion": 1,
+            "kind": "ISSUE_LAUNCHED",
+            "documentRevision": 1,
+            "revisionId": "00000000-0000-4000-8000-000000006161",
+            "taskId": null,
+            "threadId": null,
+            "commentId": null,
+            "actor": {
+              "actorType": "HUMAN",
+              "displayName": "Jordan Lee",
+              "member": {
+                "memberId": "00000000-0000-4000-8000-000000006111",
+                "displayName": "Jordan Lee"
+              },
+              "agentLabel": null
+            },
+            "excerpt": "Created the Northstar CSV launch decision."
+          }
+        ]
+      },
+      "collaborationInputs": [
+        "human capacity correction r2",
+        "TASK-1 prompt, context, rationale, evidence, and r3 diff",
+        "northstar-renewal.md",
+        "revision r3"
+      ],
+      "completion": {
+        "basedOnRevision": 3,
+        "resultRevision": 4,
+        "activityVersion": 6,
+        "outcome": "COMMITTED",
+        "replacementText": "Ship the reliability work and an **invite-only CSV beta to designated Northstar design partners on October 15**. Use that beta to validate export correctness, audit metadata, monitoring, and the support runbook; it is not GA and is not customer-ready for the full account base.\n\nComplete the remaining four export days after the beta checkpoint and launch **full GA on November 1**. The $180,000 renewal depends on production-ready CSV by that date. Do not broaden access before correctness and support signals pass their guardrails, and do not trade away the 10 reliability days to pull GA forward.",
+        "resultSummary": "Synthesized the staged decision with an explicit design-partner-only October 15 beta, November 1 GA, $180,000 renewal consequence, and reliability/correctness guardrails.",
+        "evidenceRefs": [
+          "task:TASK-1",
+          "revision:r2",
+          "revision:r3",
+          "northstar-renewal.md"
+        ],
+        "highlightedChange": {
+          "before": "Synthesis pending.",
+          "after": "Design-partner-only beta October 15, remaining four export days, full GA November 1, renewal consequence, and explicit rollout guardrails."
+        }
+      }
+    }
+  ],
+  "threads": [
+    {
+      "threadKey": "PD-DATA-THREAD-1",
+      "kind": "TASK",
+      "taskKey": "TASK-1",
+      "finalState": "RESOLVED",
+      "comments": [
+        {
+          "commentId": "00000000-0000-4000-8000-000000006151",
+          "authorOwnerKey": "jordan",
+          "authorKind": "HUMAN",
+          "origin": "ORDINARY_UI",
+          "createdRevision": 2,
+          "body": "@Databot Compare the reliability-only, staged beta, and full-export-now options using the corrected 14-day pre-beta capacity. Add the arithmetic, a GFM table, and a bar chart, then recommend a sequence that protects the $180,000 renewal and November 1 CSV commitment.",
+          "replyToCommentId": null,
+          "evidenceRefs": []
+        }
+      ]
+    },
+    {
+      "threadKey": "PD-SYNTH-THREAD-1",
+      "kind": "TASK",
+      "taskKey": "TASK-2",
+      "finalState": "RESOLVED",
+      "comments": [
+        {
+          "commentId": "00000000-0000-4000-8000-000000006152",
+          "authorOwnerKey": "jordan",
+          "authorKind": "HUMAN",
+          "origin": "ORDINARY_UI",
+          "createdRevision": 3,
+          "body": "@ChatGPT Synthesize the decision using the corrected capacity and Databot analysis. State the October 15 audience, November 1 GA commitment, renewal consequence, scope, and guardrails without describing the beta as customer-ready GA.",
+          "replyToCommentId": null,
+          "evidenceRefs": []
+        }
+      ]
+    },
+    {
+      "threadKey": "PD-DISCUSS-1",
+      "threadId": "00000000-0000-4000-8000-000000006143",
+      "kind": "STANDALONE_HUMAN",
+      "taskKey": null,
+      "createdRevision": 4,
+      "createdActivityVersion": 7,
+      "anchor": {
+        "field": "BODY",
+        "selectedTextFrom": "tasksBySemanticKey[PD-SYNTH-1].completion.replacementText",
+        "codePointRangeAtCreation": {
+          "start": 21,
+          "end": 620
+        }
+      },
+      "finalState": "RESOLVED",
+      "resolvedByOwnerKey": "elena",
+      "resolvedAtRevision": 4,
+      "resolvedActivityVersion": 9,
+      "resolutionMeaning": "closed human discussion; not accepted and no revision",
+      "comments": [
+        {
+          "commentId": "00000000-0000-4000-8000-000000006153",
+          "authorOwnerKey": "elena",
+          "authorKind": "HUMAN",
+          "origin": "ORDINARY_UI",
+          "createdRevision": 4,
+          "body": "Does “invite-only beta” make the October 15 build sound customer-ready? The renewal depends on full GA by November 1.",
+          "replyToCommentId": null,
+          "evidenceRefs": []
+        },
+        {
+          "commentId": "00000000-0000-4000-8000-000000006154",
+          "authorOwnerKey": "jordan",
+          "authorKind": "HUMAN",
+          "origin": "ORDINARY_UI",
+          "createdRevision": 4,
+          "body": "October 15 is limited to designated design partners. Production support and full-account availability start only at November 1 GA; the decision wording keeps that boundary explicit.",
+          "replyToCommentId": "00000000-0000-4000-8000-000000006153",
+          "evidenceRefs": [
+            "revision:r4"
+          ]
+        }
+      ]
+    }
+  ],
+  "restoreDemonstration": {
+    "alternativeRevision": 5,
+    "alternativeAuthorOwnerKey": "elena",
+    "alternativeSummary": "Edited the document.",
+    "alternativeBeforeFrom": "tasksBySemanticKey[PD-SYNTH-1].completion.replacementText",
+    "alternativeAfter": "Ship CSV to every customer on October 15 and treat that date as general availability. Finish reliability and support follow-up after launch; the November 1 renewal date remains unchanged.",
+    "restoreRevision": 6,
+    "restoredRevision": 4,
+    "restorerOwnerKey": "jordan",
+    "restoreSummary": "Restored the staged design-partner beta and November 1 GA decision.",
+    "expectedContentRelationship": "r6 title/body bytes equal r4 title/body bytes; r6 digest equals r4 digest; r5 remains immutable and readable"
+  },
+  "revisionTrajectory": [
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006161",
+      "revision": 1,
+      "parentRevision": null,
+      "sourceRevision": 0,
+      "authority": "HUMAN",
+      "authorOwnerKey": "jordan",
+      "committerOwnerKey": "jordan",
+      "taskKey": null,
+      "restoredRevision": null,
+      "summary": "Created the Northstar CSV launch decision.",
+      "contentDigest": "sha256:934a410e7183966289cf86d969d21f421024a2d5d77e306df7900e2a57ef82a9",
+      "materialize": {
+        "kind": "INITIAL",
+        "bodyField": "r1MarkdownSource"
+      }
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006162",
+      "revision": 2,
+      "parentRevision": 1,
+      "sourceRevision": 1,
+      "authority": "HUMAN",
+      "authorOwnerKey": "jordan",
+      "committerOwnerKey": "jordan",
+      "taskKey": null,
+      "restoredRevision": null,
+      "summary": "Edited the document.",
+      "contentDigest": "sha256:9b01d816af01ec0ac44811a98835cf5f5406f7f0aa64f48ce52a322b1fe46873",
+      "materialize": {
+        "kind": "REPLACE_EXACT_ONCE",
+        "field": "BODY",
+        "beforeFrom": "humanCapacityCorrection.before",
+        "afterFrom": "humanCapacityCorrection.after"
+      }
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006163",
+      "revision": 3,
+      "parentRevision": 2,
+      "sourceRevision": 2,
+      "authority": "DIRECT",
+      "authorAgentProfileKey": "databot",
+      "authorOwnerKey": "morgan",
+      "committerAgentProfileKey": "databot",
+      "committerOwnerKey": "morgan",
+      "grantorOwnerKey": "jordan",
+      "taskKey": "TASK-1",
+      "restoredRevision": null,
+      "summary": "Compared all three options against corrected capacity, showed that 10 + 4 = 14 fits while 10 + 8 = 18 is four days over, and recommended an October 15 staged beta followed by November 1 GA.",
+      "contentDigest": "sha256:e8575dab0eed50cbdaa9f945038f97cb1842b044d65ceb9c96658e5054a70db1",
+      "materialize": {
+        "kind": "REPLACE_EXACT_ONCE",
+        "field": "BODY",
+        "before": "Analysis in progress.",
+        "afterFrom": "tasksBySemanticKey[PD-DATA-1].completion.replacementText"
+      }
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006164",
+      "revision": 4,
+      "parentRevision": 3,
+      "sourceRevision": 3,
+      "authority": "DIRECT",
+      "authorAgentProfileKey": "chatgpt",
+      "authorOwnerKey": "avery",
+      "committerAgentProfileKey": "chatgpt",
+      "committerOwnerKey": "avery",
+      "grantorOwnerKey": "jordan",
+      "taskKey": "TASK-2",
+      "restoredRevision": null,
+      "summary": "Synthesized the staged decision with an explicit design-partner-only October 15 beta, November 1 GA, $180,000 renewal consequence, and reliability/correctness guardrails.",
+      "contentDigest": "sha256:b91c0edccdb44685368093afdab2ae5d5bfe4699659b670894248126e410545a",
+      "materialize": {
+        "kind": "REPLACE_EXACT_ONCE",
+        "field": "BODY",
+        "before": "Synthesis pending.",
+        "afterFrom": "tasksBySemanticKey[PD-SYNTH-1].completion.replacementText"
+      }
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006165",
+      "revision": 5,
+      "parentRevision": 4,
+      "sourceRevision": 4,
+      "authority": "HUMAN",
+      "authorOwnerKey": "elena",
+      "committerOwnerKey": "elena",
+      "taskKey": null,
+      "restoredRevision": null,
+      "summary": "Edited the document.",
+      "contentDigest": "sha256:3546a0ace252fa0ee061261d44178bc8d9b08eada28f46ff389fff07ad91cf8e",
+      "materialize": {
+        "kind": "REPLACE_EXACT_ONCE",
+        "field": "BODY",
+        "beforeFrom": "tasksBySemanticKey[PD-SYNTH-1].completion.replacementText",
+        "afterFrom": "restoreDemonstration.alternativeAfter"
+      }
+    },
+    {
+      "revisionId": "00000000-0000-4000-8000-000000006166",
+      "revision": 6,
+      "parentRevision": 5,
+      "sourceRevision": 4,
+      "authority": "RESTORE",
+      "authorOwnerKey": "jordan",
+      "committerOwnerKey": "jordan",
+      "taskKey": null,
+      "restoredRevision": 4,
+      "summary": "Restored the staged design-partner beta and November 1 GA decision.",
+      "contentDigest": "sha256:b91c0edccdb44685368093afdab2ae5d5bfe4699659b670894248126e410545a",
+      "materialize": {
+        "kind": "RESTORE_FULL_SNAPSHOT",
+        "fromRevision": 4
+      }
+    }
+  ],
+  "activityTrajectory": [
+    {
+      "activityVersion": 1,
+      "revision": 1,
+      "event": "LAUNCH",
+      "semanticKey": "r1"
+    },
+    {
+      "activityVersion": 2,
+      "revision": 2,
+      "event": "HUMAN_SAVE",
+      "semanticKey": "capacity-correction"
+    },
+    {
+      "activityVersion": 3,
+      "revision": 2,
+      "event": "CREATE_MENTION_ATOMIC",
+      "semanticKey": "PD-DATA-1"
+    },
+    {
+      "activityVersion": 4,
+      "revision": 3,
+      "event": "DIRECT_RESULT",
+      "semanticKey": "PD-DATA-1"
+    },
+    {
+      "activityVersion": 5,
+      "revision": 3,
+      "event": "CREATE_MENTION_ATOMIC",
+      "semanticKey": "PD-SYNTH-1"
+    },
+    {
+      "activityVersion": 6,
+      "revision": 4,
+      "event": "DIRECT_RESULT",
+      "semanticKey": "PD-SYNTH-1"
+    },
+    {
+      "activityVersion": 7,
+      "revision": 4,
+      "event": "CREATE_STANDALONE_HUMAN_COMMENT",
+      "semanticKey": "PD-DISCUSS-1"
+    },
+    {
+      "activityVersion": 8,
+      "revision": 4,
+      "event": "REPLY_STANDALONE_HUMAN_COMMENT",
+      "semanticKey": "PD-DISCUSS-1"
+    },
+    {
+      "activityVersion": 9,
+      "revision": 4,
+      "event": "CLOSE_STANDALONE_HUMAN_DISCUSSION",
+      "semanticKey": "PD-DISCUSS-1"
+    },
+    {
+      "activityVersion": 10,
+      "revision": 5,
+      "event": "HUMAN_SAVE",
+      "semanticKey": "all-customer-alternative"
+    },
+    {
+      "activityVersion": 11,
+      "revision": 6,
+      "event": "RESTORE_REVISION",
+      "semanticKey": "restore-r4"
+    }
+  ],
+  "finalState": {
+    "revision": 6,
+    "activityVersion": 11,
+    "contentDigest": "sha256:b91c0edccdb44685368093afdab2ae5d5bfe4699659b670894248126e410545a",
+    "restoredRevision": 4,
+    "openTaskCount": 0,
+    "completedTaskCount": 2,
+    "standaloneDiscussionCount": 1,
+    "resolvedStandaloneDiscussionCount": 1
+  },
+  "finalMarkdownSource": "## Decision summary\n\nShip the reliability work and an **invite-only CSV beta to designated Northstar design partners on October 15**. Use that beta to validate export correctness, audit metadata, monitoring, and the support runbook; it is not GA and is not customer-ready for the full account base.\n\nComplete the remaining four export days after the beta checkpoint and launch **full GA on November 1**. The $180,000 renewal depends on production-ready CSV by that date. Do not broaden access before correctness and support signals pass their guardrails, and do not trade away the 10 reliability days to pull GA forward.\n\n## Customer and business context\n\nNorthstar's **$180,000 renewal** requires production-ready CSV export by **November 1**. The customer needs reliable exports for finance reconciliation, not a one-off internal download.\n\n## Capacity and constraints\n\n- Engineering capacity before October 15: **14 days after reserving 4 days for incident rotation**.\n- Reliability work: **10 engineering days**.\n- Invite-only beta export: **4 engineering days**.\n- Full GA export: **8 engineering days total**.\n\n## Options and trade-offs\n\nThe corrected pre-beta window is **14 engineering days**. Reliability-only uses 10 days and fits, but it does not deliver CSV. A staged beta uses 10 reliability days + 4 beta-export days = 14 days and exactly fits. Building all 8 export days before beta would require 10 + 8 = 18 days, exceeding capacity by 4.\n\n| Option | Reliability | CSV work before Oct 15 | Total days | Fits 14 days? | Customer outcome |\n|---|---:|---:|---:|---|---|\n| Reliability only | 10 | 0 | 10 | Yes | No CSV; renewal commitment remains at risk |\n| Staged invite-only beta | 10 | 4 | 14 | Yes, exactly | Design-partner beta Oct 15; 4 export days remain |\n| Full export before beta | 10 | 8 | 18 | No, 4 over | GA scope too early and reliability competes for capacity |\n\n```chart\n{\n  \"version\": 1,\n  \"type\": \"bar\",\n  \"title\": \"Pre-beta engineering-day options\",\n  \"description\": \"Required engineering days for each October 15 option compared with 14 days of corrected capacity.\",\n  \"labels\": [\"Reliability only\", \"Staged beta\", \"Full export now\"],\n  \"series\": [\n    {\"name\": \"Required days\", \"values\": [10, 14, 18]},\n    {\"name\": \"Available days\", \"values\": [14, 14, 14]}\n  ],\n  \"xLabel\": \"Option\",\n  \"yLabel\": \"Engineering days\"\n}\n```\n\n**Recommendation:** complete reliability plus the four-day invite-only beta slice by October 15, then use beta feedback while finishing the remaining four export days for full GA on November 1. This is the only option that fits corrected pre-beta capacity and preserves the $180,000 renewal commitment.\n\n## Milestones\n\n- **October 15** — Candidate invite-only beta checkpoint.\n- **November 1** — Contractual production-ready CSV deadline.\n\n## Scope\n\nIn scope: CSV download for approved Northstar datasets, audit metadata, export correctness monitoring, and a support runbook.\n\nOut of scope: scheduled delivery, custom schemas, and exports for the full customer base before GA.\n\n## Success measures\n\n- Reliability work completes before beta.\n- Design partners can export correct CSV files on October 15.\n- Full GA support and the renewal-critical commitment are ready by November 1.\n\n## Risks and guardrails\n\nThe beta must remain invite-only until correctness and support signals are reviewed. No milestone label may imply general availability before November 1.",
+  "continuityProbe": {
+    "freshOwnerKey": "quinn",
+    "freshAgentProfileKey": "contextbot",
+    "connectCall": {
+      "name": "connect_agent",
+      "input": {
+        "name": "Contextbot"
+      },
+      "expectedRevision": 6,
+      "expectedActivityVersion": 11
+    },
+    "expectedConnectedProfile": {
+      "profileKey": "contextbot",
+      "profileId": "00000000-0000-4000-8000-000000006123",
+      "ownerKey": "quinn",
+      "name": "Contextbot",
+      "identitySource": "SELF_DECLARED",
+      "accessCountAfterConnect": 1
+    },
+    "priorTaskOwnership": [],
+    "priorAuthorship": [],
+    "observedRevision": 6,
+    "observedActivityVersion": 11,
+    "toolCalls": [
+      {
+        "name": "read_collaboration_context",
+        "input": {
+          "limit": 6
+        },
+        "expected": {
+          "activityVersions": [11, 10, 9, 8, 7, 6],
+          "hasMoreOlder": true,
+          "nextBeforeActivityVersion": 6
+        }
+      },
+      {
+        "name": "read_collaboration_context",
+        "input": {
+          "beforeActivityVersion": 6,
+          "limit": 6
+        },
+        "expected": {
+          "activityVersions": [5, 4, 3, 2, 1],
+          "hasMoreOlder": false,
+          "nextBeforeActivityVersion": null
+        }
+      }
+    ],
+    "expectedActivityOrder": [
+      {"activityVersion": 11, "event": "RESTORE_REVISION", "semanticKey": "restore-r4"},
+      {"activityVersion": 10, "event": "HUMAN_SAVE", "semanticKey": "all-customer-alternative"},
+      {"activityVersion": 9, "event": "CLOSE_STANDALONE_HUMAN_DISCUSSION", "semanticKey": "PD-DISCUSS-1"},
+      {"activityVersion": 8, "event": "REPLY_STANDALONE_HUMAN_COMMENT", "semanticKey": "PD-DISCUSS-1"},
+      {"activityVersion": 7, "event": "CREATE_STANDALONE_HUMAN_COMMENT", "semanticKey": "PD-DISCUSS-1"},
+      {"activityVersion": 6, "event": "DIRECT_RESULT", "semanticKey": "PD-SYNTH-1"},
+      {"activityVersion": 5, "event": "CREATE_MENTION_ATOMIC", "semanticKey": "PD-SYNTH-1"},
+      {"activityVersion": 4, "event": "DIRECT_RESULT", "semanticKey": "PD-DATA-1"},
+      {"activityVersion": 3, "event": "CREATE_MENTION_ATOMIC", "semanticKey": "PD-DATA-1"},
+      {"activityVersion": 2, "event": "HUMAN_SAVE", "semanticKey": "capacity-correction"},
+      {"activityVersion": 1, "event": "LAUNCH", "semanticKey": "r1"}
+    ],
+    "coverageAssertionsAfterAllPages": {
+      "expectedRevisionOrder": [6, 5, 4, 3, 2, 1],
+      "expectedIncludedThreadKeys": [
+        "PD-DISCUSS-1",
+        "PD-SYNTH-THREAD-1",
+        "PD-DATA-THREAD-1"
+      ]
+    },
+    "question": "What is the approved Northstar CSV sequence, why does it fit, and why is r6 a Restore instead of a new product decision?",
+    "answer": "Corrected pre-beta capacity is 14 engineering days after reserving 4 of the original 18 days for incident rotation. Stored task TASK-1 (scenario label PD-DATA-1) shows that 10 reliability days plus 4 beta-export days exactly fit 14 for an invite-only design-partner beta on October 15; all 8 export days plus reliability would require 18 days and exceed capacity by 4. Stored task TASK-2 (scenario label PD-SYNTH-1) carries that evidence into the guarded decision. The team finishes the remaining 4 export days after beta and launches full GA on November 1, protecting the $180,000 renewal. PD-DISCUSS-1 confirms October 15 is not customer-ready GA. Elena's r5 broadened October 15 to every customer; Jordan's r6 restores the complete r4 snapshot, leaves r5 readable, and therefore records Restore provenance rather than a new product decision.",
+    "requiredFacts": [
+      "18 original days minus 4 incident-rotation days equals 14 corrected days",
+      "10 reliability days plus 4 beta-export days exactly fits 14",
+      "10 reliability days plus all 8 export days equals 18 and is 4 days over",
+      "invite-only design-partner beta is October 15",
+      "the remaining four export days lead to full GA November 1",
+      "the $180,000 renewal depends on production-ready CSV by November 1",
+      "r5 broadened access and r6 restored the full r4 snapshot while preserving r5"
+    ],
+    "requiredReferences": [
+      "TASK-1",
+      "TASK-2",
+      "PD-DISCUSS-1",
+      "r5",
+      "r6"
+    ],
+    "forbiddenClaims": [
+      "October 15 is general availability or customer-ready GA.",
+      "The staged plan fits all eight export days before October 15.",
+      "Restore deleted r5 or moved the head back to r4.",
+      "Contextbot owned or completed a prior task."
+    ]
+  },
+  "scenarioInvariants": [
+    "r2 is an ordinary human capacity correction with explicit Jordan provenance.",
+    "Oracle scenario labels PD-DATA-1 and PD-SYNTH-1 map only to stored task keys TASK-1 and TASK-2; both are anchored comments that compile to Direct tasks without an approval state.",
+    "Every Direct revision summary exactly equals that task completion's resultSummary.",
+    "Databot's option math uses 14 corrected days, and its GFM table and chart remain revisioned Markdown source.",
+    "PD-DISCUSS-1 is a closed human-to-human discussion, not a task or acceptance decision.",
+    "r5 remains immutable; r6 is a new Restore revision whose title/body and digest equal r4.",
+    "Example creation adds Quinn as a human viewer but no Quinn-owned agent profile; the continuity probe self-declares Contextbot and binds it to Quinn without prior task ownership or authorship.",
+    "Historical access counts are Databot 2 and ChatGPT 2; the subsequent continuity connect creates Contextbot at 1, and its reads and waits do not touch that count.",
+    "The continuity probe follows strict activity cursors across av11→av1 before asserting complete revision and thread coverage.",
+    "Profile connect/access operations change neither revision nor activity."
+  ]
+}

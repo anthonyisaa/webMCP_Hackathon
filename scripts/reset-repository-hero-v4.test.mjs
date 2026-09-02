@@ -189,5 +189,8 @@ test("rejects extra keys, duplicate or malformed paths, stale expiries, and wron
   assert.equal(validateResetResult(resetResult({
     priyaBootstrapPath: `/document/${SHARE_TOKEN}#ratiflow-bootstrap=${BOOTSTRAPS.priyaBootstrapPath}`,
   })), false);
+  assert.equal(validateResetResult(resetResult({
+    priyaBootstrapPath: `/issue/${SHARE_TOKEN}#ratiflow-bootstrap=${"p".repeat(65_537)}`,
+  })), false);
   assert.equal(validateResetResult(resetResult({ revision: 2 })), false);
 });

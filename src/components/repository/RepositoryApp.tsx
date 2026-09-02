@@ -12,7 +12,6 @@ import type {
 import {
   REPOSITORY_BOOTSTRAP_FRAGMENT_PREFIX,
   decodeRepositoryBootstrap,
-  readLastRepositoryShareToken,
   readRepositoryCredential,
   readRepositoryTabSession,
   removeRepositoryCredential,
@@ -40,7 +39,7 @@ export interface RepositoryAppProps {
 type InitializationOutcome =
   | { kind: "LANDING"; error?: string }
   | { kind: "JOIN"; shareToken: string }
-  | { kind: "READY"; session: IssueSessionBundle; replaceRoute: boolean }
+  | { kind: "READY"; session: IssueSessionBundle }
   | { kind: "ERROR"; message: string };
 
 interface BrowserStores {
@@ -120,7 +119,7 @@ async function initializeSharedIssue(
     const resumed = await inspectStoredSession(bootstrap);
     if (!("ok" in resumed)) {
       persistSession(resumed);
-      return { kind: "READY", session: resumed, replaceRoute: false };
+      return { kind: "READY", session: resumed };
     }
     if (!isExpiredCredential(resumed)) {
       return { kind: "ERROR", message: failureMessage(resumed) };
@@ -134,7 +133,7 @@ async function initializeSharedIssue(
     const resumed = await inspectStoredSession(tabSession);
     if (!("ok" in resumed)) {
       persistSession(resumed);
-      return { kind: "READY", session: resumed, replaceRoute: false };
+      return { kind: "READY", session: resumed };
     }
     if (!isExpiredCredential(resumed)) {
       return { kind: "ERROR", message: failureMessage(resumed) };
@@ -152,7 +151,7 @@ async function initializeSharedIssue(
     if (inspected.ok) {
       const resumed = sessionFromRepositoryCredential(credential, inspected.data);
       persistSession(resumed);
-      return { kind: "READY", session: resumed, replaceRoute: false };
+      return { kind: "READY", session: resumed };
     }
     if (!isExpiredCredential(inspected)) {
       return { kind: "ERROR", message: failureMessage(inspected) };
@@ -163,52 +162,10 @@ async function initializeSharedIssue(
   return { kind: "JOIN", shareToken };
 }
 
-async function initializeLanding(): Promise<InitializationOutcome> {
-  const stores = browserStores();
-  if (!stores.persistent) return { kind: "LANDING" };
-  const shareToken = readLastRepositoryShareToken(stores.persistent);
-  if (!shareToken) return { kind: "LANDING" };
-
-  const tabSession = stores.tab
-    ? readRepositoryTabSession(stores.tab, shareToken)
-    : null;
-  if (tabSession) {
-    const resumed = await inspectStoredSession(tabSession);
-    if (!("ok" in resumed)) {
-      persistSession(resumed);
-      return { kind: "READY", session: resumed, replaceRoute: true };
-    }
-    if (!isExpiredCredential(resumed)) {
-      return { kind: "LANDING", error: failureMessage(resumed) };
-    }
-    clearSession(shareToken);
-  }
-
-  const credential = readRepositoryCredential(stores.persistent, shareToken);
-  if (!credential) return { kind: "LANDING" };
-  const inspected = await repositoryHttpService.inspect(
-    credential.humanSessionToken,
-  );
-  if (!inspected.ok) {
-    if (isExpiredCredential(inspected)) clearSession(shareToken);
-    return {
-      kind: "LANDING",
-      ...(isExpiredCredential(inspected)
-        ? {}
-        : { error: failureMessage(inspected) }),
-    };
-  }
-  const resumed = sessionFromRepositoryCredential(credential, inspected.data);
-  persistSession(resumed);
-  return { kind: "READY", session: resumed, replaceRoute: true };
-}
-
-function initialize(
-  shareToken?: string,
-  startNew = false,
-): Promise<InitializationOutcome> {
-  if (!shareToken && startNew) return Promise.resolve({ kind: "LANDING" });
-  return shareToken ? initializeSharedIssue(shareToken) : initializeLanding();
+function initialize(shareToken?: string): Promise<InitializationOutcome> {
+  return shareToken
+    ? initializeSharedIssue(shareToken)
+    : Promise.resolve({ kind: "LANDING" });
 }
 
 export function RepositoryApp({ shareToken, startNew = false }: RepositoryAppProps) {
@@ -239,7 +196,7 @@ export function RepositoryApp({ shareToken, startNew = false }: RepositoryAppPro
       setError(null);
       initializationRef.current = {
         key,
-        promise: initialize(shareToken, startNew),
+        promise: initialize(shareToken),
       };
     }
     const entry = initializationRef.current;
@@ -255,9 +212,6 @@ export function RepositoryApp({ shareToken, startNew = false }: RepositoryAppPro
           sessionRef.current = outcome.session;
           setError(null);
           setSession(outcome.session);
-          if (outcome.replaceRoute) {
-            router.replace(`/issue/${outcome.session.shareToken}`);
-          }
           return;
         }
         if (outcome.kind === "JOIN") {
@@ -354,12 +308,12 @@ export function RepositoryApp({ shareToken, startNew = false }: RepositoryAppPro
     }
   }, [activate]);
 
-  const createDocument = useCallback((kind: IssueDocumentKind) => {
-    void runLaunch(() => repositoryHttpService.launch({ kind }));
+  const createDocument = useCallback((kind: IssueDocumentKind, displayName: string) => {
+    void runLaunch(() => repositoryHttpService.launch({ kind, displayName }));
   }, [runLaunch]);
 
-  const openExample = useCallback(() => {
-    void runLaunch(() => repositoryHttpService.launchExample({}));
+  const openExample = useCallback((kind: IssueDocumentKind, displayName: string) => {
+    void runLaunch(() => repositoryHttpService.launchExample({ kind, displayName }));
   }, [runLaunch]);
 
   const newDocument = useCallback(() => {

@@ -136,6 +136,7 @@ async function assertTemplateLaunch(
     document: expectedDocument,
     presence: [],
     members: [member],
+    agents: [],
     tasks: golden.tasks,
     threads: golden.threads,
     history: [expectedHistoryEntry],

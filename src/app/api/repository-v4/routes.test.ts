@@ -123,6 +123,7 @@ const humanMutations: Array<{
   { name: "save revision", path: "/api/repository-v4/revision/save", load: () => import("./revision/save/route") },
   { name: "restore revision", path: "/api/repository-v4/revision/restore", load: () => import("./revision/restore/route") },
   { name: "create task", path: "/api/repository-v4/task/create", load: () => import("./task/create/route") },
+  { name: "create mention", path: "/api/repository-v4/task/mention", load: () => import("./task/mention/route") },
   { name: "cancel task", path: "/api/repository-v4/task/cancel", load: () => import("./task/cancel/route") },
   { name: "accept task", path: "/api/repository-v4/task/accept", load: () => import("./task/accept/route") },
   { name: "reject task", path: "/api/repository-v4/task/reject", load: () => import("./task/reject/route") },
@@ -159,6 +160,8 @@ const agentEndpoints: Array<{
   body: Record<string, unknown>;
   load: () => Promise<{ POST: PostHandler }>;
 }> = [
+  { name: "connect", path: "/api/repository-v4/agent/connect", mutation: true, body: { name: "Databot" }, load: () => import("./agent/connect/route") },
+  { name: "context", path: "/api/repository-v4/agent/context", mutation: false, body: {}, load: () => import("./agent/context/route") },
   { name: "list tasks", path: "/api/repository-v4/agent/tasks", mutation: false, body: {}, load: () => import("./agent/tasks/route") },
   { name: "wait tasks", path: "/api/repository-v4/agent/tasks/wait", mutation: false, body: { afterActivityVersion: 0, afterRevision: 0 }, load: () => import("./agent/tasks/wait/route") },
   { name: "comment", path: "/api/repository-v4/agent/comment", mutation: true, body: {}, load: () => import("./agent/comment/route") },
@@ -185,6 +188,42 @@ test("all agent endpoints require a valid page-session header", async () => {
   }
 });
 
+test("agent bearers cannot fall through human document reads without a page session", async () => {
+  const session = await launchIssue("Hybrid read boundary tester");
+  const { GET: surface } = await import("./surface/route");
+  const { POST: history } = await import("./revision/history/route");
+  const { POST: revision } = await import("./revision/read/route");
+
+  const responses = await Promise.all([
+    surface(get("/api/repository-v4/surface", session.agentSessionToken)),
+    history(request("/api/repository-v4/revision/history", {}, {
+      token: session.agentSessionToken,
+    })),
+    revision(request("/api/repository-v4/revision/read", { revision: 1 }, {
+      token: session.agentSessionToken,
+    })),
+  ]);
+  for (const response of responses) {
+    expect(response.status).toBe(401);
+    await expect(json<RepositoryFailure>(response)).resolves.toMatchObject({
+      ok: false,
+      code: "UNAUTHORIZED",
+      message: "A valid human session is required.",
+    });
+  }
+
+  const humanResponses = await Promise.all([
+    surface(get("/api/repository-v4/surface", session.humanSessionToken)),
+    history(request("/api/repository-v4/revision/history", {}, {
+      token: session.humanSessionToken,
+    })),
+    revision(request("/api/repository-v4/revision/read", { revision: 1 }, {
+      token: session.humanSessionToken,
+    })),
+  ]);
+  for (const response of humanResponses) expect(response.status).toBe(200);
+});
+
 test("agent mutations reject requestId in public JSON", async () => {
   const session = await launchIssue("Agent mutation tester");
   for (const route of agentEndpoints.filter((entry) => entry.mutation)) {
@@ -204,14 +243,20 @@ test("agent mutations reject requestId in public JSON", async () => {
   }
 });
 
-test("public example accepts only an absent or empty object body", async () => {
+test("public example requires an exact kind and viewer display name", async () => {
   const { POST: example } = await import("./example/route");
   const absent = await example(request("/api/repository-v4/example", NO_BODY));
-  expect(absent.status).toBe(201);
+  expect(absent.status).toBe(400);
   const empty = await example(request("/api/repository-v4/example", {}));
-  expect(empty.status).toBe(201);
-  const nonempty = await example(request("/api/repository-v4/example", { displayName: "forged" }));
-  expect(nonempty.status).toBe(400);
+  expect(empty.status).toBe(400);
+  const valid = await example(request("/api/repository-v4/example", {
+    kind: "POSTMORTEM", displayName: "Viewer",
+  }));
+  expect(valid.status).toBe(201);
+  const extra = await example(request("/api/repository-v4/example", {
+    kind: "POSTMORTEM", displayName: "Viewer", surprise: true,
+  }));
+  expect(extra.status).toBe(400);
   const malformed = await example(request("/api/repository-v4/example", NO_BODY, { rawBody: "{" }));
   expect(malformed.status).toBe(400);
 });
@@ -232,7 +277,6 @@ test("handler failures and the shared response mapper preserve HTTP error semant
     expectedRevision: 0,
     title: "Stale",
     body: "Stale",
-    changeSummary: "This must conflict.",
   }, {
     token: session.humanSessionToken,
     headers: { "Idempotency-Key": randomUUID() },

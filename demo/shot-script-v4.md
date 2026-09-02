@@ -1,99 +1,105 @@
-# Ratiflow v4 narrated demo — 2:35 maximum
+# Ratiflow v4.1 narrated demo — 2:50 target
 
-**Status:** recording plan, not release evidence. Use the protected `INC-482` r1/av4
-reset, four isolated collaborator paths, a supported native WebMCP client, and the exact
-deployed release SHA. Never show URL fragments, share/session tokens, cookies, browser
-storage, DevTools secrets, or unrelated content.
+**Status:** recording plan, not release evidence. The script may be rehearsed locally,
+but native WebMCP, deployed behavior, and live-database claims remain **PENDING** until
+captured in the supported client against the exact release SHA.
+
+Record with sanitized completed examples and a fresh viewer named Quinn Patel. Never
+show share credentials, URL fragments, bearer paths, cookies, browser storage, DevTools
+secrets, reset tokens, or unrelated content.
 
 | Time | Screen action | Narration |
 | --- | --- | --- |
-| 0:00–0:12 | Open the completed postmortem. Frame the readable document and its compact `r1 → r2 → r3 → r4` revision path. | “Important documents now have human and agent contributors, but the reasoning and authority behind each edit disappear into chats. Ratiflow gives one shared document Git-grade history and a task list.” |
-| 0:12–0:28 | Reset to r1/av4 and show DATA-17, LOG-22, and CODE-9 together. Briefly frame each immutable assignee, exact target, and Direct or Review grant. | “Priya delegates three exact passages. She—not the model—chooses whether each agent may comment, propose, or commit directly.” |
-| 0:28–0:40 | In the supported client, show exactly six page tools and invoke `list_my_tasks({includeResolved:false})` as the Data agent. | “Any compatible agent can discover its owned work from the page. There is no Ratiflow bot runtime and no model-supplied identity, scope, or access mode.” |
-| 0:40–0:57 | Invoke `submit_task_result` for DATA-17. Show `COMMITTED`, r2, the changed Impact passage, and no Ratiflow approval control. | “This task grants Direct access, so one verified range becomes r2 immediately. The server enforces the stored selection; Direct is not document-wide permission.” |
-| 0:57–1:12 | As the Logging agent, submit LOG-22 based on stale r1 after r2 exists. Show `COMMITTED`, r3, both changes intact, and the lineage label `Direct from r1, safely rebased`. | “Logging also started from r1. Because the edits are disjoint, Ratiflow rebases it to r3 without overwriting Data. An overlap would fail closed.” |
-| 1:12–1:29 | As the Builder agent, submit CODE-9. Show `PROPOSED`, unchanged r3 Root cause, exact before/after diff, and evidence refs. | “Builder has Review access. The same tool now returns a proposal, because outcome comes from the human's stored grant—not the agent's prompt.” |
-| 1:29–1:47 | Priya asks whether the code is being overclaimed; invoke `comment_on_task` for the Builder's evidence-backed reply. Then Priya accepts with the frozen rationale. | “The disagreement stays attached to the task. Builder separates the external trigger from the internal retry amplifier; Priya accepts, creating r4.” |
-| 1:47–2:06 | Open r4 History. Frame Builder as author, Priya as approver and committer, source r1, parent r3, digest, task, evidence, complete diff, and full snapshot. | “History preserves two kinds of authorship: who produced the change and who authorized it. Every revision is a reconstructable snapshot; restore appends instead of rewriting history.” |
-| 2:06–2:22 | Start a fresh Builder-agent turn. Invoke `list_my_tasks({includeResolved:true})`, then `read_document_history`. Show the answer citing CODE-9, `7d3c9e1`, and r4. | “A fresh agent can recover why provider throttling was only the trigger and why our retry change sustained the outage—without replaying old chats.” |
-| 2:22–2:31 | Open `/new`, briefly show only Postmortem and Product document, then the WebMCP-unavailable footer in an ordinary browser. | “The shared URL remains a complete human product with or without an agent, and every collaborator can bring their own.” |
-| 2:31–2:35 | Return to the finished postmortem and revision path. | “Ratiflow: Git-grade collaboration for the documents that have to be right.” |
+| 0:00–0:12 | On `/`, enter Quinn's nickname, point out that each collaborator connects one agent after the document opens, then open the completed `INC-482` postmortem. | “Ratiflow starts with who you are, then makes the agent handoff explicit. The document still works if you continue without one.” |
+| 0:12–0:28 | On a fresh postmortem, select `Investigation in progress.`, open one anchored comment, type `@`, choose `Databot · Nadia Chen`, and finish the prompt. Do not show any secondary task form. | “Delegation is just a comment: select a passage, mention an agent, and describe the work. Any comment without a selected agent remains a normal human discussion.” |
+| 0:28–0:40 | Submit the comment. Show `TASK-1`, its exact prompt, owner, selected passage, and Open state in the rail. | “Ratiflow creates scoped work atomically. There is no authority checkbox and no approval queue; the assignment is limited to this exact passage.” |
+| 0:40–0:55 | In the setup strip, prepare the Databot prompt. In a supported WebMCP client, show the ordered eight-tool catalog, call `connect_agent({"name":"Databot"})`, show the status change to `Databot · owned by Nadia`, then call `list_my_tasks({"includeResolved":false})`. If native capture is unavailable, omit the invocation and label the UI-only cut. | “The page helps with the handoff but does not invent a bot. The agent self-declares its name, and Ratiflow binds that profile to Nadia before returning only Nadia's delegated work.” |
+| 0:55–1:10 | Submit Databot's result. Return to the document and show the rendered counts, GFM table, safe chart, Completed thread, highlighted before/after, rationale, evidence, r2 link, and Restore. | “The result commits directly as a reversible revision. Its prompt, source context, rationale, evidence, owner, and diff stay attached to the completed comment.” |
+| 1:10–1:25 | Jump to completed `INC-482` r5/av11. Walk the compact r1→r5 line and the Databot, Logbot, and two Builder completions. Open Priya's separate closed human discussion. | “Three agents fill impact, timeline, and root cause. Priya then challenges the wording in a normal comment. A second Builder task uses that history to clarify r5; Priya closes the discussion without inventing a content approval.” |
+| 1:25–1:41 | Open the r5 Builder thread and History detail. Frame `TASK-4`, the r4→r5 highlight, source and parent revisions, owner, exact prompt/context, rationale, `checkout.log`, `commit:7d3c9e1`, digest, and Restore. | “History is Git-like, but designed for context. It records that provider throttling triggered the incident while retry code amplified traffic to 5.8 times and sustained the failure.” |
+| 1:41–1:57 | Switch to completed `Northstar · CSV export launch decision` at r6/av11. Show the 14-day correction, option table/chart, Databot and ChatGPT threads, and closed human discussion. | “The Product document tells a different story: a human corrects capacity to 14 days, Databot proves that reliability plus an invite-only beta fits exactly, and ChatGPT synthesizes the October 15 beta and November 1 GA decision.” |
+| 1:57–2:10 | In History, compare Elena's r5 “every customer” alternative with Jordan's r6 Restore of r4. Show r5 still present. | “When Elena broadens the rollout, Jordan restores the earlier decision. Restore creates r6; it never deletes r5 or hides who proposed it.” |
+| 2:10–2:31 | As Quinn's new agent, call `connect_agent({"name":"Contextbot"})`, page `read_collaboration_context`, then inspect history. Show the returned closed comments, `TASK-n` prompts, rationales, evidence, and revision links. | “Now a completely new agent joins. Contextbot owns no old task and authored nothing. It can still recover the decisions—including facts that only appeared in comments—without replaying old chats.” |
+| 2:31–2:43 | Show Contextbot's concise answer for one example, with references. For postmortem: `TASK-4`, `checkout.log`, `commit:7d3c9e1`, closed discussion, r5. For Product: `TASK-1`, `TASK-2`, closed discussion, r5, r6. | “The history is not primarily another screen for people to manage. It is structured memory that helps any compatible agent do the next job correctly.” |
+| 2:43–2:50 | Return to the clean rendered document and collapse the rail. | “Ratiflow: one document, simple delegation, and a history that remembers why.” |
 
-## Frozen native calls
+## Exact WebMCP catalog shown in the recording
 
-Use IDs returned by the protected reset; never record the bearer paths themselves.
+Show all eight tools, in this order, and no human-only management operation:
+
+1. `connect_agent`
+2. `inspect_document`
+3. `read_document_history`
+4. `read_collaboration_context`
+5. `list_my_tasks`
+6. `wait_for_my_tasks`
+7. `comment_on_task`
+8. `submit_task_result`
+
+## Minimal native call sequence
+
+Use IDs returned by the current page. Never record credentials or substitute oracle
+scenario labels such as `PM-DATA-1` for the stored `TASK-n` keys shown to the user.
 
 ```json
-{"includeResolved":false}
+{"name":"Contextbot"}
 ```
 
-DATA-17 result:
+```json
+{"limit":5}
+```
+
+Pass each returned cursor back as `beforeActivityVersion` until it is `null`, then inspect the immutable
+revision window. Postmortem r5/av11 requires three context pages at limit 5; Product
+r6/av11 requires two at limit 6.
+
+For a task result, use the task UUID returned by `list_my_tasks`, the task's observed
+source revision, a concise rationale, the scoped replacement, and evidence labels:
 
 ```json
 {
-  "taskId": "<DATA-17 task UUID>",
+  "taskId": "<returned task UUID>",
   "basedOnRevision": 1,
-  "resultSummary": "Replace the impact placeholder with verified checkout failure counts.",
-  "replacementText": "Between 09:43 and 10:21 UTC, 28,417 checkout attempts produced 6,742 failures across 311 merchants. No duplicate charges occurred.",
-  "evidenceRefs": ["warehouse:checkout_attempts.csv"]
+  "resultSummary": "Replace the selected impact placeholder with verified outcomes and readable evidence.",
+  "replacementText": "<checked Markdown replacement, including GFM table and chart block>",
+  "evidenceRefs": ["impact.csv"]
 }
 ```
 
-LOG-22 result:
+The visible outcome must be `COMMITTED`; do not narrate a proposal or Ratiflow approval
+state. A host application's own safety confirmation, if one appears, must be described
+as host behavior rather than Ratiflow's document model.
 
-```json
-{
-  "taskId": "<LOG-22 task UUID>",
-  "basedOnRevision": 1,
-  "resultSummary": "Add the verified provider, retry, rollback, and recovery timestamps.",
-  "replacementText": "- 09:43 — Provider 429 responses began.\n- 09:47 — Retry traffic reached 5.8× baseline; the checkout queue grew from 420 to 18,240.\n- 10:17 — The team rolled back retry middleware commit 7d3c9e1.\n- 10:21 — Checkout success rate recovered.",
-  "evidenceRefs": ["logs:checkout.log"]
-}
-```
+## Must-show details
 
-CODE-9 result:
-
-```json
-{
-  "taskId": "<CODE-9 task UUID>",
-  "basedOnRevision": 1,
-  "resultSummary": "Separate the provider trigger from the retry regression that sustained the outage.",
-  "replacementText": "Provider throttling triggered the incident. Retry middleware introduced in 7d3c9e1 ignored Retry-After and made up to five immediate retries, amplifying provider 429 responses into queue exhaustion. The retry regression—not provider latency alone—was the root cause of the sustained checkout failure.",
-  "evidenceRefs": ["commit:7d3c9e1", "logs:checkout.log"]
-}
-```
-
-Priya's question:
-
-```text
-Provider throttling happened first. Are we overclaiming our code as the root cause?
-```
-
-Builder reply:
-
-```text
-The provider initiated throttling at 09:43, but 7d3c9e1 ignored Retry-After and retried up to five times. That raised retry traffic to 5.8× and exhausted the queue; rollback at 10:17 preceded recovery at 10:21.
-```
-
-Acceptance rationale:
-
-```text
-Accepted after separating the external trigger from the internal retry amplifier.
-```
+- The `@Agent` prompt is an anchored comment beside selected rendered text.
+- A literal or unselected `@` creates only a human comment.
+- The human's name and `Agent · owned by Human` attribution are visible.
+- A completed task shows prompt, prior context, rationale, evidence, highlighted
+  before/after, revision, and Restore.
+- A human discussion shows reply and Close, not Accept or Reject.
+- Markdown headings, GFM table, and validated chart render in reading mode; source edit
+  mode shows the underlying revisioned Markdown.
+- History separates content revisions from coordination activity and keeps r5 readable
+  after Product r6 Restore.
+- Contextbot is created only by its visible `connect_agent` call and has no prior task,
+  comment, or revision attribution.
 
 ## Recording gate
 
-- [ ] Exact clean source SHA equals deployed SHA, public repository HEAD, manifest,
-  video description, and submission.
-- [ ] Remote v4 migration is applied and security/performance advisors are reviewed.
-- [ ] A supported client discovers exactly the six v4 tools on the top-level issue page;
-  the first visible native invocation lands by 0:40.
-- [ ] Direct, stale-base Direct, Review, comment, acceptance, resolved-task/history read,
-  authority attacks, wait, and teardown are captured natively—not through an adapter.
-- [ ] Any host safety confirmation is shown and described separately from Ratiflow's
-  Comment/Review/Direct policy.
-- [ ] Five protected-reset rehearsals complete without repair on the release deployment.
-- [ ] The finished cut is at most 2:35, narrated, public on YouTube, and playable without
-  sign-in.
-- [ ] Desktop and 390px receive an independent read-only visual SHIP verdict.
-- [ ] Every frame, caption, transcript, and artifact passes the secret/privacy scrub.
+- [ ] Clean source SHA equals the deployed SHA, public source HEAD, manifest, video
+  description, and submission.
+- [ ] The additive v4.1 migration is applied to the release database and its RPC, RLS,
+  grant, and denial checks are recorded.
+- [ ] A supported client discovers exactly the eight tools on the top-level document
+  page and completes identity, reads, task completion, waits, cancellation, and teardown
+  natively—not through an adapter.
+- [ ] Both completed examples match their checked terminal states: Postmortem r5/av11
+  and Product r6/av11.
+- [ ] The Contextbot continuity answer is captured from a fresh owner with no pre-seeded
+  profile or work.
+- [ ] Ordinary-browser behavior, WebMCP-absent behavior, desktop, and 390 px layouts are
+  visibly checked.
+- [ ] The finished cut is no longer than 2:50 and the final public URL is playable
+  without sign-in.
+- [ ] Every frame, caption, transcript, and artifact passes the privacy scrub.
