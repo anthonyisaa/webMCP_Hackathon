@@ -77,7 +77,7 @@ test("critical WebMCP story slides remain contained and truthful on desktop", as
   await expect(page.locator("#slide-10")).toContainText("getTools()");
   await expect(page.locator("#slide-10")).toContainText("executeTool()");
   await expect(page.locator("#slide-10")).toContainText("server capability grant");
-  await expect(page.locator("#slide-10")).toContainText("server-checked revision");
+  await expect(page.locator("#slide-10")).toContainText("revision + cleanup");
 
   await page.goto("/deck#slide-11");
   await expect(page.locator("#slide-11")).toContainText("PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP");
