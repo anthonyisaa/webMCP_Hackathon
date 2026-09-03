@@ -4,7 +4,7 @@ import { test } from "vitest";
 import {
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_TOOL_CATALOGS,
+  RELAY_ACCESS_POLICIES,
   RELAY_BOUNDS,
   type RelayBrowserClientPort,
   type RelayBrowserTraceInput,
@@ -20,7 +20,14 @@ import { sha256CanonicalJson } from "./canonical-json";
 import { makeRelayPhysicalToolName } from "./physical-name";
 import { wrapRelayNativeResult } from "./result-decoder";
 import { RelayBrowserRuntime } from "./runtime";
-import { FakeWebMCPConsumer, TEST_ORIGIN, TEST_WINDOW, claimedAttempt, managedAgent } from "./test-helpers";
+import {
+  FakeWebMCPConsumer,
+  TEST_ORIGIN,
+  TEST_WINDOW,
+  capabilityGrant,
+  claimedAttempt,
+  managedAgent,
+} from "./test-helpers";
 import type {
   RelayBrowserEnvironment,
   RelayBrowserRuntimeStatus,
@@ -36,7 +43,8 @@ function run(status: RelayRun["status"], overrides: Partial<RelayRun> = {}): Rel
     runId: claimedAttempt().runId,
     taskId: TASK_ID,
     profileId: managedAgent("CODE").profileId,
-    specialty: "CODE",
+    agentExpertise: "CODE",
+    accessProfile: "REPOSITORY_SCOPED_EDIT",
     runtime: MANAGED_AGENT_RUNTIME,
     model: MANAGED_AGENT_MODEL,
     status,
@@ -176,8 +184,9 @@ test("runs the exact WebMCP discovery/execution loop then restores idle with hea
   const environment = new FakeEnvironment();
   const attempt = claimedAttempt();
   const agent = managedAgent("CODE");
+  const accessGrant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
   const assignmentPhysicalName = makeRelayPhysicalToolName({
-    specialty: "CODE",
+    accessProfile: accessGrant.accessProfile,
     registrationScope: attempt.registrationScope,
     registrationGeneration: attempt.registrationGeneration,
     logicalName: "read_assignment",
@@ -199,7 +208,14 @@ test("runs the exact WebMCP discovery/execution loop then restores idle with hea
       claims += 1;
       return {
         ok: true as const,
-        data: { outcome: "CLAIMED" as const, run: run("ACTIVE"), attempt, agent, grant: GRANT },
+        data: {
+          outcome: "CLAIMED" as const,
+          run: run("ACTIVE"),
+          attempt,
+          agent,
+          capabilityGrant: accessGrant,
+          grant: GRANT,
+        },
       };
     },
     renewLease: async () => ({ ok: true as const, data: attempt }),
@@ -306,8 +322,11 @@ test("runs the exact WebMCP discovery/execution loop then restores idle with hea
     "WEBMCP_TOOLCHANGE_OBSERVED",
   ]);
   assert.deepEqual(observedCatalogs[0], []);
-  assert.equal(observedCatalogs[2]?.length, MANAGED_AGENT_TOOL_CATALOGS.CODE.length);
-  assert.equal(observedCatalogs[2]?.every((name) => name.startsWith("rf_code_")), true);
+  assert.equal(
+    observedCatalogs[2]?.length,
+    RELAY_ACCESS_POLICIES.REPOSITORY_SCOPED_EDIT.logicalToolNames.length,
+  );
+  assert.equal(observedCatalogs[2]?.every((name) => name.startsWith("rf_repository_")), true);
   assert.deepEqual(observedCatalogs[4], []);
   assert.deepEqual(observedCatalogs[6], [...REPOSITORY_TOOL_NAMES].sort());
 
@@ -336,6 +355,7 @@ test("renews the lease while visible and releases/restores idle when hidden mid-
   const environment = new FakeEnvironment();
   const attempt = claimedAttempt();
   const agent = managedAgent("CODE");
+  const accessGrant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
   let stepStarted!: () => void;
   const awaitingStep = new Promise<void>((resolve) => {
     stepStarted = resolve;
@@ -346,7 +366,14 @@ test("renews the lease while visible and releases/restores idle when hidden mid-
     readState: async () => ({ ok: true as const, data: state("QUEUED") }),
     claim: async () => ({
       ok: true as const,
-      data: { outcome: "CLAIMED" as const, run: run("ACTIVE"), attempt, agent, grant: GRANT },
+      data: {
+        outcome: "CLAIMED" as const,
+        run: run("ACTIVE"),
+        attempt,
+        agent,
+        capabilityGrant: accessGrant,
+        grant: GRANT,
+      },
     }),
     renewLease: async () => {
       renewals += 1;

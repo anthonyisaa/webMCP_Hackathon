@@ -1,12 +1,32 @@
 # Ratiflow protocol-4 issue-document and managed-relay contract
 
-Version 4.2 · The document is the agent runtime · 2026-09-02
+Version 4.3 · Ratiflow grants assignment capabilities · 2026-09-03
+
+## v4.3 capability-first authority
+
+Managed bot identity and website authority are independent. `@Data`, `@Code`, and
+`@General` retain descriptive `expertise`; directory `visibility` is metadata only. A
+managed directory entry does not carry authoritative site tools or source labels.
+
+The canonical managed mention agent arm requires one separately selected
+`accessProfile`: `METRICS_SCOPED_EDIT`, `REPOSITORY_SCOPED_EDIT`, or
+`EDITORIAL_SCOPED_EDIT`. The server—not the browser or model—maps it through the checked
+access policy to task category, ordered site tools, required calls, source labels, and
+`DIRECT_SELECTION` authority. It stores the profile on `RelayRun` and returns a distinct
+`RelayCapabilityGrant` on claim. The human mention arm rejects `accessProfile`; neither
+arm accepts raw tools, sources, actor, owner, origin, credentials, or mutation range
+authority.
+
+Every new catalog, physical name, manifest, source read, and permit is reconstructed from
+the grant-bound run access profile. Agent expertise must not influence those decisions.
+Existing signed token shapes remain unchanged; server authorization follows their bound
+run ID. Catalog visibility guides compatible agents, while repository range, revision,
+task, lease, and permit checks enforce access.
 
 This refreeze is additive to the shipped v4.1 collaboration document. The literal wire
 and storage protocol remains `4`, `REPOSITORY_PROTOCOL_VERSION` remains `4`, and the
-public namespace remains `/api/repository-v4/**`. Version 4.2 adds a managed Agent
-Directory, canonical human and agent mentions, a page-bound GPT-5.6 Luna relay, dynamic
-WebMCP catalogs, and a separate relay audit stream. It does not create protocol 5 or
+public namespace remains `/api/repository-v4/**`. Version 4.2 introduced the managed
+sidecar; version 4.3 makes assignment access independent from bot expertise. It does not create protocol 5 or
 replace the immutable v4 document, task, thread, comment, revision, and activity ledger.
 
 Checked TypeScript authority is split deliberately. `src/repository/contracts.ts` owns
@@ -21,7 +41,7 @@ WebMCP. Ratiflow therefore describes this feature precisely as an application-ow
 WebMCP Relay powered by `gpt-5.6-luna`. Remote MCP is a separate protocol and is not the
 runtime described here.
 
-## v4.2.1 Boundary and v4.1 projection isolation
+## v4.3.1 Boundary and v4.1 projection isolation
 
 The ordinary issue-document surface and its eight idle BYOA WebMCP tools remain usable
 without the relay. Managed execution is an optional sidecar over the same document. It
@@ -40,9 +60,9 @@ wake a legacy task wait or masquerade as a document edit.
 Managed profiles and their tasks may be represented to a v4.1-only reader only through
 the existing compatibility shapes: the profile is not labeled `DEMO_DIRECTORY` in the
 v4.1 profile projection, and a managed task/actor may be projected with the already legal
-null-profile compatibility identity when necessary. The v4.2 sidecar is the only
-authority for managed identity source, runtime, specialty, readiness, catalog, run, and
-attempt state. Existing self-declared profiles and old documents remain byte-for-byte
+null-profile compatibility identity when necessary. The relay sidecar is the only
+authority for managed identity source, runtime, expertise, readiness, access grant, run,
+and attempt state. Existing self-declared profiles and old documents remain byte-for-byte
 valid. No managed principal receives the human-owned BYOA session pair, so a legacy
 agent route cannot execute managed work.
 
@@ -52,7 +72,7 @@ observed, managed entries report `WEBMCP_UNAVAILABLE`, no Luna request is dispat
 and no canned result is substituted. A compatibility adapter may support development,
 but its evidence must be labeled compatibility and cannot satisfy a native WebMCP row.
 
-## v4.2.2 Agent Directory and canonical mentions
+## v4.3.2 Agent Directory and canonical mentions
 
 `DirectoryEntry` is a discriminated union of `HumanDirectoryEntry` and
 `AgentDirectoryEntry`. A human entry contains exactly `kind: "HUMAN"`, its immutable
@@ -60,13 +80,14 @@ member snapshot, handle, and display name. An agent entry contains exactly:
 
 - `kind: "AGENT"`, stable profile UUID, and its distinct internal member principal;
 - canonical handle and display name;
-- display scope `COMPANY | TEAM | PERSONAL`;
-- specialty `DATA | CODE | GENERAL`;
+- directory visibility `COMPANY | TEAM | PERSONAL`;
+- descriptive expertise `DATA | CODE | GENERAL`;
 - identity source `DEMO_DIRECTORY | SELF_DECLARED`;
 - runtime `OPENAI_LUNA_WEBMCP_RELAY | BRING_YOUR_OWN_AGENT`;
-- readiness `READY | WEBMCP_UNAVAILABLE | DISABLED`;
-- the ordered server-approved logical tool names; and
-- bounded source labels that identify synthetic evidence.
+- readiness `READY | WEBMCP_UNAVAILABLE | DISABLED`.
+
+Managed directory profiles own no authoritative tools or source labels. Self-declared
+Advanced compatibility entries retain their existing repository-tool metadata.
 
 The three managed demo handles are exactly `data`, `code`, and `general`. Each managed
 agent owns a different internal member principal and stable profile. The existing
@@ -82,12 +103,13 @@ names are not authority. `IssueMentionTarget` is exactly one of:
 - `{ kind: "AGENT", profileId }`.
 
 `CreateDirectoryMentionHttpInput` contains current `expectedRevision`, bounded comment,
-canonical `target`, and an anchor. A human target may use a Document or Selection anchor.
-An agent target requires an active, non-empty Selection anchor no longer than 8,000 code
-points. The server locks the document and resolves the current target by ID; it derives
-member, handle, display name, specialty, category, runtime, tool manifest, mode, and
-authority. A missing, renamed, disabled, cross-document, or type-mismatched target fails
-with `STALE_MENTION_TARGET` without partial state.
+canonical `target`, and an anchor. A human target may use a Document or Selection anchor
+and rejects `accessProfile`. An agent target requires an active, non-empty Selection
+anchor no longer than 8,000 code points and exactly one `accessProfile`. The server locks
+the document, resolves identity by profile ID, and expands access through the canonical
+policy; callers cannot submit raw tools or sources. A missing, renamed, disabled,
+cross-document, or type-mismatched target fails with `STALE_MENTION_TARGET`; an unknown or
+malformed access choice fails without partial state.
 
 The selected ID is authority, but visible text must still agree with it. The canonical
 mention token is `@` followed by the target's current display label; for the managed demo
@@ -111,26 +133,27 @@ Selecting a ready managed agent atomically creates:
 1. the root human comment and immutable mention-target snapshot;
 2. one task-owned thread;
 3. one existing `DIRECT` Selection task with the v4.1 immutable context snapshot;
-4. one `RelayRun` in `QUEUED`; and
+4. one `RelayRun` in `QUEUED` with immutable `accessProfile`; and
 5. one `RUN_QUEUED` relay trace event.
 
 It returns outcome `MANAGED_TASK_QUEUED` with the canonical agent target and the thread,
-comment, task, and run UUIDs. Category is server-derived as `DATA -> DATA`,
-`CODE -> CODEBASE`, and `GENERAL -> GENERAL`. Task authority, exact-range validation,
+comment, task, and run UUIDs. Category is server-derived as
+`METRICS_SCOPED_EDIT -> DATA`, `REPOSITORY_SCOPED_EDIT -> CODEBASE`, and
+`EDITORIAL_SCOPED_EDIT -> WRITING`. Task authority, exact-range validation,
 stale overlap behavior, rationale, evidence, revision, and Restore continue to use the
 existing repository engine.
 
 The current `/api/repository-v4/task/mention` route accepts two exact, non-overlapping
 request shapes. The shipped v4.1 shape `{ expectedRevision, comment,
 mentionedAgentName, assignedToMemberId, anchor }` continues to call the old
-`createMentionTask` service and RPC. The v4.2 canonical-target shape calls
+`createMentionTask` service and RPC. The v4.3 canonical-target-plus-access shape calls
 `createDirectoryMention`. Both prohibit public `requestId`, derive it from an
 `Idempotency-Key`, and replay only an exact identical request. Literal or unselected `@`
 text remains an ordinary comment.
 
-## v4.2.3 Run, attempt, lease, and task lifecycle
+## v4.3.3 Run, attempt, lease, and task lifecycle
 
-`RelayRun` contains run/task/profile IDs, specialty, constant runtime
+`RelayRun` contains run/task/profile IDs, `agentExpertise`, immutable `accessProfile`, constant runtime
 `OPENAI_LUNA_WEBMCP_RELAY`, constant model `gpt-5.6-luna`, status, attempt count,
 `maxAttempts: 2`, terminal reason, and timestamps. Its status is exactly:
 
@@ -149,12 +172,13 @@ deadline, update, and completion timestamps. Its status is exactly:
 FAILED | EXPIRED | CANCELLED`.
 
 Only one run may be `ACTIVE` for a document, not merely for a task or agent. This is
-required because the top-level page exposes one mutually exclusive relay persona and
+required because the top-level page exposes one mutually exclusive assignment capability
 catalog. Claim serializes on the document, reconciles any expired active lease, and then
 selects eligible work deterministically by creation time and run ID. `RelayClaimOutcome`
 is exactly:
 
-- `CLAIMED`, returning run, attempt, managed directory entry, and opaque relay grant;
+- `CLAIMED`, returning run, attempt, managed directory entry, separate
+  `RelayCapabilityGrant`, and opaque relay grant token;
 - `NO_WORK`, returning the fixed 15-second retry interval; or
 - `BUSY`, returning a bounded retry interval and the active run ID.
 
@@ -203,7 +227,7 @@ the task/thread/revision first and atomically makes the run `COMPLETED`, its att
 `SUCCEEDED`, and its terminal reason `TASK_COMPLETED`. Reconciliation repairs a lost
 HTTP response from that authoritative state without duplicating a revision or spend.
 
-## v4.2.4 Dynamic WebMCP catalogs and trace proof
+## v4.3.4 Dynamic WebMCP catalogs and trace proof
 
 Idle/BYOA mode retains exactly the shipped ordered eight-tool catalog:
 
@@ -218,8 +242,8 @@ Idle/BYOA mode retains exactly the shipped ordered eight-tool catalog:
 
 Claiming managed work waits for any in-flight idle invocation to settle, aborts the idle
 registrations, and records `IDLE_CATALOG_WITHDRAWN`. The top-level page then registers
-one attempt- and generation-scoped physical catalog and records
-`RELAY_CATALOG_REGISTERED`. Every specialty contains the exact ordered common tools:
+one attempt- and generation-scoped physical catalog reconstructed from `run.accessProfile`
+and records `RELAY_CATALOG_REGISTERED`. Every access profile contains the exact ordered common tools:
 
 1. `read_assignment`
 2. `read_document_context`
@@ -227,11 +251,14 @@ one attempt- and generation-scoped physical catalog and records
 4. `comment_on_assignment`
 5. `submit_scoped_revision`
 
-The only specialist additions are:
+The only access-profile additions are:
 
-- Data: `query_demo_metrics`;
-- Code: `search_demo_code`, `read_demo_file`; and
-- General: `read_company_style_guide`, `check_document_consistency`.
+- Metrics: `query_demo_metrics`;
+- Repository: `search_demo_code`, `read_demo_file`; and
+- Editorial: `read_company_style_guide`, `check_document_consistency`.
+
+Bot expertise is not an input. Equal access profiles produce equal logical catalogs for
+different bots; changing only access changes the same bot's catalog.
 
 Physical WebMCP names are unique to run, attempt, and registration generation; the UI
 shows the stable logical names above. An old `RegisteredTool` descriptor cannot execute
@@ -250,7 +277,7 @@ logical names, registration generation, description, normalized JSON Schema, and
 `readOnlyHint`/`untrustedContentHint`. It excludes the non-serializable window reference.
 The ordered normalized entries and `sha256:` digest form
 `RelayNormalizedToolManifest`. The server rejects an unknown origin, logical tool,
-physical name, role addition, generation, annotation, schema, order, or digest with
+physical name, out-of-grant addition, generation, annotation, schema, order, or digest with
 `RELAY_MANIFEST_MISMATCH`. Tool descriptions, page content, fixture content, and tool
 results remain untrusted input.
 
@@ -275,7 +302,7 @@ credentials, unrestricted transcripts, full tool arguments, or private document 
 Browser-reported WebMCP events are accepted only under the live grant and checked
 against the server state; provider and mutation events are emitted by the server.
 
-## v4.2.5 Luna stepper, permits, receipts, and executable ports
+## v4.3.5 Luna stepper, permits, receipts, and executable ports
 
 `open_ai_api` is read only in server code, with `OPENAI_API_KEY` accepted as a
 conventional fallback. The browser cannot supply a model,
@@ -363,7 +390,7 @@ claims; a changed digest under the same request UUID fails.
 `COMPLETED`. These ports keep database authority, WebMCP execution, fixtures, and the
 OpenAI transport independently testable.
 
-## v4.2.6 HTTP and RPC sidecar
+## v4.3.6 HTTP and RPC sidecar
 
 The exact additive HTTP routes are:
 
@@ -408,17 +435,20 @@ the OpenAI call and uses the attempt transition RPC before and after dispatch. T
 route alone consumes execution permits and invokes repository or deterministic fixture
 ports. No RPC accepts model-supplied identity or authority.
 
-## v4.2.7 Additive persistence and security
+## v4.3.7 Additive persistence and security
 
-Exactly one new migration implements v4.2; no applied migration is edited. It may add
-managed-directory columns to `ratiflow_issue_agent_profiles_v4`, add a nonnegative
-`relay_event_version` counter to `ratiflow_documents`, extend the request-ledger operation
-check, and create only these relations:
+The applied v4.2 migration remains immutable. One new forward-only v4.3 migration adds
+immutable `access_profile` to Relay runs and backfills historical rows from the previous
+framing's legacy `specialty` column.
+Catalog, manifest, source, category, and permit authorization then join through the run.
+Existing v1 signed grant and permit payloads remain byte-exact.
+The retained sidecar relations are:
 
 - `public.ratiflow_issue_mentions_v4` — immutable comment/thread/task association,
   canonical target IDs, and target snapshot;
 - `public.ratiflow_issue_relay_runs_v4` — unique managed task lineage, profile,
-  specialty, fixed runtime/model, status, attempt budget, terminal reason, and times;
+  agent expertise, immutable access profile, fixed runtime/model, status, attempt budget,
+  terminal reason, and times;
 - `public.ratiflow_issue_relay_attempts_v4` — numbered attempt, claimant/page,
   generation, embedded lease, fixed grant claims including nonce/issued-at/expiry, grant
   digest, counters, step, provider-dispatch marker, deadline, errors, and times;
@@ -459,13 +489,13 @@ still one `WEBMCP` Direct revision with assigned managed profile, task creator a
 exact before/after diff, rationale, evidence, and Restore. Model/provider metadata lives
 in the relay lineage, not in model-controlled revision fields. Synthetic labels identify
 the demo metrics, code, and style fixtures in both tool results and visible evidence.
-The final specialist result carries the complete deterministic evidence set for its
-required path, and a scoped revision must cite that exact set: one selected Data dataset;
-both `checkout.log` and `commit:7d3c9e1` for Code; or both `Ratiflow company style guide`
-and `Ratiflow consistency rules` for General. Missing, duplicate, extra, or forged refs
+The final access-specific result carries the complete deterministic evidence set for its
+required path, and a scoped revision must cite that exact set: one selected Metrics
+dataset; both `checkout.log` and `commit:7d3c9e1` for Repository; or both `Ratiflow company
+style guide` and `Ratiflow consistency rules` for Editorial. Missing, duplicate, extra, or forged refs
 fail before the mutation permit is issued.
 
-## v4.2.8 Exact errors and bounds
+## v4.3.8 Exact errors and bounds
 
 Relay operations retain every existing `RepositoryFailure` code and add exactly:
 

@@ -3,12 +3,13 @@ import { describe, expect, test } from "vitest";
 import {
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_TOOL_CATALOGS,
   RELAY_BOUNDS,
   type LunaProviderInput,
   type LunaProviderResult,
   type LunaResponsesProviderPort,
   type ManagedAgentDirectoryEntry,
+  type ManagedAgentExpertise,
+  type RelayAccessProfile,
   type RelayAuthorizedAttemptContext,
   type RelayBeginStepResult,
   type RelayExecutionPermit,
@@ -20,6 +21,7 @@ import {
   type RelayStepRecordInput,
   type RelayStepReservationInput,
 } from "@/agent-relay/contracts";
+import { capabilityGrantForAccessProfile } from "@/agent-relay/access-policy";
 import {
   BoundedLunaRelayStepper,
   buildExpectedManifest,
@@ -39,23 +41,21 @@ const RESULT_TWO_REQUEST_ID = "00000000-0000-4000-8000-000000000004";
 const RESULT_THREE_REQUEST_ID = "00000000-0000-4000-8000-000000000005";
 
 function agent(
-  specialty: keyof typeof MANAGED_AGENT_TOOL_CATALOGS = "DATA",
+  expertise: ManagedAgentExpertise = "CODE",
 ): ManagedAgentDirectoryEntry {
-  const handle = specialty.toLowerCase();
-  const displayName = `${specialty[0]}${specialty.slice(1).toLowerCase()} Agent`;
+  const handle = expertise.toLowerCase();
+  const displayName = `${expertise[0]}${expertise.slice(1).toLowerCase()} Agent`;
   return {
     kind: "AGENT",
     profileId: `profile-${handle}`,
     principal: { memberId: `member-${handle}`, displayName },
     handle,
     displayName,
-    scope: "COMPANY",
+    visibility: "COMPANY",
     readiness: "READY",
-    syntheticSourceLabels: ["Synthetic demo metrics"],
     identitySource: "DEMO_DIRECTORY",
-    specialty,
+    expertise,
     runtime: MANAGED_AGENT_RUNTIME,
-    logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[specialty]],
   };
 }
 
@@ -65,8 +65,9 @@ function authorizedContext(): RelayAuthorizedAttemptContext {
     run: {
       runId: "run-1",
       taskId: "task-1",
-      profileId: "profile-data",
-      specialty: "DATA",
+      profileId: "profile-code",
+      agentExpertise: "CODE",
+      accessProfile: "METRICS_SCOPED_EDIT",
       runtime: MANAGED_AGENT_RUNTIME,
       model: MANAGED_AGENT_MODEL,
       status: "ACTIVE",
@@ -250,7 +251,8 @@ function success(data: LunaProviderResult): RelayResult<LunaProviderResult> {
 function expectedManifest(authority: MemoryAuthority) {
   const result = buildExpectedManifest(
     ORIGIN,
-    authority.context.agent,
+    authority.context.run.accessProfile,
+    authority.context.agent.runtime,
     authority.context.attempt.registrationScope,
     authority.context.attempt.registrationGeneration,
   );
@@ -258,16 +260,13 @@ function expectedManifest(authority: MemoryAuthority) {
   return result.data.manifest;
 }
 
-function configureSpecialty(
+function configureAccess(
   authority: MemoryAuthority,
-  specialty: keyof typeof MANAGED_AGENT_TOOL_CATALOGS,
+  accessProfile: RelayAccessProfile,
 ): void {
-  const configuredAgent = agent(specialty);
-  authority.context.agent = configuredAgent;
   authority.context.run = {
     ...authority.context.run,
-    profileId: configuredAgent.profileId,
-    specialty,
+    accessProfile,
   };
 }
 
@@ -285,7 +284,7 @@ function startInput() {
 }
 
 async function submitAfterSpecialistResult(options: {
-  specialty: "CODE" | "GENERAL";
+  accessProfile: "REPOSITORY_SCOPED_EDIT" | "EDITORIAL_SCOPED_EDIT";
   specialistLogicalName: "read_demo_file" | "check_document_consistency";
   specialistArguments: Readonly<Record<string, unknown>>;
   specialistOutput: string;
@@ -295,7 +294,7 @@ async function submitAfterSpecialistResult(options: {
   result: RelayResult<RelayStepOutcome>;
 }> {
   const authority = new MemoryAuthority();
-  configureSpecialty(authority, options.specialty);
+  configureAccess(authority, options.accessProfile);
   const manifest = expectedManifest(authority);
   const specialistName = physicalName(manifest, options.specialistLogicalName);
   const submitName = physicalName(manifest, "submit_scoped_revision");
@@ -375,11 +374,11 @@ function assignmentToolOutput(overrides: Record<string, unknown> = {}): string {
         thread: { threadId: "private-thread-id" },
       },
       agent: {
-        specialty: "DATA",
+        expertise: "CODE",
         profileId: "private-profile-id",
-        handle: "data",
-        syntheticSourceLabels: ["Synthetic demo metrics"],
+        handle: "code",
       },
+      capabilityGrant: capabilityGrantForAccessProfile("METRICS_SCOPED_EDIT"),
       ...overrides,
     },
   });
@@ -653,6 +652,54 @@ describe("BoundedLunaRelayStepper", () => {
     expect(provider.calls).toHaveLength(1);
   });
 
+  test("rejects an equal-cardinality catalog from a different access profile before dispatch", async () => {
+    const authority = new MemoryAuthority();
+    configureAccess(authority, "REPOSITORY_SCOPED_EDIT");
+    const expected = expectedManifest(authority);
+    const wrong = buildExpectedManifest(
+      ORIGIN,
+      "EDITORIAL_SCOPED_EDIT",
+      authority.context.agent.runtime,
+      authority.context.attempt.registrationScope,
+      authority.context.attempt.registrationGeneration,
+    );
+    if (!wrong.ok) throw new Error(wrong.message);
+    expect(wrong.data.manifest.entries).toHaveLength(expected.entries.length);
+    const provider = new QueueProvider([success({
+      kind: "SEARCH_REQUIRED",
+      responseId: "response-1",
+      callId: "search-1",
+      goal: "Find tools.",
+    })]);
+    const stepper = new BoundedLunaRelayStepper({
+      authority,
+      provider,
+      now: () => new Date("2026-09-02T16:00:10.000Z"),
+    });
+    await stepper.step({
+      grant: GRANT,
+      requestId: START_REQUEST_ID,
+      requestOrigin: ORIGIN,
+      input: startInput(),
+    });
+    const rejected = await stepper.step({
+      grant: GRANT,
+      requestId: SEARCH_REQUEST_ID,
+      requestOrigin: ORIGIN,
+      input: {
+        action: "SUBMIT_SEARCH_RESULT",
+        attemptId: "attempt-1",
+        expectedStep: 1,
+        toolSearchCallId: "search-1",
+        manifest: wrong.data.manifest,
+      },
+    });
+    expect(rejected).toMatchObject({ ok: false, code: "RELAY_MANIFEST_MISMATCH" });
+    expect(authority.manifests).toHaveLength(0);
+    expect(authority.permits).toHaveLength(0);
+    expect(provider.calls).toHaveLength(1);
+  });
+
   test("rejects a non-assignment first function and never issues a permit", async () => {
     const authority = new MemoryAuthority();
     const manifest = expectedManifest(authority);
@@ -701,7 +748,7 @@ describe("BoundedLunaRelayStepper", () => {
     expect(authority.permits).toHaveLength(0);
   });
 
-  test("requires specialty evidence before the scoped revision tool", async () => {
+  test("requires access-source evidence before the scoped revision tool", async () => {
     const authority = new MemoryAuthority();
     const manifest = expectedManifest(authority);
     const assignmentName = physicalName(manifest, "read_assignment");
@@ -880,13 +927,14 @@ describe("BoundedLunaRelayStepper", () => {
     expect(serialized).toContain("[REDACTED_OPENAI_KEY]");
     expect(serialized).toContain("[REDACTED_RANGE]");
     expect(Object.keys((JSON.parse(serialized) as { data: object }).data).sort()).toEqual([
+      "accessProfile",
       "basedOnRevision",
       "contextAfter",
       "contextBefore",
       "documentTitle",
+      "expertise",
       "instruction",
       "selectedText",
-      "specialty",
       "syntheticSourceLabels",
     ]);
   });
@@ -1153,11 +1201,11 @@ describe("BoundedLunaRelayStepper", () => {
     expect(authority.permits).toHaveLength(0);
   });
 
-  test("requires the complete exact Code and General specialist evidence bundles", async () => {
+  test("requires the complete exact repository and editorial access evidence bundles", async () => {
     const fixtures = new DeterministicSpecialistFixtureAdapter();
     const scenarios = [
       {
-        specialty: "CODE" as const,
+        accessProfile: "REPOSITORY_SCOPED_EDIT" as const,
         specialistLogicalName: "read_demo_file" as const,
         specialistArguments: { path: "src/checkout/retry-middleware.ts" },
         specialistOutput: JSON.stringify({
@@ -1167,7 +1215,7 @@ describe("BoundedLunaRelayStepper", () => {
         required: ["checkout.log", "commit:7d3c9e1"],
       },
       {
-        specialty: "GENERAL" as const,
+        accessProfile: "EDITORIAL_SCOPED_EDIT" as const,
         specialistLogicalName: "check_document_consistency" as const,
         specialistArguments: { section: "Provider throttling was the external trigger." },
         specialistOutput: JSON.stringify({
@@ -1186,7 +1234,7 @@ describe("BoundedLunaRelayStepper", () => {
         [...scenario.required, "forged:private-source"],
       ]) {
         const rejected = await submitAfterSpecialistResult({ ...scenario, evidenceRefs });
-        expect(rejected.result, `${scenario.specialty}:${evidenceRefs.join(",")}`)
+        expect(rejected.result, `${scenario.accessProfile}:${evidenceRefs.join(",")}`)
           .toMatchObject({ ok: false, code: "RELAY_RESULT_INVALID" });
         expect(rejected.authority.permits).toHaveLength(0);
       }

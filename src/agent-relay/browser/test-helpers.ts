@@ -1,9 +1,12 @@
 import {
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_TOOL_CATALOGS,
   type ManagedAgentDirectoryEntry,
+  type ManagedAgentExpertise,
+  type RelayAccessProfile,
+  type RelayCapabilityGrant,
   type RelayClaimedAttemptView,
 } from "../contracts";
+import { capabilityGrantForAccessProfile } from "../access-policy";
 import type {
   WebMCPConsumerModelContext,
   WebMCPRegisteredToolLike,
@@ -14,25 +17,29 @@ export const TEST_WINDOW = {} as Window;
 export const TEST_ORIGIN = "https://ratiflow.test";
 
 export function managedAgent(
-  specialty: ManagedAgentDirectoryEntry["specialty"] = "CODE",
+  expertise: ManagedAgentExpertise = "CODE",
 ): ManagedAgentDirectoryEntry {
   return {
     kind: "AGENT",
     profileId: "10000000-0000-4000-8000-000000000001",
     principal: {
       memberId: "10000000-0000-4000-8000-000000000002",
-      displayName: `${specialty} Agent`,
+      displayName: `${expertise} Agent`,
     },
-    handle: specialty.toLowerCase(),
-    displayName: `${specialty[0]}${specialty.slice(1).toLowerCase()} Agent`,
-    scope: "TEAM",
+    handle: expertise.toLowerCase(),
+    displayName: `${expertise[0]}${expertise.slice(1).toLowerCase()} Agent`,
+    visibility: "TEAM",
     readiness: "READY",
-    syntheticSourceLabels: ["Synthetic demo source"],
     identitySource: "DEMO_DIRECTORY",
-    specialty,
+    expertise,
     runtime: MANAGED_AGENT_RUNTIME,
-    logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[specialty]],
   };
+}
+
+export function capabilityGrant(
+  accessProfile: RelayAccessProfile = "REPOSITORY_SCOPED_EDIT",
+): RelayCapabilityGrant {
+  return capabilityGrantForAccessProfile(accessProfile);
 }
 
 export function claimedAttempt(

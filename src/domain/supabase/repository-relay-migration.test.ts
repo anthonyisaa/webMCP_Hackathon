@@ -10,6 +10,15 @@ const migrationPath = join(
   "supabase/migrations/20260902160324_managed_agent_relay_v4.sql",
 );
 const migration = readFileSync(migrationPath, "utf8");
+const taskImmutabilityMigration = readFileSync(join(
+  process.cwd(),
+  "supabase/migrations/20260902021004_repository_v4_1_comment_first_collaboration.sql",
+), "utf8");
+const capabilityMigrationPath = join(
+  process.cwd(),
+  "supabase/migrations/20260903161308_capability_first_relay_access.sql",
+);
+const capabilityMigration = readFileSync(capabilityMigrationPath, "utf8");
 
 test("the reviewed managed Relay migration is byte-for-byte pinned", () => {
   assert.equal(
@@ -336,4 +345,221 @@ test("ordinary task and mention compatibility cannot strand managed-directory wo
   assert.match(mentionCompatibility, /legacy_create_issue_mention_v4\(p_handle,p_input\)/);
   assert.match(migration, /directory_handle is not null and directory_scope is not null/);
   assert.match(migration, /managed_logical_tool_names is not null[\s\S]*synthetic_source_labels is not null/);
+});
+
+test("the forward-only capability migration backfills and freezes per-run access", () => {
+  assert.match(capabilityMigration, /lock table public\.ratiflow_issue_relay_runs_v4 in access exclusive mode/);
+  assert.match(capabilityMigration, /lock table public\.ratiflow_issue_relay_attempts_v4 in access exclusive mode/);
+  assert.match(capabilityMigration, /lock table ratiflow_document_private\.issue_relay_execution_permits_v4[\s\S]*in access exclusive mode/);
+  assert.match(capabilityMigration, /status not in \('SUCCEEDED','FAILED','EXPIRED','CANCELLED'\)/);
+  assert.match(capabilityMigration, /grant_digest is not null[\s\S]*grant_revoked_at is null[\s\S]*expiresAt/);
+  assert.match(capabilityMigration, /status in \('ISSUED','EXECUTING'\)/);
+  assert.match(capabilityMigration, /Capability-first migration requires a fully drained v4\.2 Relay/);
+  assert.match(capabilityMigration, /add column access_profile text/);
+  assert.match(capabilityMigration, /set access_profile = case specialty[\s\S]*'DATA' then 'METRICS_SCOPED_EDIT'[\s\S]*'CODE' then 'REPOSITORY_SCOPED_EDIT'[\s\S]*'EDITORIAL_SCOPED_EDIT'/);
+  assert.match(capabilityMigration, /ratiflow_issue_relay_runs_access_profile_v43_check/);
+  assert.match(capabilityMigration, /access_profile in \([\s\S]*'METRICS_SCOPED_EDIT'[\s\S]*'REPOSITORY_SCOPED_EDIT'[\s\S]*'EDITORIAL_SCOPED_EDIT'/);
+  assert.match(capabilityMigration, /relay run access profile is immutable/);
+  assert.match(capabilityMigration, /create constraint trigger ratiflow_issue_relay_run_access_required_v43[\s\S]*deferrable initially deferred/);
+});
+
+test("directory expertise is descriptive while run and claim projections expose separate access", () => {
+  const runProjection = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_run_json_v4"),
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.managed_agent_json_v4"),
+  );
+  assert.match(runProjection, /'agentExpertise',r\.specialty,'accessProfile',r\.access_profile/);
+  assert.doesNotMatch(runProjection, /'specialty'/);
+
+  const managedProjection = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.managed_agent_json_v4"),
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_directory_v4"),
+  );
+  assert.match(managedProjection, /'visibility',p\.directory_scope/);
+  assert.match(managedProjection, /'expertise',p\.managed_specialty/);
+  assert.doesNotMatch(managedProjection, /'logicalToolNames'|'syntheticSourceLabels'|'specialty'|'scope'/);
+
+  const claimWrapper = capabilityMigration.slice(
+    capabilityMigration.indexOf("create function public.ratiflow_claim_issue_relay_v4"),
+    capabilityMigration.indexOf("alter function public.ratiflow_transition_issue_relay_attempt_v4"),
+  );
+  assert.match(claimWrapper, /relay_capability_grant_v43\(v_run_id\)/);
+  assert.match(claimWrapper, /jsonb_set\(v_result,'\{data,capabilityGrant\}'/);
+});
+
+test("the public claim RPC requires the capability-first contract before reservation", () => {
+  assert.match(
+    capabilityMigration,
+    /alter function public\.ratiflow_claim_issue_relay_v4\(text,uuid,uuid,uuid\)\s+set schema ratiflow_document_private/,
+  );
+  assert.match(
+    capabilityMigration,
+    /alter function ratiflow_document_private\.ratiflow_claim_issue_relay_v4\(\s*text,uuid,uuid,uuid\s*\) rename to legacy_claim_issue_relay_v42/,
+  );
+  const publicCreations = [...capabilityMigration.matchAll(
+    /create function public\.ratiflow_claim_issue_relay_v4\s*\(([\s\S]*?)\)\s*returns jsonb/g,
+  )];
+  assert.equal(publicCreations.length, 1);
+  assert.equal(
+    publicCreations[0]![1]!.replace(/\s+/g, " ").trim(),
+    "p_handle text, p_page_session_id uuid, p_request_id uuid, p_retry_run_id uuid, p_contract text",
+  );
+
+  const claimWrapper = capabilityMigration.slice(
+    capabilityMigration.indexOf("create function public.ratiflow_claim_issue_relay_v4"),
+    capabilityMigration.indexOf("alter function public.ratiflow_transition_issue_relay_attempt_v4"),
+  );
+  const contractCheck = claimWrapper.indexOf(
+    "if p_contract is distinct from 'capability-first-v43'",
+  );
+  const reservation = claimWrapper.indexOf(
+    "v_result := ratiflow_document_private.legacy_claim_issue_relay_v42",
+  );
+  assert.ok(contractCheck >= 0 && reservation > contractCheck);
+  assert.match(claimWrapper, /PROTOCOL_MISMATCH/);
+  assert.match(
+    capabilityMigration,
+    /revoke all on function public\.ratiflow_claim_issue_relay_v4\(\s*text,uuid,uuid,uuid,text\s*\) from public,anon,authenticated/,
+  );
+  assert.match(
+    capabilityMigration,
+    /grant execute on function public\.ratiflow_claim_issue_relay_v4\(\s*text,uuid,uuid,uuid,text\s*\) to service_role/,
+  );
+  assert.doesNotMatch(
+    capabilityMigration,
+    /grant execute on function public\.ratiflow_claim_issue_relay_v4\(\s*text,uuid,uuid,uuid\s*\)/,
+  );
+});
+
+test("agent mention access is exact, persisted, and independent of selected expertise", () => {
+  const wrapper = capabilityMigration.slice(
+    capabilityMigration.indexOf("create function public.ratiflow_create_issue_directory_mention_v4"),
+    capabilityMigration.indexOf("alter function public.ratiflow_claim_issue_relay_v4"),
+  );
+  assert.match(wrapper, /v_target_kind='HUMAN'[\s\S]*array\['expectedRevision','comment','target','anchor'\]/);
+  assert.match(wrapper, /v_target_kind<>'AGENT'[\s\S]*array\['expectedRevision','comment','target','accessProfile','anchor'\]/);
+  assert.match(wrapper, /p_input-'accessProfile'/);
+  assert.match(wrapper, /update public\.ratiflow_issue_relay_runs_v4[\s\S]*set access_profile=v_access_profile/);
+  assert.match(wrapper, /v_existing_access<>v_access_profile[\s\S]*REQUEST_REPLAY_MISMATCH/);
+});
+
+test("crossed managed mentions are born with access-derived immutable categories", () => {
+  const policy = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_access_policy_v43"),
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_capability_grant_v43"),
+  );
+  assert.match(policy, /when 'METRICS_SCOPED_EDIT'[\s\S]*'taskCategory','DATA'/);
+  assert.match(policy, /when 'EDITORIAL_SCOPED_EDIT'[\s\S]*'taskCategory','WRITING'/);
+
+  const initializer = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.initialize_relay_task_access_v43"),
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.prevent_relay_access_update_v43"),
+  );
+  assert.match(initializer, /current_setting\([\s\S]*ratiflow\.relay_access_profile_v43/);
+  assert.match(initializer, /relay_access_policy_v43\(v_access_profile\)/);
+  assert.match(initializer, /p\.profile_id=new\.agent_profile_id[\s\S]*p\.identity_source='DEMO_DIRECTORY'/);
+  assert.match(initializer, /new\.category := v_policy->>'taskCategory'/);
+  assert.match(initializer, /before insert on public\.ratiflow_issue_tasks_v4/);
+  assert.doesNotMatch(initializer, /managed_specialty|specialty/);
+
+  const wrapper = capabilityMigration.slice(
+    capabilityMigration.indexOf("create function public.ratiflow_create_issue_directory_mention_v4"),
+    capabilityMigration.indexOf("alter function public.ratiflow_claim_issue_relay_v4"),
+  );
+  const setAccess = wrapper.indexOf(
+    "set_config('ratiflow.relay_access_profile_v43',v_access_profile,true)",
+  );
+  const createMention = wrapper.indexOf(
+    "legacy_create_issue_directory_mention_v42(",
+    setAccess,
+  );
+  const restoreAccess = wrapper.indexOf(
+    "'ratiflow.relay_access_profile_v43',coalesce(v_previous_access_setting,''),true",
+  );
+  assert.ok(setAccess >= 0 && createMention > setAccess && restoreAccess > createMention);
+  assert.doesNotMatch(wrapper, /update public\.ratiflow_issue_tasks_v4/);
+
+  const immutableTask = taskImmutabilityMigration.slice(
+    taskImmutabilityMigration.indexOf(
+      "create or replace function ratiflow_document_private.immutable_task_identity_v4",
+    ),
+    taskImmutabilityMigration.indexOf("-- Backfill comment provenance"),
+  );
+  assert.match(immutableTask, /new\.category is distinct from old\.category/);
+  assert.doesNotMatch(
+    capabilityMigration,
+    /create or replace function ratiflow_document_private\.immutable_task_identity_v4/,
+  );
+});
+
+test("manifest and permit authority are reconstructed from immutable run access", () => {
+  const logicalLookup = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_logical_tool_v4"),
+    capabilityMigration.indexOf("alter table ratiflow_document_private.issue_relay_execution_permits_v4"),
+  );
+  assert.match(logicalLookup, /ratiflow_issue_relay_attempts_v4 a[\s\S]*ratiflow_issue_relay_runs_v4 r/);
+  assert.match(logicalLookup, /relay_access_policy_v43\([\s\S]*r\.access_profile/);
+  assert.match(logicalLookup, /physicalDiscriminator/);
+  assert.doesNotMatch(logicalLookup, /managed_specialty|managed_logical_tool_names/);
+  assert.match(capabilityMigration, /add column capability_first_access boolean not null default false/);
+  assert.match(capabilityMigration, /alter column capability_first_access set default true/);
+  assert.match(capabilityMigration, /not capability_first_access and physical_tool_name[\s\S]*\^rf_\(data\|code\|general\)_/);
+  assert.match(capabilityMigration, /capability_first_access and physical_tool_name[\s\S]*\^rf_\(metrics\|repository\|editorial\)_/);
+  assert.match(capabilityMigration, /\^rf_\(metrics\|repository\|editorial\)_/);
+
+  const validator = capabilityMigration.slice(
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.relay_manifest_valid_v43"),
+    capabilityMigration.indexOf("create or replace function ratiflow_document_private.prevent_invalid_relay_manifest_v43"),
+  );
+  assert.match(validator, /v_policy := ratiflow_document_private\.relay_access_policy_v43\(v_run\.access_profile\)/);
+  assert.match(validator, /v_entry->>'logicalName'<>v_expected_logical/);
+  assert.match(validator, /v_entry->>'physicalName'<>'rf_'\|\|\(v_policy->>'physicalDiscriminator'\)/);
+  assert.match(validator, /jsonb_array_length\(p_manifest->'entries'\)[\s\S]*jsonb_array_length\(v_policy->'logicalToolNames'\)/);
+  assert.match(validator, /relay_tool_definition_v43\([\s\S]*v_expected_logical/);
+  assert.match(validator, /v_entry->>'description'<>v_definition->>'description'/);
+  assert.match(validator, /v_entry->'inputSchema'<>v_definition->'inputSchema'/);
+  assert.match(validator, /v_entry->'annotations'<>v_definition->'annotations'/);
+  assert.match(validator, /relay_canonical_json_v43\([\s\S]*jsonb_build_object\('entries',v_expected_entries\)/);
+  assert.match(validator, /p_manifest->>'digest'=v_expected_digest/);
+
+  const transitionWrapper = capabilityMigration.slice(
+    capabilityMigration.indexOf("create function public.ratiflow_transition_issue_relay_attempt_v4"),
+    capabilityMigration.indexOf("revoke all on function ratiflow_document_private.legacy_create_issue_directory_mention_v42"),
+  );
+  const preLegacy = transitionWrapper.slice(
+    0,
+    transitionWrapper.indexOf("v_result := ratiflow_document_private.legacy_transition_issue_relay_attempt_v42"),
+  );
+  assert.match(preLegacy, /p_action='RECORD_MANIFEST'/);
+  assert.match(preLegacy, /relay_manifest_valid_v43/);
+  assert.match(preLegacy, /approved_manifest=p_input->'manifest'/);
+  assert.match(preLegacy, /WEBMCP_GET_TOOLS_COMPLETED/);
+  assert.doesNotMatch(preLegacy, /managed_logical_tool_names|managed_specialty/);
+  assert.doesNotMatch(
+    capabilityMigration,
+    /cardinality\(v_profile\.managed_logical_tool_names\)/,
+    "a legacy bot-profile count must not veto a valid crossed run catalog",
+  );
+});
+
+test("v1 token claims remain unchanged and superseded RPCs are private", () => {
+  assert.doesNotMatch(capabilityMigration, /jsonb_build_object\(\s*'v',1,'aud'/);
+  for (const name of [
+    "legacy_create_issue_directory_mention_v42",
+    "legacy_claim_issue_relay_v42",
+    "legacy_transition_issue_relay_attempt_v42",
+  ]) {
+    assert.match(capabilityMigration, new RegExp(
+      `revoke all on function ratiflow_document_private\\.${name}\\([\\s\\S]*service_role`,
+    ));
+  }
+  for (const name of [
+    "ratiflow_create_issue_directory_mention_v4",
+    "ratiflow_claim_issue_relay_v4",
+    "ratiflow_transition_issue_relay_attempt_v4",
+  ]) {
+    assert.match(capabilityMigration, new RegExp(
+      `grant execute on function public\\.${name}\\([\\s\\S]*to service_role`,
+    ));
+  }
 });

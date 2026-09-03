@@ -15,19 +15,19 @@ export const DECK_SLIDES = [
     id: "slide-03",
     section: "CORE INTERACTION",
     title: "From @mention to revision in one governed flow.",
-    subtitle: "Mention the expert → publish its role-scoped WebMCP tools → commit a bounded, restorable change.",
+    subtitle: "Choose the bot and assignment access separately → expose matching site tools → commit a bounded, restorable change.",
   },
   {
     id: "slide-04",
     section: "LIVE DEMO",
     title: "Demo flow: choose, assign, watch.",
-    subtitle: "Open Postmortem. Assign @Code to Root cause. Follow tool discovery, required calls, and the committed revision.",
+    subtitle: "Open Postmortem. Assign @Code with Repository access to Root cause. Follow tool discovery, required calls, and the revision.",
   },
   {
     id: "slide-05",
     section: "SCOPE & CONTROL",
-    title: "Role-scoped catalogs. Turn-scoped execution.",
-    subtitle: "WebMCP publishes one catalog for the selected role and run; the relay advances one server-required function per turn.",
+    title: "Three bot archetypes. Dynamic access per assignment.",
+    subtitle: "Code, Data, and General describe expertise. Each run receives exactly one temporary Metrics, Repository, or Editorial catalog.",
   },
   {
     id: "slide-06",
@@ -39,7 +39,7 @@ export const DECK_SLIDES = [
     id: "slide-07",
     section: "HISTORY & RESTORE",
     title: "Every agent change keeps its decision trail.",
-    subtitle: "History preserves who asked, which tools ran, what changed, why it changed, and how to restore it.",
+    subtitle: "History shows the same @Code identity receiving Repository then Editorial grants, with tools, authorship, and Restore preserved.",
   },
   {
     id: "slide-08",
@@ -57,7 +57,7 @@ export const DECK_SLIDES = [
     id: "slide-10",
     section: "HOW IT WORKS",
     title: "How a mention becomes a committed revision.",
-    subtitle: "Luna composes each required call; the browser discovers and executes WebMCP tools; Ratiflow records the result.",
+    subtitle: "WebMCP exposes and invokes assignment tools; Ratiflow enforces authority, then withdraws the temporary catalog when the run ends.",
   },
   {
     id: "slide-11",
@@ -69,7 +69,7 @@ export const DECK_SLIDES = [
     id: "slide-12",
     section: "TRY IT LIVE",
     title: "Try Ratiflow live.",
-    subtitle: "Choose Postmortem for @Code or Product for @Data, then inspect the tool trace, revision history, and Restore.",
+    subtitle: "Choose a bot and assignment access, then inspect the site-tool trace, revision history, and Restore.",
   },
 ] as const;
 

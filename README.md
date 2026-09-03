@@ -4,15 +4,16 @@
 
 Ratiflow turns a shared document into a dynamic agent workspace. A judge enters a
 nickname, opens a completed two-page Postmortem or Product document, selects a passage,
-and writes a normal comment beginning with `@Code`, `@Data`, or `@General`. The page then
-exposes only that specialist's WebMCP tools, GPT-5.6 Luna composes the required calls
-and arguments in a bounded role workflow, and the result lands as a reversible document
-revision scoped to the selected passage.
+chooses `@Code`, `@Data`, or `@General`, and separately chooses the website access that
+assignment needs. Ratiflow maps that explicit choice to a capability grant. The page
+exposes the matching tab-bound tools through WebMCP, GPT-5.6 Luna composes the required
+calls, and the result lands as a reversible document revision scoped to the selection.
 
 The novelty is not another chat box. It is a page-owned capability switch:
 
 ```text
-@mention → role-scoped WebMCP catalog → Luna tool search → exact page tool
+@mention + access choice → Ratiflow capability grant → WebMCP site-tool catalog
+         → Luna tool search → exact page tool
          → synthetic evidence → scoped revision → immutable history
 ```
 
@@ -32,17 +33,19 @@ cryptographic browser attestation.
 
 1. Enter a nickname and choose **Postmortem** or **Product doc**.
 2. Follow the three-step coach to select the suggested passage and load the suggested
-   specialist prompt.
-3. Assign `@Code` to verify the Postmortem's retry regression, or `@Data` to check the
-   Product document's launch-capacity arithmetic.
-4. Watch the Flight Recorder show the role catalog, Luna's required tool calls, labeled
+   bot prompt and suggested assignment access.
+3. Assign `@Code` with **Repository scoped edit** to verify the Postmortem's retry
+   regression, or `@Data` with **Metrics scoped edit** to check launch-capacity arithmetic.
+4. Watch the Flight Recorder show the assignment capability catalog, Luna's required calls, labeled
    synthetic sources, and the committed revision.
-5. Mention `@General` on a section to reword it while preserving facts.
+5. Keep `@Code` selected but switch to **Editorial scoped edit** to reword a section while preserving facts.
 6. Open **History** to inspect the prompt, sources, authorship, diff, and Restore action.
 
 The completed **INC-482 · Checkout outage postmortem** begins at r5 with human and agent
 history. Its guided `@Code` run verifies `commit:7d3c9e1` and `checkout.log`, then commits
-r6. A follow-up `@General` run can reword the revised Root cause as r7.
+r6. A follow-up run keeps `@Code` but changes assignment access to Editorial, rewording
+the revised Root cause as r7. The same identity receives a different catalog because the
+human chose a different grant.
 
 The completed **Northstar · CSV export launch decision** begins at r6. Its guided
 `@Data` run queries a synthetic capacity fixture, demonstrates that 10 + 4 = 14 fits
@@ -60,13 +63,17 @@ tools: `connect_agent`, `inspect_document`, `read_document_history`,
 and `submit_task_result`.
 
 During a managed mention, the page withdraws that idle catalog and registers one
-generation-scoped specialist catalog:
+generation-scoped site capability catalog derived from the assignment's access profile:
 
-| Specialist | Common tools | Specialist tools | Total |
+| Assignment access | Common tools | Source tools | Total |
 | --- | --- | --- | ---: |
-| `@Code` | assignment, document, collaboration, comment, submit | `search_demo_code`, `read_demo_file` | 7 |
-| `@Data` | assignment, document, collaboration, comment, submit | `query_demo_metrics` | 6 |
-| `@General` | assignment, document, collaboration, comment, submit | `read_company_style_guide`, `check_document_consistency` | 7 |
+| Repository scoped edit | assignment, document, collaboration, comment, submit | `search_demo_code`, `read_demo_file` | 7 |
+| Metrics scoped edit | assignment, document, collaboration, comment, submit | `query_demo_metrics` | 6 |
+| Editorial scoped edit | assignment, document, collaboration, comment, submit | `read_company_style_guide`, `check_document_consistency` | 7 |
+
+Bot expertise is descriptive identity metadata, not a permission boundary. `@Code` and
+`@Data` receive the same six tools when each assignment chooses Metrics access; the same
+`@Code` bot receives a different catalog when its assignment chooses Repository access.
 
 The exact relay sequence is:
 
@@ -76,7 +83,8 @@ toolchange → tool_search_call → getTools() → tool_search_output
 ```
 
 Tool names are unique per registration generation; old descriptors and replayed
-one-shot permits fail closed. Server-side task scope, lease ownership, revision checks,
+one-shot permits fail closed. Catalog visibility guides the agent; it is not the security
+boundary. Server-side document/range/action authority, lease ownership, revision checks,
 evidence bindings, attempt limits, and spend quotas remain authoritative. Mentions wake
 the open page immediately; the 15-second timer is recovery only, not a cron service.
 
@@ -100,9 +108,9 @@ accessible static SVG plus a tabular fallback. A quiet Edit action reveals Markd
 source only when someone needs it, and save summaries are derived rather than typed.
 
 After a document opens, a dismissible coach shows the live demo in three moves: select
-the suggested passage, choose the suggested managed specialist, and open the Flight
-Recorder. The company directory is deliberately synthetic and labels each agent's
-scope and specialty. Bring-your-own-agent setup remains available in an Advanced
+the suggested passage, choose the suggested managed bot and assignment access, and open
+the Flight Recorder. The company directory is deliberately synthetic and labels each
+agent's visibility and descriptive expertise. Bring-your-own-agent setup remains available in an Advanced
 section; self-declared profiles are separate from managed demo identities.
 
 A text or whole-block selection opens one compact anchored comment composer. Selecting
@@ -121,7 +129,8 @@ Without a page-native contract, collaboration with agents collapses into copied 
 pasted findings, bespoke integrations, and lost reasoning. Ratiflow turns the live
 document into a discoverable capability and context plane:
 
-- the page changes the available capabilities as `@Code`, `@Data`, and `@General` work;
+- the page changes the available capabilities when assignment access changes, independently
+  of whether `@Code`, `@Data`, or `@General` performs the work;
 - Luna discovers those tools at run time instead of receiving one oversized static set;
 - new `@Agent` results commit only to the exact passage a person selected; legacy task
   modes remain readable for compatibility but are absent from the flagship UI;
@@ -138,11 +147,11 @@ evidence.
 ```text
 Next.js issue page
   ├─ ordinary human UI → authenticated repository-v4 routes
-  └─ document.modelContext → idle catalog ⇄ managed role catalog
+  └─ document.modelContext → idle catalog ⇄ assignment capability catalog
                                     ↓
                  app-owned Responses API relay (gpt-5.6-luna)
                                     ↓
-          lease + permit + exact-range repository authority
+       Ratiflow grant + lease + permit + exact-range server authority
                        ┌────────┴────────┐
               local reference       Supabase RPC adapter
                        └────────┬────────┘
@@ -162,11 +171,12 @@ Next.js issue page
   waits use fetch-subscribe-refetch with one bounded deadline.
 - WebMCP registration and execution honor `AbortSignal`; route or session changes remove
   tools, waits, timers, listeners, and stale callbacks.
-- Managed runs use one active run per document, two attempts at most, short leases,
+- Managed runs use one immutable assignment access profile, one active run per document,
+  two attempts at most, short leases,
   one-shot execution permits, provider-step reservations, and durable spend limits.
 
 The older `/document/[shareToken]` and `/decision-demo` paths remain isolated v3
-compatibility surfaces. They do not prove the v4.2 managed relay.
+compatibility surfaces. They do not prove the v4.3 capability-first managed relay.
 
 ## Share and session safety
 
@@ -223,7 +233,7 @@ pnpm eval:reset:v4
 ```
 
 Browser automation and adapter calls are never labeled native WebMCP evidence. Native
-proof requires a supported client observing the idle→role→idle lifecycle and invoking
+proof requires a supported client observing the idle→assignment-catalog→idle lifecycle and invoking
 the exact returned descriptor on the top-level deployed issue page.
 
 ## Evaluation and release status
@@ -233,27 +243,30 @@ live-agent, visual, release, ablation, and independent competition-judge gates. 
 machine-checked row inventory is the source of truth; this README does not duplicate
 those fast-changing counts.
 
-The v4.2 candidate has passed local protocol gates and repeated loopback Chrome 152
-`document.modelContext` trajectories with the live Luna API. That proves the candidate
-flow, but it is not deployed native evidence. A supported-client release run must still
-observe the idle→role→idle catalog transition and invoke the exact returned descriptors
-on the exact production SHA; adapter-only calls never count as native proof.
+The production URL currently serves the prior v4.2 persona-coupled build. Its historical
+native and Luna observations do not prove the v4.3 capability-first correction. A fresh
+supported-client release run must observe the idle→assignment-catalog→idle transition and
+invoke the exact returned descriptors on the corrected production SHA; adapter-only calls
+never count as native proof.
 
-The matching v4.2 application deployment is authorized in principle, but the exact
-additive Supabase migration still needs explicit production-database approval. Until
-the migration and deployment both land, the production URL at
-[ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app) remains the prior v4.1
-release (`cf1cc80`) and must not be presented as v4.2 evidence. Exact-SHA deployed-native matrices,
-remote persistence checks, the public video/package, and the final release manifest also
+The v4.3 migration, application promotion, exact-SHA deployed-native matrix, remote
+persistence checks, recaptured media, public video/package, and final release manifest
 remain `PENDING`.
 
 Repository visibility, video publication, and Devpost submission remain separate
 release actions. The source push and matching application deployment are authorized;
-the latter is sequenced after the approved database migration.
+the capability-first database migration still requires approval. Its safe cutover is
+app-first and fail-closed: promote the v4.3 app, make old deployment URLs unreachable (or
+enter maintenance), and let the new app return retryable `RELAY_UNAVAILABLE` without
+mutating the v4.2 store. Confirm old attempts, grants, and permits have finished or
+expired, then apply the approved migration. The required v4.3 HTTP marker fences stale
+tabs on the current origin; after migration, the new five-argument database claim also
+fences old servers from reserving work. Finish with aligned and crossed bot/access smoke.
+Never apply this migration first or roll the app back to v4.2 afterward.
 
 ## Project documents
 
-- [Product specification](product_spec.md) — frozen v4.2 collaboration and authority contract.
+- [Product specification](product_spec.md) — frozen v4.3 collaboration and authority contract.
 - [Repository contract](docs/contracts/repository-contract.md) — checked entities,
   routes, lifecycle, replay, security, and concurrency behavior.
 - [Postmortem hero](docs/contracts/postmortem-hero-scenario.md) — exact INC-482 r1-r5
@@ -263,7 +276,7 @@ the latter is sequenced after the approved database migration.
 - [Evaluation contract](EVALS.md) — automated, browser, native, trajectory, visual,
   rehearsal, and competition-judge gates.
 - [Legacy evidence ledger](EVAL_RESULTS.md) — prior-release observations only; it is not
-  v4.2 release proof.
+  v4.3 release proof.
 
 ## License
 

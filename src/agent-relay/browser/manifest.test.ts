@@ -2,25 +2,34 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_ACCESS_POLICIES,
   RELAY_PHYSICAL_TOOL_NAME_PATTERN,
+  type RelayAccessProfile,
 } from "../contracts";
 import { canonicalJson } from "./canonical-json";
 import { RelayBrowserError } from "./errors";
 import { normalizeRelayManifest } from "./manifest";
 import { makeRelayPhysicalToolName } from "./physical-name";
-import { FakeWebMCPConsumer, TEST_ORIGIN, TEST_WINDOW, claimedAttempt, managedAgent } from "./test-helpers";
+import {
+  FakeWebMCPConsumer,
+  TEST_ORIGIN,
+  TEST_WINDOW,
+  capabilityGrant,
+  claimedAttempt,
+} from "./test-helpers";
 
-async function codeCatalog() {
+async function registeredCatalog(
+  accessProfile: RelayAccessProfile = "REPOSITORY_SCOPED_EDIT",
+) {
   const context = new FakeWebMCPConsumer();
-  const agent = managedAgent("CODE");
+  const grant = capabilityGrant(accessProfile);
   const attempt = claimedAttempt();
-  for (const logicalName of MANAGED_AGENT_TOOL_CATALOGS.CODE) {
+  for (const logicalName of RELAY_ACCESS_POLICIES[accessProfile].logicalToolNames) {
     const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
     context.registerTool({
       name: makeRelayPhysicalToolName({
-        specialty: "CODE",
+        accessProfile,
         registrationScope: attempt.registrationScope,
         registrationGeneration: attempt.registrationGeneration,
         logicalName,
@@ -31,21 +40,21 @@ async function codeCatalog() {
       execute: async () => ({}),
     });
   }
-  return { tools: await context.getTools(), agent, attempt };
+  return { tools: await context.getTools(), grant, attempt };
 }
 
 async function expectSchemaRejection(
   inputSchema: Record<string, unknown> | string | undefined,
   message: RegExp,
 ): Promise<void> {
-  const { tools, agent, attempt } = await codeCatalog();
+  const { tools, grant, attempt } = await registeredCatalog();
   const tampered = tools.map((tool, index) => index === 0
     ? { ...tool, inputSchema }
     : tool);
   await assert.rejects(
     normalizeRelayManifest({
       tools: tampered,
-      agent,
+      capabilityGrant: grant,
       attempt,
       origin: TEST_ORIGIN,
       topLevelWindow: TEST_WINDOW,
@@ -56,15 +65,15 @@ async function expectSchemaRejection(
   );
 }
 
-test("builds generation-unique exact role catalogs and a stable normalized manifest", async () => {
+test("builds generation-unique exact access catalogs and a stable normalized manifest", async () => {
   const context = new FakeWebMCPConsumer();
-  const agent = managedAgent("CODE");
+  const grant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
   const attempt = claimedAttempt(7);
 
-  for (const logicalName of MANAGED_AGENT_TOOL_CATALOGS.CODE) {
+  for (const logicalName of RELAY_ACCESS_POLICIES.REPOSITORY_SCOPED_EDIT.logicalToolNames) {
     const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
     const name = makeRelayPhysicalToolName({
-      specialty: "CODE",
+      accessProfile: grant.accessProfile,
       registrationScope: attempt.registrationScope,
       registrationGeneration: attempt.registrationGeneration,
       logicalName,
@@ -83,21 +92,21 @@ test("builds generation-unique exact role catalogs and a stable normalized manif
   tools[0] = { ...tools[0], inputSchema: JSON.stringify(tools[0]?.inputSchema) };
   const discovered = await normalizeRelayManifest({
     tools,
-    agent,
+    capabilityGrant: grant,
     attempt,
     origin: TEST_ORIGIN,
     topLevelWindow: TEST_WINDOW,
   });
   assert.deepEqual(
     discovered.manifest.entries.map(({ logicalName }) => logicalName),
-    MANAGED_AGENT_TOOL_CATALOGS.CODE,
+    RELAY_ACCESS_POLICIES.REPOSITORY_SCOPED_EDIT.logicalToolNames,
   );
   assert.match(discovered.manifest.digest, /^sha256:[a-f0-9]{64}$/u);
   assert.equal(discovered.manifest.entries.every(({ origin }) => origin === TEST_ORIGIN), true);
   assert.equal(canonicalJson(discovered.manifest).includes("window"), false);
 
   const newerName = makeRelayPhysicalToolName({
-    specialty: "CODE",
+    accessProfile: grant.accessProfile,
     registrationScope: attempt.registrationScope,
     registrationGeneration: attempt.registrationGeneration + 1,
     logicalName: "read_assignment",
@@ -106,32 +115,14 @@ test("builds generation-unique exact role catalogs and a stable normalized manif
 });
 
 test("rejects extra, cross-origin, and definition-tampered descriptors", async () => {
-  const context = new FakeWebMCPConsumer();
-  const agent = managedAgent("DATA");
-  const attempt = claimedAttempt();
-  for (const logicalName of MANAGED_AGENT_TOOL_CATALOGS.DATA) {
-    const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
-    context.registerTool({
-      name: makeRelayPhysicalToolName({
-        specialty: "DATA",
-        registrationScope: attempt.registrationScope,
-        registrationGeneration: attempt.registrationGeneration,
-        logicalName,
-      }),
-      description: definition.description,
-      inputSchema: definition.inputSchema as Record<string, unknown>,
-      annotations: definition.annotations,
-      execute: async () => ({}),
-    });
-  }
-  const tools = await context.getTools();
+  const { tools, grant, attempt } = await registeredCatalog("METRICS_SCOPED_EDIT");
   const tampered = tools.map((tool, index) => index === 0
     ? { ...tool, origin: "https://attacker.invalid" }
     : tool);
   await assert.rejects(
     normalizeRelayManifest({
       tools: tampered,
-      agent,
+      capabilityGrant: grant,
       attempt,
       origin: TEST_ORIGIN,
       topLevelWindow: TEST_WINDOW,
@@ -142,7 +133,22 @@ test("rejects extra, cross-origin, and definition-tampered descriptors", async (
   await assert.rejects(
     normalizeRelayManifest({
       tools: [...tools, tools[0]!],
-      agent,
+      capabilityGrant: grant,
+      attempt,
+      origin: TEST_ORIGIN,
+      topLevelWindow: TEST_WINDOW,
+    }),
+    (error: unknown) => error instanceof RelayBrowserError
+      && error.code === "RELAY_MANIFEST_MISMATCH",
+  );
+});
+
+test("rejects a known equal-cardinality catalog from another access profile", async () => {
+  const { tools, attempt } = await registeredCatalog("REPOSITORY_SCOPED_EDIT");
+  await assert.rejects(
+    normalizeRelayManifest({
+      tools,
+      capabilityGrant: capabilityGrant("EDITORIAL_SCOPED_EDIT"),
       attempt,
       origin: TEST_ORIGIN,
       topLevelWindow: TEST_WINDOW,

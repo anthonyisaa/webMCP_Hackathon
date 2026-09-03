@@ -1,14 +1,17 @@
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
   RELAY_BOUNDS,
-  type ManagedAgentDirectoryEntry,
   type ManagedAgentLogicalToolName,
   type RelayBrowserClientPort,
+  type RelayCapabilityGrant,
   type RelayClaimedAttemptView,
   type RelayExecutionPermit,
   type RelayGrant,
 } from "../contracts";
+import {
+  capabilityGrantMatchesPolicy,
+  relayAccessPolicy,
+} from "../access-policy";
 import type {
   WebMCPConsumerModelContext,
   WebMCPExecutionOptionsLike,
@@ -33,7 +36,7 @@ interface RelayRegistrationRecord {
 interface RelayRegistrationSession {
   grant: RelayGrant;
   attempt: RelayClaimedAttemptView;
-  agent: ManagedAgentDirectoryEntry;
+  capabilityGrant: RelayCapabilityGrant;
 }
 
 interface RelayExecutionArm {
@@ -103,9 +106,9 @@ export class RelayWebMCPRegistrationManager {
   get registeredNames(): string[] {
     const session = this.#session;
     if (!session) return [];
-    return MANAGED_AGENT_TOOL_CATALOGS[session.agent.specialty]
+    return relayAccessPolicy(session.capabilityGrant.accessProfile).logicalToolNames
       .map((logicalName) => makeRelayPhysicalToolName({
-        specialty: session.agent.specialty,
+        accessProfile: session.capabilityGrant.accessProfile,
         registrationScope: session.attempt.registrationScope,
         registrationGeneration: session.attempt.registrationGeneration,
         logicalName,
@@ -133,7 +136,7 @@ export class RelayWebMCPRegistrationManager {
   async register(input: {
     grant: RelayGrant;
     attempt: RelayClaimedAttemptView;
-    agent: ManagedAgentDirectoryEntry;
+    capabilityGrant: RelayCapabilityGrant;
     signal?: AbortSignal;
   }): Promise<string[]> {
     if (this.#disposed) {
@@ -141,18 +144,22 @@ export class RelayWebMCPRegistrationManager {
     }
     await this.withdraw("Relay registration replaced");
     if (input.signal?.aborted) throw relayAbortError(input.signal.reason);
-    const logicalNames = MANAGED_AGENT_TOOL_CATALOGS[input.agent.specialty];
-    if (canonicalJson(input.agent.logicalToolNames) !== canonicalJson(logicalNames)) {
-      throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The claimed agent catalog is invalid.");
+    if (!capabilityGrantMatchesPolicy(input.capabilityGrant)) {
+      throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The claimed website access grant is invalid.");
     }
-    this.#session = { grant: input.grant, attempt: input.attempt, agent: input.agent };
+    const logicalNames = relayAccessPolicy(input.capabilityGrant.accessProfile).logicalToolNames;
+    this.#session = {
+      grant: input.grant,
+      attempt: input.attempt,
+      capabilityGrant: input.capabilityGrant,
+    };
 
     try {
       for (const logicalName of logicalNames) {
         if (input.signal?.aborted) throw relayAbortError(input.signal.reason);
         const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
         const physicalName = makeRelayPhysicalToolName({
-          specialty: input.agent.specialty,
+          accessProfile: input.capabilityGrant.accessProfile,
           registrationScope: input.attempt.registrationScope,
           registrationGeneration: input.attempt.registrationGeneration,
           logicalName,
@@ -168,7 +175,7 @@ export class RelayWebMCPRegistrationManager {
         this.#registrations.set(physicalName, record);
         const tool: WebMCPToolLike = {
           name: physicalName,
-          title: `${input.agent.displayName} · ${logicalName.replaceAll("_", " ")}`,
+          title: `Ratiflow · ${logicalName.replaceAll("_", " ")}`,
           description: definition.description,
           inputSchema: JSON.parse(canonicalJson(definition.inputSchema)) as Record<string, unknown>,
           annotations: {

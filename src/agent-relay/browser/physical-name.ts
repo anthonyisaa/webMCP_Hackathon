@@ -3,12 +3,13 @@ import {
   RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH,
   RELAY_PHYSICAL_TOOL_NAME_PATTERN,
   type ManagedAgentLogicalToolName,
-  type ManagedAgentSpecialty,
+  type RelayAccessProfile,
 } from "../contracts";
+import { relayAccessPolicy } from "../access-policy";
 import { RelayBrowserError } from "./errors";
 
 export function makeRelayPhysicalToolName(input: {
-  specialty: ManagedAgentSpecialty;
+  accessProfile: RelayAccessProfile;
   registrationScope: string;
   registrationGeneration: number;
   logicalName: ManagedAgentLogicalToolName;
@@ -19,8 +20,9 @@ export function makeRelayPhysicalToolName(input: {
   if (!Number.isSafeInteger(input.registrationGeneration) || input.registrationGeneration < 1) {
     throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The registration generation is invalid.");
   }
+  const policy = relayAccessPolicy(input.accessProfile);
   const providerKey = MANAGED_AGENT_TOOL_DEFINITIONS[input.logicalName].providerKey;
-  const name = `rf_${input.specialty.toLowerCase()}_${input.registrationScope}_g${input.registrationGeneration}_${providerKey}`;
+  const name = `rf_${policy.physicalDiscriminator}_${input.registrationScope}_g${input.registrationGeneration}_${providerKey}`;
   if (
     name.length > RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH
     || !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(name)

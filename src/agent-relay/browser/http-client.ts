@@ -12,6 +12,10 @@ import type {
   RelayWorkspaceState,
   RelayTraceEvent,
 } from "../contracts";
+import {
+  RELAY_CAPABILITY_CONTRACT_HEADER,
+  RELAY_CAPABILITY_CONTRACT_VALUE,
+} from "@/repository/contracts";
 import { RelayBrowserError } from "./errors";
 
 const PAGE_SESSION_HEADER = "X-Ratiflow-Page-Session";
@@ -210,6 +214,7 @@ export class RelayHttpClient implements RelayBrowserClientPort {
       response = await this.#fetch(url.href, {
         method: input.method,
         headers: {
+          [RELAY_CAPABILITY_CONTRACT_HEADER]: RELAY_CAPABILITY_CONTRACT_VALUE,
           Authorization: `Bearer ${input.bearer}`,
           ...(input.body === undefined ? {} : { "Content-Type": "application/json" }),
           ...input.headers,
@@ -230,4 +235,5 @@ export const RELAY_HTTP_HEADERS = {
   idempotency: IDEMPOTENCY_HEADER,
   executionPermit: EXECUTION_PERMIT_HEADER,
   retryRun: RETRY_RUN_HEADER,
+  contract: RELAY_CAPABILITY_CONTRACT_HEADER,
 } as const;

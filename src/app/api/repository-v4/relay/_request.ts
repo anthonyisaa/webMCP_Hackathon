@@ -2,6 +2,10 @@ import type {
   RelayExecutionPermitToken,
   RelayGrant,
 } from "@/agent-relay/contracts";
+import {
+  RELAY_CAPABILITY_CONTRACT_HEADER,
+  RELAY_CAPABILITY_CONTRACT_VALUE,
+} from "@/repository/contracts";
 
 const MAX_RELAY_CREDENTIAL_BYTES = 4 * 1_024;
 const UUID_PATTERN =
@@ -31,6 +35,17 @@ export function relayPermitFrom(request: Request): RelayExecutionPermitToken | n
 export function relayRetryRunIdFrom(request: Request): string | null {
   const value = request.headers.get("X-Ratiflow-Relay-Retry-Run")?.trim();
   return value && UUID_PATTERN.test(value) ? value : null;
+}
+
+export function rejectIncompatibleRelayContract(request: Request): Response | null {
+  if (request.headers.get(RELAY_CAPABILITY_CONTRACT_HEADER)
+    === RELAY_CAPABILITY_CONTRACT_VALUE) return null;
+  return Response.json({
+    ok: false,
+    code: "PROTOCOL_MISMATCH",
+    message: "This Relay client contract is no longer supported.",
+    retryable: false,
+  }, { status: 409 });
 }
 
 export async function hasEmptyBody(request: Request): Promise<boolean> {

@@ -32,6 +32,7 @@ import {
   type IssueTask,
   type IssueThread,
   type IssueWorkspaceSurface,
+  type ManagedRelayAccessProfile,
   type RepositoryBrowserClientPort,
   type RepositoryFailure,
 } from "@/repository/contracts";
@@ -54,7 +55,9 @@ import { ManagedDirectory } from "./ManagedDirectory";
 import { RelayFlightRecorder } from "./RelayFlightRecorder";
 import { repositorySelectionFromDom, type RepositorySourceSelection } from "./markdown-source-map";
 import { RepositoryWebMCPBridge } from "./RepositoryWebMCPBridge";
+import { repositoryRecommendedAccessProfile } from "./relay-access-copy";
 import styles from "./repository-workspace.module.css";
+import { WebsiteAccessSelector } from "./WebsiteAccessSelector";
 
 type RailTab = "COMMENTS" | "HISTORY" | "RELAY";
 type AgentExecutionTool = "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null;
@@ -436,6 +439,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const [relayWakeSignal, setRelayWakeSignal] = useState(0);
   const [relayRetrySignal, setRelayRetrySignal] = useState(0);
   const [selectedDirectoryKey, setSelectedDirectoryKey] = useState<string | null>(null);
+  const [selectedAccessProfile, setSelectedAccessProfile] = useState<ManagedRelayAccessProfile | null>(null);
 
   const surfaceRef = useRef(surface);
   const draftRef = useRef(draft);
@@ -514,6 +518,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setRelayWakeSignal(0);
     setRelayRetrySignal(0);
     setSelectedDirectoryKey(null);
+    setSelectedAccessProfile(null);
   }, [publishSurface, session.surface, sessionIdentity]);
 
   useEffect(() => {
@@ -633,6 +638,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText("");
     setSelectedAgentId(null);
     setSelectedDirectoryKey(null);
+    setSelectedAccessProfile(null);
   }, []);
 
   const directory = relayState?.directory ?? [];
@@ -641,14 +647,11 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
       entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY",
   );
   const guided = MANAGED_RELAY_EXAMPLE_OVERLAYS[surface.document.kind].guidedWork;
-  const primarySpecialty = guided.agentHandle === "code" ? "CODE" : "DATA";
   const primaryRunCompleted = relayState?.runs.some(
-    (run) => run.specialty === primarySpecialty && run.status === "COMPLETED",
+    (run) => run.accessProfile === guided.accessProfile && run.status === "COMPLETED",
   ) ?? false;
-  const suggestedHandle = primaryRunCompleted ? "general" : guided.agentHandle;
-  const suggestedDisplayName = suggestedHandle === "general"
-    ? "General"
-    : suggestedHandle === "code" ? "Code" : "Data";
+  const suggestedHandle = guided.agentHandle;
+  const suggestedDisplayName = suggestedHandle === "code" ? "Code" : "Data";
   const suggestedDirectoryTarget = directory.find(
     (entry): entry is ManagedAgentDirectoryEntry => entry.kind === "AGENT"
       && entry.identitySource === "DEMO_DIRECTORY"
@@ -656,8 +659,8 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   ) ?? null;
   const suggestedPrompt = primaryRunCompleted
     ? surface.document.kind === "POSTMORTEM"
-      ? "@General Reword this entire Root cause section for clarity using the company style guide. Preserve every date, quantity, source reference, and the distinction between external trigger and internal amplifier, then replace only this section."
-      : "@General Reword this entire Success measures section for clarity using the company style guide. Preserve every date, quantity, source reference, and launch-stage label, then replace only this section."
+      ? `@${suggestedDisplayName} Reword this entire Root cause section for clarity using the company style guide. Preserve every date, quantity, source reference, and the distinction between external trigger and internal amplifier, then replace only this section.`
+      : `@${suggestedDisplayName} Reword this entire Success measures section for clarity using the company style guide. Preserve every date, quantity, source reference, and launch-stage label, then replace only this section.`
     : guided.prompt;
 
   const openGuidedSelection = () => {
@@ -679,7 +682,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
           };
         })();
     if (!mapped) {
-      setStatusMessage("That suggested section is no longer available. Select any passage to run a specialist.");
+      setStatusMessage("That suggested section is no longer available. Select any passage to assign a bot.");
       return;
     }
     const normalizedNeedle = mapped.selectedText
@@ -697,6 +700,9 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     });
     setCommentText(suggestedPrompt);
     setSelectedDirectoryKey(repositoryDirectoryEntryKey(suggestedDirectoryTarget));
+    setSelectedAccessProfile(primaryRunCompleted
+      ? "EDITORIAL_SCOPED_EDIT"
+      : guided.accessProfile);
   };
 
   const captureTitleSelection = (event: MouseEvent<HTMLHeadingElement> | KeyboardEvent<HTMLHeadingElement>) => {
@@ -723,6 +729,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText(repositoryClampCodePoints(`@${agent.name}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
     setSelectedAgentId(agent.profileId);
     setSelectedDirectoryKey(null);
+    setSelectedAccessProfile(null);
   };
 
   const chooseDirectoryTarget = (entry: DirectoryEntry) => {
@@ -731,6 +738,9 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText(repositoryClampCodePoints(`@${entry.displayName}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
     setSelectedDirectoryKey(repositoryDirectoryEntryKey(entry));
     setSelectedAgentId(null);
+    setSelectedAccessProfile(entry.kind === "AGENT"
+      ? repositoryRecommendedAccessProfile(entry.expertise)
+      : null);
   };
 
   const changeCommentText = (value: string) => {
@@ -739,6 +749,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     if (selectedAgent && !repositoryCommentStartsWithAgent(next, selectedAgent.name)) setSelectedAgentId(null);
     if (selectedDirectoryTarget && !repositoryCommentStartsWithAgent(next, selectedDirectoryTarget.displayName)) {
       setSelectedDirectoryKey(null);
+      setSelectedAccessProfile(null);
     }
   };
 
@@ -748,6 +759,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText("");
     setSelectedAgentId(null);
     setSelectedDirectoryKey(null);
+    setSelectedAccessProfile(null);
   };
 
   const submitComment = async () => {
@@ -755,18 +767,30 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentBusy(true);
     const anchor = { scope: "SELECTION" as const, field: selection.field, rangeStart: selection.rangeStart, rangeEnd: selection.rangeEnd };
     if (selectedDirectoryTarget && repositoryCommentStartsWithAgent(commentText, selectedDirectoryTarget.displayName)) {
-      try {
-        const mentionInput: CreateDirectoryMentionHttpInput = selectedDirectoryTarget.kind === "AGENT" ? {
+      let mentionInput: CreateDirectoryMentionHttpInput;
+      if (selectedDirectoryTarget.kind === "AGENT") {
+        const accessProfile = selectedAccessProfile;
+        if (!accessProfile) {
+          setCommentBusy(false);
+          setStatusMessage("Choose the website access this run may use.");
+          return;
+        }
+        mentionInput = {
           expectedRevision: selection.expectedRevision,
           comment: commentText,
           target: { kind: "AGENT", profileId: selectedDirectoryTarget.profileId },
+          accessProfile,
           anchor,
-        } : {
+        };
+      } else {
+        mentionInput = {
           expectedRevision: selection.expectedRevision,
           comment: commentText,
           target: { kind: "HUMAN", memberId: selectedDirectoryTarget.member.memberId },
           anchor,
         };
+      }
+      try {
         const result = await service.createDirectoryMention(session.humanSessionToken, mentionInput);
         if (!isActiveSession()) return;
         if (!result.ok) return handleFailure(result);
@@ -920,7 +944,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     ? `@${activeRelayAgent.displayName} working`
     : managedAgentCount
       ? relayAvailable
-        ? `${managedAgentCount} managed agents ready`
+        ? `${managedAgentCount} managed bots ready`
         : `${managedAgentCount} agents · WebMCP off`
       : activeAgentTool
     ? "Agent working"
@@ -935,7 +959,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
             : "Checking agent tools";
   const agentContextDetail = managedAgentCount
     ? relayAvailable
-      ? "Managed agents can claim mentions while this document page remains open."
+      ? "Managed bots can claim assignments while this document page remains open; each run uses the website access you chose."
       : "The directory is available, but this browser is not currently exposing WebMCP. Mentions remain durable until an eligible page opens."
     : connectedAgent
     ? `${connectedAgent.name} is connected on this page and owned by ${selfDisplayName}.`
@@ -1015,19 +1039,19 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
               <header>
                 <div>
                   <p>Live demo · {selfDisplayName}</p>
-                  <h2 id="repository-agent-setup-title">Select a passage. Mention a specialist. Watch the proof.</h2>
+                  <h2 id="repository-agent-setup-title">Select a passage. Pick a bot and its website access. Watch the proof.</h2>
                 </div>
                 <button type="button" aria-label="Close agent setup" onClick={() => setAgentPanelOpen(false)}>×</button>
               </header>
 
               <div className={styles.managedCoachBody}>
                 <ol className={styles.coachSteps}>
-                  <li><b>1</b><span><strong>{primaryRunCompleted ? "Continue with a clarity pass" : "Prepare the guided specialist run"}</strong><small>One click selects the exact section and loads the full prompt.</small><button type="button" data-testid="guided-selection" disabled={!suggestedDirectoryTarget} onClick={openGuidedSelection}>Load @{suggestedDisplayName} on {guided.sectionHeading.replace(/^## /u, "")}</button></span></li>
-                  <li><b>2</b><span><strong>Review, then assign @{suggestedDisplayName}</strong><small>The agent can change only the selected passage; you still choose when to run it.</small></span></li>
+                  <li><b>1</b><span><strong>{primaryRunCompleted ? "Continue with a clarity pass" : "Prepare the guided run"}</strong><small>One click selects the exact section, suggested bot, and a starting website-access choice.</small><button type="button" data-testid="guided-selection" disabled={!suggestedDirectoryTarget} onClick={openGuidedSelection}>Load @{suggestedDisplayName} on {guided.sectionHeading.replace(/^## /u, "")}</button></span></li>
+                  <li><b>2</b><span><strong>Review the bot and website access</strong><small>Expertise guides the approach. The editable access choice sets the WebMCP tools; the selected passage bounds the edit.</small></span></li>
                   <li><b>3</b><span><strong>Watch the Flight Recorder</strong><small>See WebMCP discovery, Luna&apos;s calls, evidence, diff, and revision.</small><button type="button" onClick={() => { setRailTab("RELAY"); setRailOpen(true); }}>Open Flight Recorder</button></span></li>
                 </ol>
                 <aside className={styles.coachDirectory} aria-label="Company directory preview">
-                  {directory.length ? <><ManagedDirectory directory={directory} showHumans={false} /><small>{managedAgentCount} managed agents · {directory.filter((entry) => entry.kind === "HUMAN").length} people appear in the <code>@</code> menu</small></> : <div className={styles.directoryLoading}><strong>Loading the directory…</strong><span>The document stays fully editable while this page checks its relay state.</span></div>}
+                  {directory.length ? <><ManagedDirectory directory={directory} showHumans={false} /><small>{managedAgentCount} managed bots · access is chosen separately for every run · {directory.filter((entry) => entry.kind === "HUMAN").length} people appear in the <code>@</code> menu</small></> : <div className={styles.directoryLoading}><strong>Loading the directory…</strong><span>The document stays fully editable while this page checks its relay state.</span></div>}
                   <p data-ready={relayAvailable ? "true" : "false"}><i />{relayAvailable ? "WebMCP is ready. Mentions wake immediately; 15 seconds is recovery only." : "WebMCP is not exposed in this browser. Mentions stay durable until an eligible page opens."}</p>
                 </aside>
               </div>
@@ -1165,9 +1189,10 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void submitComment(); }
           }} />
           {mentionQuery !== null && !selectedAgent && !selectedDirectoryTarget ? <div className={styles.agentAutocomplete} role="listbox" aria-label="Company directory"><ManagedDirectory directory={directory} query={mentionQuery} onChoose={chooseDirectoryTarget} />{agentSuggestions.length ? <section className={styles.selfDeclaredSuggestions} aria-label="Advanced connected agents"><header>Advanced · connected on this page</header>{agentSuggestions.map((agent) => <button key={agent.profileId} type="button" role="option" aria-selected="false" onClick={() => chooseAgent(agent)}><span>{initials(agent.name)}</span><b>{agent.name}</b><small>{agent.member.displayName}</small></button>)}</section> : null}{directory.length || agentSuggestions.length ? null : <p>No matching directory entry. Unselected @ text will stay a human comment.</p>}</div> : null}
-          {selectedDirectoryTarget ? <p className={styles.selectedAgent}>{selectedDirectoryTarget.kind === "AGENT" ? "Assigned to" : "Discussion with"} <strong>@{selectedDirectoryTarget.displayName}</strong> · {selectedDirectoryTarget.kind === "AGENT" ? `${selectedDirectoryTarget.specialty.toLowerCase()} specialist` : "human collaborator"}</p> : null}
+          {selectedDirectoryTarget ? <p className={styles.selectedAgent}>{selectedDirectoryTarget.kind === "AGENT" ? "Assigned to" : "Discussion with"} <strong>@{selectedDirectoryTarget.displayName}</strong> · {selectedDirectoryTarget.kind === "AGENT" ? `${selectedDirectoryTarget.expertise.toLowerCase()} expertise` : "human collaborator"}</p> : null}
+          {selectedDirectoryTarget?.kind === "AGENT" && selectedAccessProfile ? <WebsiteAccessSelector value={selectedAccessProfile} onChange={setSelectedAccessProfile} /> : null}
           {selectedAgent ? <p className={styles.selectedAgent}>Assigned to <strong>{selectedAgent.name}</strong> · {selectedAgent.member.displayName}</p> : null}
-          <footer><small>{selectedDirectoryTarget?.kind === "AGENT" || selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim()} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedDirectoryTarget?.kind === "AGENT" ? "Assign & run" : selectedDirectoryTarget?.kind === "HUMAN" ? "Mention" : selectedAgent ? "Assign" : "Comment"}</button></footer>
+          <footer><small>{selectedDirectoryTarget?.kind === "AGENT" || selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim() || (selectedDirectoryTarget?.kind === "AGENT" && !selectedAccessProfile)} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedDirectoryTarget?.kind === "AGENT" ? "Assign & run" : selectedDirectoryTarget?.kind === "HUMAN" ? "Mention" : selectedAgent ? "Assign" : "Comment"}</button></footer>
         </aside>
       ) : null}
 

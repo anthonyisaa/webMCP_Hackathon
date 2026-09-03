@@ -1,13 +1,13 @@
 # Northstar CSV managed-relay Product document hero
 
-Version 2 · v4.2 product on protocol 4 · 2026-09-02
+Version 3 · v4.3 product on protocol 4 · 2026-09-03
 
-## v4.2 judge-owned live overlay
+## v4.3 capability-first live overlay
 
 The public **Explore product document** path creates a fresh isolated two-sheet clone of
 the detailed Northstar decision below. It preserves existing human saves, agent revisions,
 discussion, alternative wording, and Restore, then highlights **Success measures** as the
-managed Data transfer proof.
+managed Metrics-access proof.
 
 The exact live prompt is:
 
@@ -15,8 +15,9 @@ The exact live prompt is:
 > which October 15 scope fits 14 engineering days and preserve the November 1 renewal
 > commitment, then replace only this section.
 
-Selecting the canonical Data profile creates exactly one Direct task and one queued Relay
-run. The successful trajectory calls `read_assignment`, `query_demo_metrics`, and
+Selecting the canonical Data profile and the separate `METRICS_SCOPED_EDIT` access profile
+creates exactly one Direct task and one queued Relay run. Data expertise is descriptive;
+Metrics access determines the tools. The successful trajectory calls `read_assignment`, `query_demo_metrics`, and
 `submit_scoped_revision` through the page's live WebMCP surface. The replacement must show
 that 10 reliability days + 4 invite-only-beta days = 14 and fits exactly; 10 + all 8
 export days = 18 and exceeds the window by 4; October 15 remains an invite-only
@@ -25,11 +26,15 @@ $180,000 renewal depends on that production-ready date. It must not describe Oct
 as general availability. Every fixture is visibly labeled **Synthetic demo data**.
 
 The visible application trace uses one task/run/attempt lineage and records Luna client
-tool search, the Data-only catalog, WebMCP `getTools()` and `executeTool()`, verified
+tool search, the Metrics assignment catalog, WebMCP `getTools()` and `executeTool()`, verified
 result digests, the exact Success-measures diff, revision, and Restore. It is not native
 browser attestation; dated supported-client evidence against the exact deployed SHA
-remains the native WebMCP proof class. Switching to `@Code` or
-`@General` must remove `query_demo_metrics` and expose only that role's specialist delta.
+remains the native WebMCP proof class. Changing access to Repository or Editorial—even
+while keeping `@Data`—must remove `query_demo_metrics` and expose only the newly granted
+source tools.
+
+Ratiflow grants and enforces document, range, and action access. WebMCP exposes and invokes
+the matching tab-bound tools; catalog visibility is not the security boundary.
 
 This overlay is independently frozen in
 `evals/goldens/repo-document-v4.2/managed-relay.json`. The v4.1 scenario below remains

@@ -1,6 +1,9 @@
 export const REPOSITORY_PROTOCOL_VERSION = 4 as const;
 export type RepositoryProtocolVersion = typeof REPOSITORY_PROTOCOL_VERSION;
 
+export const RELAY_CAPABILITY_CONTRACT_HEADER = "X-Ratiflow-Relay-Contract";
+export const RELAY_CAPABILITY_CONTRACT_VALUE = "capability-first-v43";
+
 export const REPOSITORY_TOOL_NAMES = [
   "connect_agent",
   "inspect_document",
@@ -16,6 +19,18 @@ export type RepositoryToolName = (typeof REPOSITORY_TOOL_NAMES)[number];
 
 export const ISSUE_DOCUMENT_KINDS = ["POSTMORTEM", "PRODUCT_DOCUMENT"] as const;
 export type IssueDocumentKind = (typeof ISSUE_DOCUMENT_KINDS)[number];
+
+/**
+ * Website access selected for one managed assignment. These values describe the
+ * Ratiflow capabilities granted to a run, never the identity or expertise of its bot.
+ */
+export const MANAGED_RELAY_ACCESS_PROFILES = [
+  "METRICS_SCOPED_EDIT",
+  "REPOSITORY_SCOPED_EDIT",
+  "EDITORIAL_SCOPED_EDIT",
+] as const;
+export type ManagedRelayAccessProfile =
+  (typeof MANAGED_RELAY_ACCESS_PROFILES)[number];
 
 export const ISSUE_TASK_MODES = ["COMMENT", "REVIEW", "DIRECT"] as const;
 export type IssueTaskMode = (typeof ISSUE_TASK_MODES)[number];
@@ -891,6 +906,7 @@ export type CreateDirectoryMentionHttpInput = {
     }
   | {
       target: Extract<IssueMentionTarget, { kind: "AGENT" }>;
+      accessProfile: ManagedRelayAccessProfile;
       anchor: Extract<IssueAnchorInput, { scope: "SELECTION" }>;
     }
 );

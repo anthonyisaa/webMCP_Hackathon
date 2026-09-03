@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { beforeEach, expect, test, vi } from "vitest";
 
+import {
+  RELAY_CAPABILITY_CONTRACT_HEADER,
+  RELAY_CAPABILITY_CONTRACT_VALUE,
+} from "@/repository/contracts";
+
 const relay = vi.hoisted(() => ({
   readRelayState: vi.fn(),
   claimRelay: vi.fn(),
@@ -19,6 +24,9 @@ vi.mock("@/domain/repository-runtime", () => ({
 
 const grant = "rfrelay_v1.payload.signature";
 const permit = "rfpermit_v1.payload.signature";
+const contractHeaders = {
+  [RELAY_CAPABILITY_CONTRACT_HEADER]: RELAY_CAPABILITY_CONTRACT_VALUE,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -53,7 +61,7 @@ test("state and claim use only the human bearer plus exact claim headers", async
   const requestId = randomUUID();
   const { GET } = await import("./state/route");
   const state = await GET(new Request("https://ratiflow.test/api/repository-v4/relay/state", {
-    headers: { authorization: `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}`, ...contractHeaders },
   }));
   expect(state.status).toBe(200);
   expect(relay.readRelayState).toHaveBeenCalledWith(token, expect.any(AbortSignal));
@@ -63,6 +71,7 @@ test("state and claim use only the human bearer plus exact claim headers", async
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
+      ...contractHeaders,
       "X-Ratiflow-Page-Session": pageSessionId,
       "Idempotency-Key": requestId,
     },
@@ -75,6 +84,7 @@ test("state and claim use only the human bearer plus exact claim headers", async
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
+      ...contractHeaders,
       "X-Ratiflow-Page-Session": pageSessionId,
       "Idempotency-Key": requestId,
     },
@@ -93,6 +103,7 @@ test("claim binds an explicit retry to one UUID and rejects malformed targets", 
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
+      ...contractHeaders,
       "X-Ratiflow-Page-Session": pageSessionId,
       "X-Ratiflow-Relay-Retry-Run": retryRunId,
       "Idempotency-Key": requestId,
@@ -107,6 +118,7 @@ test("claim binds an explicit retry to one UUID and rejects malformed targets", 
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
+      ...contractHeaders,
       "X-Ratiflow-Page-Session": pageSessionId,
       "X-Ratiflow-Relay-Retry-Run": "not-a-run",
       "Idempotency-Key": randomUUID(),
@@ -126,6 +138,7 @@ test("trace accepts only exact browser-observed catalog transitions", async () =
     method: "POST",
     headers: {
       authorization: `Bearer ${grant}`,
+      ...contractHeaders,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(input),
@@ -144,6 +157,7 @@ test("trace accepts only exact browser-observed catalog transitions", async () =
       method: "POST",
       headers: {
         authorization: `Bearer ${grant}`,
+        ...contractHeaders,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(invalid),
@@ -155,12 +169,13 @@ test("trace accepts only exact browser-observed catalog transitions", async () =
 
 test("tool keeps the one-shot permit outside exact model-visible JSON", async () => {
   const requestId = randomUUID();
-  const physicalToolName = "rf_data_0123456789abcdef_g1_assignment";
+  const physicalToolName = "rf_metrics_0123456789abcdef_g1_assignment";
   const { POST } = await import("./tool/route");
   const response = await POST(new Request("https://ratiflow.test/api/repository-v4/relay/tool", {
     method: "POST",
     headers: {
       authorization: `Bearer ${grant}`,
+      ...contractHeaders,
       "X-Ratiflow-Relay-Permit": permit,
       "Idempotency-Key": requestId,
       "Content-Type": "application/json",
@@ -178,6 +193,7 @@ test("tool keeps the one-shot permit outside exact model-visible JSON", async ()
     method: "POST",
     headers: {
       authorization: `Bearer ${grant}`,
+      ...contractHeaders,
       "X-Ratiflow-Relay-Permit": permit,
       "Idempotency-Key": requestId,
       "Content-Type": "application/json",
@@ -187,7 +203,86 @@ test("tool keeps the one-shot permit outside exact model-visible JSON", async ()
   expect(leaked.status).toBe(400);
 });
 
-test("canonical mention dispatches only the discriminated directory shape", async () => {
+test("Relay contract mismatches fail before every service or RPC boundary", async () => {
+  const [stateRoute, claimRoute, traceRoute, toolRoute, renewRoute, releaseRoute] = await Promise.all([
+    import("./state/route"),
+    import("./claim/route"),
+    import("./trace/route"),
+    import("./tool/route"),
+    import("./lease/renew/route"),
+    import("./lease/release/route"),
+  ]);
+  const pageSessionId = randomUUID();
+  const requestId = randomUUID();
+  const mismatchedHeaders = {
+    [RELAY_CAPABILITY_CONTRACT_HEADER]: "persona-first-v42",
+  };
+  const responses = await Promise.all([
+    stateRoute.GET(new Request("https://ratiflow.test/api/repository-v4/relay/state", {
+      headers: { authorization: "Bearer human-session" },
+    })),
+    claimRoute.POST(new Request("https://ratiflow.test/api/repository-v4/relay/claim", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer human-session",
+        ...mismatchedHeaders,
+        "X-Ratiflow-Page-Session": pageSessionId,
+        "Idempotency-Key": requestId,
+      },
+    })),
+    traceRoute.POST(new Request("https://ratiflow.test/api/repository-v4/relay/trace", {
+      method: "POST",
+      headers: { authorization: `Bearer ${grant}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: "WEBMCP_TOOLCHANGE_OBSERVED",
+        detail: { transition: "RELAY_CATALOG_WITHDRAWN" },
+      }),
+    })),
+    toolRoute.POST(new Request("https://ratiflow.test/api/repository-v4/relay/tool", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${grant}`,
+        ...mismatchedHeaders,
+        "X-Ratiflow-Relay-Permit": permit,
+        "Idempotency-Key": requestId,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        physicalToolName: "rf_metrics_0123456789abcdef_g1_assignment",
+        input: {},
+      }),
+    })),
+    renewRoute.POST(new Request("https://ratiflow.test/api/repository-v4/relay/lease/renew", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${grant}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expectedLeaseId: randomUUID() }),
+    })),
+    releaseRoute.POST(new Request("https://ratiflow.test/api/repository-v4/relay/lease/release", {
+      method: "POST",
+      headers: { authorization: `Bearer ${grant}`, ...mismatchedHeaders },
+    })),
+  ]);
+
+  for (const response of responses) {
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "PROTOCOL_MISMATCH",
+      retryable: false,
+    });
+  }
+  expect(relay.readRelayState).not.toHaveBeenCalled();
+  expect(relay.claimRelay).not.toHaveBeenCalled();
+  expect(relay.recordRelayTrace).not.toHaveBeenCalled();
+  expect(relay.executeRelayTool).not.toHaveBeenCalled();
+  expect(relay.renewRelayLease).not.toHaveBeenCalled();
+  expect(relay.releaseRelayLease).not.toHaveBeenCalled();
+});
+
+test("canonical mention dispatches exact human and capability-bound agent shapes", async () => {
   const requestId = randomUUID();
   const memberId = randomUUID();
   const body = {
@@ -210,4 +305,49 @@ test("canonical mention dispatches only the discriminated directory shape", asyn
   expect(relay.createDirectoryMention).toHaveBeenCalledWith(
     "human-session", { ...body, requestId }, expect.any(AbortSignal),
   );
+
+  const agentRequestId = randomUUID();
+  const agentBody = {
+    expectedRevision: 1,
+    comment: "@Code Check this passage with metrics.",
+    target: { kind: "AGENT", profileId: randomUUID() },
+    accessProfile: "METRICS_SCOPED_EDIT",
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 5 },
+  };
+  const agentResponse = await POST(new Request(
+    "https://ratiflow.test/api/repository-v4/task/mention",
+    {
+      method: "POST",
+      headers: {
+        authorization: "Bearer human-session",
+        "Idempotency-Key": agentRequestId,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(agentBody),
+    },
+  ));
+  expect(agentResponse.status).toBe(201);
+  expect(relay.createDirectoryMention).toHaveBeenLastCalledWith(
+    "human-session", { ...agentBody, requestId: agentRequestId }, expect.any(AbortSignal),
+  );
+
+  for (const invalidBody of [
+    { ...agentBody, accessProfile: undefined },
+    { ...body, accessProfile: "METRICS_SCOPED_EDIT" },
+  ]) {
+    const rejected = await POST(new Request(
+      "https://ratiflow.test/api/repository-v4/task/mention",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer human-session",
+          "Idempotency-Key": randomUUID(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(invalidBody),
+      },
+    ));
+    expect(rejected.status).toBe(400);
+  }
+  expect(relay.createDirectoryMention).toHaveBeenCalledTimes(2);
 });

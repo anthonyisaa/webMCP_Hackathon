@@ -8,16 +8,20 @@ import type {
   IssueRevision,
   IssueTask,
   IssueTaskView,
+  ManagedRelayAccessProfile,
   RepositoryFailure,
   RepositoryResult,
   RepositoryToolName,
 } from "@/repository/contracts";
 
-export const MANAGED_AGENT_SPECIALTIES = ["DATA", "CODE", "GENERAL"] as const;
-export type ManagedAgentSpecialty = (typeof MANAGED_AGENT_SPECIALTIES)[number];
+export const MANAGED_AGENT_EXPERTISES = ["DATA", "CODE", "GENERAL"] as const;
+export type ManagedAgentExpertise = (typeof MANAGED_AGENT_EXPERTISES)[number];
 
-export const AGENT_DIRECTORY_SCOPES = ["COMPANY", "TEAM", "PERSONAL"] as const;
-export type AgentDirectoryScope = (typeof AGENT_DIRECTORY_SCOPES)[number];
+export const AGENT_DIRECTORY_VISIBILITIES = ["COMPANY", "TEAM", "PERSONAL"] as const;
+export type AgentDirectoryVisibility = (typeof AGENT_DIRECTORY_VISIBILITIES)[number];
+
+export type RelayAccessProfile = ManagedRelayAccessProfile;
+export type RelayDocumentAuthority = "DIRECT_SELECTION";
 
 export const AGENT_DIRECTORY_IDENTITY_SOURCES = [
   "DEMO_DIRECTORY",
@@ -94,7 +98,7 @@ export const RELAY_TRACE_KINDS = [
 ] as const;
 export type RelayTraceKind = (typeof RELAY_TRACE_KINDS)[number];
 
-export const MANAGED_AGENT_COMMON_TOOL_NAMES = [
+export const RELAY_COMMON_TOOL_NAMES = [
   "read_assignment",
   "read_document_context",
   "read_collaboration_context",
@@ -102,19 +106,92 @@ export const MANAGED_AGENT_COMMON_TOOL_NAMES = [
   "submit_scoped_revision",
 ] as const;
 
-export const MANAGED_AGENT_SPECIALIST_TOOL_NAMES = {
-  DATA: ["query_demo_metrics"],
-  CODE: ["search_demo_code", "read_demo_file"],
-  GENERAL: ["read_company_style_guide", "check_document_consistency"],
-} as const satisfies Record<ManagedAgentSpecialty, readonly string[]>;
+export const RELAY_ACCESS_SOURCE_TOOL_NAMES = {
+  METRICS_SCOPED_EDIT: ["query_demo_metrics"],
+  REPOSITORY_SCOPED_EDIT: ["search_demo_code", "read_demo_file"],
+  EDITORIAL_SCOPED_EDIT: ["read_company_style_guide", "check_document_consistency"],
+} as const satisfies Record<RelayAccessProfile, readonly string[]>;
 
 export type ManagedAgentCommonToolName =
-  (typeof MANAGED_AGENT_COMMON_TOOL_NAMES)[number];
+  (typeof RELAY_COMMON_TOOL_NAMES)[number];
 export type ManagedAgentSpecialistToolName =
-  (typeof MANAGED_AGENT_SPECIALIST_TOOL_NAMES)[ManagedAgentSpecialty][number];
+  (typeof RELAY_ACCESS_SOURCE_TOOL_NAMES)[RelayAccessProfile][number];
 export type ManagedAgentLogicalToolName =
   | ManagedAgentCommonToolName
   | ManagedAgentSpecialistToolName;
+
+export const RELAY_ACCESS_POLICIES = {
+  METRICS_SCOPED_EDIT: {
+    physicalDiscriminator: "metrics",
+    documentAuthority: "DIRECT_SELECTION",
+    taskCategory: "DATA",
+    logicalToolNames: [
+      ...RELAY_COMMON_TOOL_NAMES,
+      ...RELAY_ACCESS_SOURCE_TOOL_NAMES.METRICS_SCOPED_EDIT,
+    ],
+    requiredToolOrder: [
+      "read_assignment",
+      "query_demo_metrics",
+      "submit_scoped_revision",
+    ],
+    syntheticSourceLabels: [
+      "Synthetic demo data · northstar_launch_capacity",
+      "Synthetic demo data · inc_482_checkout_impact",
+    ],
+  },
+  REPOSITORY_SCOPED_EDIT: {
+    physicalDiscriminator: "repository",
+    documentAuthority: "DIRECT_SELECTION",
+    taskCategory: "CODEBASE",
+    logicalToolNames: [
+      ...RELAY_COMMON_TOOL_NAMES,
+      ...RELAY_ACCESS_SOURCE_TOOL_NAMES.REPOSITORY_SCOPED_EDIT,
+    ],
+    requiredToolOrder: [
+      "read_assignment",
+      "search_demo_code",
+      "read_demo_file",
+      "submit_scoped_revision",
+    ],
+    syntheticSourceLabels: [
+      "Synthetic demo data · commit:7d3c9e1",
+      "Synthetic demo data · checkout.log",
+    ],
+  },
+  EDITORIAL_SCOPED_EDIT: {
+    physicalDiscriminator: "editorial",
+    documentAuthority: "DIRECT_SELECTION",
+    taskCategory: "WRITING",
+    logicalToolNames: [
+      ...RELAY_COMMON_TOOL_NAMES,
+      ...RELAY_ACCESS_SOURCE_TOOL_NAMES.EDITORIAL_SCOPED_EDIT,
+    ],
+    requiredToolOrder: [
+      "read_assignment",
+      "read_company_style_guide",
+      "check_document_consistency",
+      "submit_scoped_revision",
+    ],
+    syntheticSourceLabels: [
+      "Synthetic demo data · Ratiflow company style guide",
+      "Synthetic demo data · Ratiflow consistency rules",
+    ],
+  },
+} as const satisfies Record<RelayAccessProfile, {
+  physicalDiscriminator: "metrics" | "repository" | "editorial";
+  documentAuthority: RelayDocumentAuthority;
+  taskCategory: "DATA" | "CODEBASE" | "WRITING";
+  logicalToolNames: readonly ManagedAgentLogicalToolName[];
+  requiredToolOrder: readonly ManagedAgentLogicalToolName[];
+  syntheticSourceLabels: readonly string[];
+}>;
+
+export interface RelayCapabilityGrant {
+  accessProfile: RelayAccessProfile;
+  documentAuthority: RelayDocumentAuthority;
+  logicalToolNames: ManagedAgentLogicalToolName[];
+  syntheticSourceLabels: string[];
+}
 
 const MODEL_TEXT_SCHEMA = { type: "string", maxLength: 8_000 } as const;
 const MODEL_SHORT_TEXT_SCHEMA = { type: "string", maxLength: 1_000 } as const;
@@ -145,7 +222,15 @@ export const MANAGED_AGENT_MODEL_OUTPUT_SCHEMAS = {
   read_assignment: modelSuccessSchema({
     type: "object",
     properties: {
-      specialty: { type: "string", enum: MANAGED_AGENT_SPECIALTIES },
+      expertise: { type: "string", enum: MANAGED_AGENT_EXPERTISES },
+      accessProfile: {
+        type: "string",
+        enum: [
+          "METRICS_SCOPED_EDIT",
+          "REPOSITORY_SCOPED_EDIT",
+          "EDITORIAL_SCOPED_EDIT",
+        ],
+      },
       documentTitle: { type: "string", minLength: 1, maxLength: 160 },
       instruction: { type: "string", minLength: 1, maxLength: 1_000 },
       selectedText: MODEL_TEXT_SCHEMA,
@@ -160,7 +245,8 @@ export const MANAGED_AGENT_MODEL_OUTPUT_SCHEMAS = {
       },
     },
     required: [
-      "specialty",
+      "expertise",
+      "accessProfile",
       "documentTitle",
       "instruction",
       "selectedText",
@@ -497,7 +583,7 @@ export const MANAGED_AGENT_TOOL_DEFINITIONS = {
     logicalName: "submit_scoped_revision",
     providerKey: "submit_revision",
     description:
-      "Submit one evidence-backed replacement for only the active passage granted by this assignment. replacementText must materially differ from the active selected text. The server validates revision, range, role, lease, and provenance.",
+      "Submit one evidence-backed replacement for only the active passage granted by this assignment. replacementText must materially differ from the active selected text. The server validates revision, range, action, lease, and provenance.",
     inputSchema: {
       type: "object",
       properties: {
@@ -595,24 +681,6 @@ export const MANAGED_AGENT_TOOL_DEFINITIONS = {
   },
 } as const satisfies Record<ManagedAgentLogicalToolName, ManagedAgentToolDefinition>;
 
-export const MANAGED_AGENT_TOOL_CATALOGS = {
-  DATA: [
-    ...MANAGED_AGENT_COMMON_TOOL_NAMES,
-    ...MANAGED_AGENT_SPECIALIST_TOOL_NAMES.DATA,
-  ],
-  CODE: [
-    ...MANAGED_AGENT_COMMON_TOOL_NAMES,
-    ...MANAGED_AGENT_SPECIALIST_TOOL_NAMES.CODE,
-  ],
-  GENERAL: [
-    ...MANAGED_AGENT_COMMON_TOOL_NAMES,
-    ...MANAGED_AGENT_SPECIALIST_TOOL_NAMES.GENERAL,
-  ],
-} as const satisfies Record<
-  ManagedAgentSpecialty,
-  readonly ManagedAgentLogicalToolName[]
->;
-
 export const RELAY_BOUNDS = {
   recoveryHeartbeatMs: 15_000,
   leaseTtlMs: 45_000,
@@ -657,21 +725,19 @@ interface AgentDirectoryEntryCore {
   principal: IssueMemberSnapshot;
   handle: string;
   displayName: string;
-  scope: AgentDirectoryScope;
+  visibility: AgentDirectoryVisibility;
   readiness: "READY" | "WEBMCP_UNAVAILABLE" | "DISABLED";
-  syntheticSourceLabels: string[];
 }
 
 export type ManagedAgentDirectoryEntry = AgentDirectoryEntryCore & {
   identitySource: "DEMO_DIRECTORY";
-  specialty: ManagedAgentSpecialty;
+  expertise: ManagedAgentExpertise;
   runtime: typeof MANAGED_AGENT_RUNTIME;
-  logicalToolNames: ManagedAgentLogicalToolName[];
 };
 
 export type SelfDeclaredAgentDirectoryEntry = AgentDirectoryEntryCore & {
   identitySource: "SELF_DECLARED";
-  specialty: "GENERAL";
+  expertise: "GENERAL";
   runtime: "BRING_YOUR_OWN_AGENT";
   logicalToolNames: RepositoryToolName[];
   syntheticSourceLabels: [];
@@ -721,7 +787,8 @@ export interface RelayRun {
   runId: string;
   taskId: string;
   profileId: string;
-  specialty: ManagedAgentSpecialty;
+  agentExpertise: ManagedAgentExpertise;
+  accessProfile: RelayAccessProfile;
   runtime: typeof MANAGED_AGENT_RUNTIME;
   model: typeof MANAGED_AGENT_MODEL;
   status: RelayRunStatus;
@@ -825,7 +892,7 @@ export interface RelayNormalizedToolManifest {
 
 export const RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH = 64;
 export const RELAY_PHYSICAL_TOOL_NAME_PATTERN =
-  /^rf_(data|code|general)_[a-f0-9]{16}_g[1-9][0-9]*_[a-z0-9_]+$/;
+  /^rf_(metrics|repository|editorial)_[a-f0-9]{16}_g[1-9][0-9]*_[a-z0-9_]+$/;
 
 /** Opaque bearer values are minted server-side and kept in browser memory only. */
 export type RelayGrant = string & { readonly __relayGrant: unique symbol };
@@ -884,6 +951,7 @@ export type RelayClaimOutcome =
       run: RelayRun;
       attempt: RelayClaimedAttemptView;
       agent: ManagedAgentDirectoryEntry;
+      capabilityGrant: RelayCapabilityGrant;
       grant: RelayGrant;
     }
   | { outcome: "NO_WORK"; retryAfterMs: typeof RELAY_BOUNDS.recoveryHeartbeatMs }
@@ -953,6 +1021,7 @@ export interface RelayToolInvocationContext {
 export interface RelayReadAssignmentResult {
   task: IssueTaskView;
   agent: ManagedAgentDirectoryEntry;
+  capabilityGrant: RelayCapabilityGrant;
 }
 
 export interface RelayReadDocumentContextResult {

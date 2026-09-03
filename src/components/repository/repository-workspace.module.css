@@ -1955,6 +1955,45 @@
   color: #59436f;
 }
 
+.websiteAccessSelector {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #dbe4de;
+  border-radius: 10px;
+  padding: 9px;
+  background: #f5f8f6;
+}
+
+.websiteAccessSelector label {
+  color: #4f6458;
+  font-size: 9px;
+  font-weight: 720;
+}
+
+.websiteAccessSelector select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #cfd9d2;
+  border-radius: 8px;
+  padding: 0 8px;
+  outline: 0;
+  background: #fff;
+  color: #34443b;
+  font: inherit;
+  font-size: 9px;
+}
+
+.websiteAccessSelector select:focus {
+  border-color: #719781;
+  box-shadow: 0 0 0 3px rgb(74 137 109 / 11%);
+}
+
+.websiteAccessSelector small {
+  color: #77827b;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
 .conflictBanner,
 .statusToast {
   position: fixed;
@@ -2096,7 +2135,7 @@
 
 .relayIdentityRow {
   display: grid;
-  grid-template-columns: .8fr .9fr 1.3fr;
+  grid-template-columns: .7fr .7fr .85fr 1.5fr;
   gap: 1px;
   border-bottom: 1px solid rgb(255 255 255 / 8%);
   background: rgb(255 255 255 / 8%);
@@ -2378,17 +2417,17 @@
   font-weight: 760;
 }
 
-.directoryAvatar[data-specialty="code"] {
+.directoryAvatar[data-expertise="code"] {
   background: #e9edfb;
   color: #3d5590;
 }
 
-.directoryAvatar[data-specialty="general"] {
+.directoryAvatar[data-expertise="general"] {
   background: #f2ebf5;
   color: #745783;
 }
 
-.directoryAvatar[data-specialty="human"] {
+.directoryAvatar[data-expertise="human"] {
   background: #f0f0ed;
   color: #656b66;
 }
@@ -2422,7 +2461,7 @@
   background: #f2f4f1;
   color: #8a918b;
   font-size: 7px;
-  text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .managedDirectory section > div > p {

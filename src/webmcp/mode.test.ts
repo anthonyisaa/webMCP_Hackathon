@@ -34,7 +34,7 @@ test("static-superset registers exactly the existing catalog and never ratificat
 
 test("repository mode exposes exactly one of the idle and managed catalogs", () => {
   const idle = ["connect_agent", "inspect_document"];
-  const relay = ["rf_code_scope_g1_assignment"];
+  const relay = ["rf_metrics_0011223344556677_g1_assignment"];
   assert.deepEqual(repositoryCatalogForMode("IDLE_BYOA", idle, relay), idle);
   assert.deepEqual(repositoryCatalogForMode("MANAGED_RELAY", idle, relay), relay);
 });

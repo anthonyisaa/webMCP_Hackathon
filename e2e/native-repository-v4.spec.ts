@@ -107,7 +107,7 @@ function expectNativeEnvelope<T>(invocation: NativeInvocation<T>): T {
   return invocation.structuredContent;
 }
 
-test("native v4.2 discovers the eight-tool idle catalog, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
+test("native v4.3 candidate discovers the eight-tool idle catalog, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
@@ -122,13 +122,13 @@ test("native v4.2 discovers the eight-tool idle catalog, connects Contextbot fir
 
   await expect.poll(async () => (await discoverNativeTools(page)).supported, {
     message:
-      "Native v4.2 evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
+      "Native v4.3 idle-surface evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
   }).toBe(true);
   const discovery = await discoverNativeTools(page);
   expect(discovery.hasGetTools).toBe(true);
   expect([...discovery.tools].sort()).toEqual([...REPOSITORY_TOOL_NAMES].sort());
   await expect(page.getByRole("heading", {
-    name: "Select a passage. Mention a specialist. Watch the proof.",
+    name: "Select a passage. Pick a bot and its website access. Watch the proof.",
   })).toBeVisible();
 
   if (discovery.hasExecuteTool) {
@@ -249,7 +249,7 @@ test("native v4.2 discovers the eight-tool idle catalog, connects Contextbot fir
     test.info().annotations.push({
       type: "pending",
       description:
-        "This supported client discovered the v4.2 idle catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
+        "This supported client discovered the current v4.3 idle compatibility catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
     });
   }
 

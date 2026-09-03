@@ -1,11 +1,11 @@
 # INC-482 managed-relay Postmortem hero
 
-Version 3 · v4.2 product on protocol 4 · 2026-09-02
+Version 4 · v4.3 product on protocol 4 · 2026-09-03
 
-## v4.2 judge-owned live overlay
+## v4.3 capability-first live overlay
 
 The public **Explore postmortem** path creates a fresh isolated two-sheet clone with the
-substantial history and synthetic evidence frozen below. It adds the judge only as a
+substantial history and synthetic evidence frozen below. It adds the evaluator only as a
 non-authoring viewer and highlights **Root cause** as the 90-second live path. The grouped
 @ directory shows Humans and the immutable managed agents `@Data`, `@Code`, and
 `@General`; legacy self-declared profiles remain under Advanced.
@@ -16,8 +16,10 @@ The exact hero prompt is:
 > Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve
 > every verified date, quantity, and source reference, then replace only this section.
 
-Selecting the canonical Code profile creates exactly one Direct task and one queued Relay
-run. The successful trajectory calls, through the page's live WebMCP surface,
+Selecting the canonical Code profile and the separate `REPOSITORY_SCOPED_EDIT` access
+profile creates exactly one Direct task and one queued Relay run. Code expertise is
+descriptive; Repository access determines the tools. The successful trajectory calls,
+through the page's live WebMCP surface,
 `read_assignment`, `search_demo_code`, `read_demo_file`, and
 `submit_scoped_revision`. The replacement must be exactly one Markdown list of three
 bullets labeled **Trigger**, **Amplifier**, and **Why it persisted**. The result must cite
@@ -28,16 +30,21 @@ traffic plus queue growth from 420 to 18,240. It must not call provider latency 
 root cause.
 
 The visible Flight Recorder must show one consistent task/run/attempt lineage and the
-ordered application-observed relay trace: idle catalog withdrawn, Code catalog registered,
+ordered application-observed relay trace: idle catalog withdrawn, Repository assignment
+catalog registered,
 `toolchange`, Luna client `tool_search`, `getTools()`, the server-pinned function call
 returned by Luna, `executeTool()`, result digest,
-revision, Code catalog withdrawn, and idle catalog restored. A later `@General` run on a
-selected section must expose `read_company_style_guide` and
-`check_document_consistency` instead of Code's two specialist tools. History keeps the
+revision, assignment catalog withdrawn, and idle catalog restored. A later assignment may
+keep `@Code` and change access to `EDITORIAL_SCOPED_EDIT`, which must expose
+`read_company_style_guide` and `check_document_consistency` instead of Repository source
+tools. History keeps the
 human grantor, managed agent, `gpt-5.6-luna`, runtime
 `OPENAI_LUNA_WEBMCP_RELAY`, synthetic evidence, exact diff, and Restore.
 This readable trace is not native browser attestation; dated supported-client evidence
 against the exact deployed SHA remains the native WebMCP proof class.
+
+Ratiflow grants and enforces document, range, and action access. WebMCP exposes and invokes
+the matching tab-bound tools; catalog visibility is not the security boundary.
 
 This overlay is independently frozen in
 `evals/goldens/repo-document-v4.2/managed-relay.json`. The detailed v4.1 graph below is

@@ -49,11 +49,12 @@ function successResponse(
 
 function providerTool(
   logicalName: keyof typeof MANAGED_AGENT_TOOL_DEFINITIONS,
+  discriminator: "metrics" | "repository" | "editorial" = "metrics",
 ): RelayProviderFunctionTool {
   const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
   return {
     type: "function",
-    name: `rf_data_0123456789abcdef_g1_${definition.providerKey}`,
+    name: `rf_${discriminator}_0123456789abcdef_g1_${definition.providerKey}`,
     description: definition.description,
     defer_loading: true,
     parameters: definition.inputSchema,
@@ -65,7 +66,8 @@ function modelAssignmentOutput(): string {
   return JSON.stringify({
     ok: true,
     data: {
-      specialty: "DATA",
+      expertise: "CODE",
+      accessProfile: "METRICS_SCOPED_EDIT",
       documentTitle: "Northstar export launch plan",
       instruction: "Ground the selected launch plan in synthetic capacity evidence.",
       selectedText: "Invite-only beta begins after the reliability phase.",
@@ -339,8 +341,8 @@ describe("OpenAILunaResponsesProvider", () => {
   });
 
   test("pins submit by name after a Code file result and rejects a repeated read call", async () => {
-    const readFile = providerTool("read_demo_file");
-    const submit = providerTool("submit_scoped_revision");
+    const readFile = providerTool("read_demo_file", "repository");
+    const submit = providerTool("submit_scoped_revision", "repository");
     const { captured, provider } = mockProvider([successResponse("resp_wrong_repeat", [{
       type: "function_call",
       status: "completed",

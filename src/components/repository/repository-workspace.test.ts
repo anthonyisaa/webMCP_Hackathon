@@ -22,6 +22,7 @@ import {
   repositorySessionIdentity,
   repositoryShouldAdoptRevisionMutation,
 } from "./RepositoryWorkspace";
+import { repositoryRecommendedAccessProfile } from "./relay-access-copy";
 import { POSTMORTEM_EXAMPLE } from "@/domain/repository-examples";
 
 test("landing makes nickname, managed directory, and the two guided demos explicit", () => {
@@ -34,7 +35,8 @@ test("landing makes nickname, managed directory, and the two guided demos explic
   assert.match(markup, /@Data/u);
   assert.match(markup, /@Code/u);
   assert.match(markup, /@General/u);
-  assert.match(markup, /No agent setup is required/u);
+  assert.match(markup, /Website access is chosen per run/u);
+  assert.match(markup, /Any bot can use any of those profiles/u);
   assert.match(markup, /15-second check is recovery/u);
   assert.match(markup, /data-document-kind="POSTMORTEM"/u);
   assert.match(markup, /data-document-kind="PRODUCT_DOCUMENT"/u);
@@ -42,6 +44,7 @@ test("landing makes nickname, managed directory, and the two guided demos explic
   assert.match(markup, /Open live postmortem/u);
   assert.match(markup, /Open live product document/u);
   assert.match(markup, /Application-owned WebMCP relay · GPT-5.6 Luna/u);
+  assert.match(markup, /Pick the bot\. Grant the tools/u);
 });
 
 test("seeded examples become exactly two lossless visual sheets", () => {
@@ -52,7 +55,7 @@ test("seeded examples become exactly two lossless visual sheets", () => {
   assert.equal(repositoryLivingDocumentSheets("POSTMORTEM", "A blank user document"), null);
 });
 
-test("guided whole-section selection stays exact after a specialist revision", () => {
+test("guided whole-section selection stays exact after an access-granted revision", () => {
   const body = "## Summary\n\nBefore 😀\n\n## Root cause\n\nTrigger first.\nAmplifier second.\n\n## Actions\n\nFix it.";
   const selection = repositorySectionBodySelection(body, "## Root cause");
   assert.deepEqual(selection, {
@@ -112,22 +115,13 @@ test("directory selections keep human and agent authority keyed by canonical IDs
     principal: { memberId: "managed-code", displayName: "Code" },
     handle: "code",
     displayName: "Code",
-    scope: "COMPANY",
+    visibility: "COMPANY",
     readiness: "READY",
-    syntheticSourceLabels: ["Synthetic demo data"],
     identitySource: "DEMO_DIRECTORY",
-    specialty: "CODE",
+    expertise: "CODE",
     runtime: "OPENAI_LUNA_WEBMCP_RELAY",
-    logicalToolNames: [
-      "read_assignment",
-      "read_document_context",
-      "read_collaboration_context",
-      "comment_on_assignment",
-      "submit_scoped_revision",
-      "search_demo_code",
-      "read_demo_file",
-    ],
   }), "AGENT:profile-code");
+  assert.equal(repositoryRecommendedAccessProfile("CODE"), "REPOSITORY_SCOPED_EDIT");
 });
 
 test("history provenance names the self-declared agent and human owner", () => {
@@ -159,21 +153,11 @@ test("history provenance names the self-declared agent and human owner", () => {
     principal: { memberId: "managed-code", displayName: "Code · managed agent" },
     handle: "code",
     displayName: "Code",
-    scope: "TEAM",
+    visibility: "TEAM",
     readiness: "READY",
-    syntheticSourceLabels: ["Synthetic demo data"],
     identitySource: "DEMO_DIRECTORY",
-    specialty: "CODE",
+    expertise: "CODE",
     runtime: "OPENAI_LUNA_WEBMCP_RELAY",
-    logicalToolNames: [
-      "read_assignment",
-      "read_document_context",
-      "read_collaboration_context",
-      "comment_on_assignment",
-      "submit_scoped_revision",
-      "search_demo_code",
-      "read_demo_file",
-    ],
   };
   const managedProvenance: IssueRevisionProvenance = {
     ...direct,

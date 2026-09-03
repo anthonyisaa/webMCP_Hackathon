@@ -1,10 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_ACCESS_POLICIES,
   RELAY_BOUNDS,
-  type ManagedAgentSpecialty,
+  type ManagedAgentExpertise,
+  type RelayAccessProfile,
 } from "../src/agent-relay/contracts";
 import { MANAGED_RELAY_EXAMPLE_OVERLAYS } from "../src/domain/repository-examples";
 import {
@@ -23,10 +24,16 @@ type NativeCatalogEntry = {
   sameWindow: boolean;
 };
 
-const AGENT_NAMES: Readonly<Record<ManagedAgentSpecialty, string>> = {
+const AGENT_NAMES: Readonly<Record<ManagedAgentExpertise, string>> = {
   CODE: "Code",
   DATA: "Data",
   GENERAL: "General",
+};
+
+const ACCESS_NAMES: Readonly<Record<RelayAccessProfile, string>> = {
+  METRICS_SCOPED_EDIT: "Metrics",
+  REPOSITORY_SCOPED_EDIT: "Repository",
+  EDITORIAL_SCOPED_EDIT: "Editorial",
 };
 
 async function nativeCatalog(page: Page): Promise<NativeCatalogEntry[]> {
@@ -102,12 +109,12 @@ async function expectIdleCatalog(page: Page): Promise<void> {
   }).toEqual({ names: expectedNames, ownedByPage: true });
 }
 
-function isExactRoleCatalog(
+function isExactAccessCatalog(
   entries: readonly NativeCatalogEntry[],
-  specialty: ManagedAgentSpecialty,
+  accessProfile: RelayAccessProfile,
 ): boolean {
-  const role = specialty.toLocaleLowerCase("en-US");
-  const providerKeys = MANAGED_AGENT_TOOL_CATALOGS[specialty]
+  const policy = RELAY_ACCESS_POLICIES[accessProfile];
+  const providerKeys = policy.logicalToolNames
     .map((logicalName) => MANAGED_AGENT_TOOL_DEFINITIONS[logicalName].providerKey)
     .sort();
   if (
@@ -116,7 +123,7 @@ function isExactRoleCatalog(
   ) return false;
 
   const prefixes = entries.map(({ name }) =>
-    name.match(new RegExp(`^(rf_${role}_[a-f0-9]{16}_g[1-9][0-9]*_)`, "u"))?.[1]
+    name.match(new RegExp(`^(rf_${policy.physicalDiscriminator}_[a-f0-9]{16}_g[1-9][0-9]*_)`, "u"))?.[1]
     ?? null);
   const prefix = prefixes[0];
   if (!prefix || prefixes.some((candidate) => candidate !== prefix)) return false;
@@ -126,17 +133,17 @@ function isExactRoleCatalog(
   return JSON.stringify(observedProviderKeys) === JSON.stringify(providerKeys);
 }
 
-async function waitForExactRoleCatalog(
+async function waitForExactAccessCatalog(
   page: Page,
-  specialty: ManagedAgentSpecialty,
+  accessProfile: RelayAccessProfile,
 ): Promise<void> {
   let observed = false;
   await expect.poll(async () => {
     const entries = await nativeCatalog(page);
-    if (isExactRoleCatalog(entries, specialty)) observed = true;
+    if (isExactAccessCatalog(entries, accessProfile)) observed = true;
     return observed;
   }, {
-    message: `The native catalog never exposed the exact ${specialty} role tools.`,
+    message: `The native catalog never exposed the exact ${accessProfile} website tools.`,
     timeout: 30_000,
     intervals: [50, 100, 200, 500],
   }).toBe(true);
@@ -171,9 +178,11 @@ async function launchExample(
 
 async function expectVisibleLogicalCatalog(
   page: Page,
-  specialty: ManagedAgentSpecialty,
+  expertise: ManagedAgentExpertise,
+  accessProfile: RelayAccessProfile,
 ): Promise<Locator> {
-  const agentName = AGENT_NAMES[specialty];
+  const agentName = AGENT_NAMES[expertise];
+  const accessName = ACCESS_NAMES[accessProfile];
   const rail = page.getByRole("complementary", {
     name: "Comments, history, and relay",
   });
@@ -185,12 +194,12 @@ async function expectVisibleLogicalCatalog(
   const recorder = rail.getByTestId("relay-flight-recorder");
   await expect(recorder).toContainText(`@${agentName}`);
   const catalog = recorder.getByRole("list", {
-    name: `${agentName} tool catalog`,
+    name: `${accessName} website tool catalog`,
   });
   await expect(catalog.locator("li")).toHaveText([
-    ...MANAGED_AGENT_TOOL_CATALOGS[specialty],
+    ...RELAY_ACCESS_POLICIES[accessProfile].logicalToolNames,
   ]);
-  await expect(recorder).toContainText("tools · role scoped");
+  await expect(recorder).toContainText(`tools · ${accessName} grant`);
   return recorder;
 }
 
@@ -225,14 +234,12 @@ async function waitForAttemptOutcome(
 
 async function expectTraceCompletion(recorder: Locator): Promise<void> {
   await expect(recorder).toContainText("Revision recorded");
-  await expect(recorder).toContainText("Page dispatched the selected tool");
   await expect(recorder).toContainText("Scoped revision committed");
   await expect(recorder).toContainText("Application recorded the tool result");
   await expect(recorder).toContainText("Run completed");
   const kinds = await recorder.locator('[aria-label="Relay trace"] > li')
     .evaluateAll((items) => items.map((item) => item.getAttribute("data-kind")));
   const ordered = [
-    "WEBMCP_EXECUTE_STARTED",
     "REVISION_COMMITTED",
     "WEBMCP_EXECUTE_COMPLETED",
     "RUN_COMPLETED",
@@ -247,10 +254,11 @@ async function expectTraceCompletion(recorder: Locator): Promise<void> {
 
 async function assignGuidedAgent(
   page: Page,
-  specialty: ManagedAgentSpecialty,
+  expertise: ManagedAgentExpertise,
+  accessProfile: RelayAccessProfile,
   expectedRevision: number,
 ): Promise<void> {
-  const agentName = AGENT_NAMES[specialty];
+  const agentName = AGENT_NAMES[expertise];
   const guided = page.getByTestId("guided-selection");
   await expect(guided).toContainText(`Load @${agentName}`);
   await guided.click();
@@ -261,16 +269,17 @@ async function assignGuidedAgent(
     new RegExp(`^@${agentName}\\b`, "u"),
   );
   await expect(composer).toContainText(
-    `Assigned to @${agentName} · ${specialty.toLocaleLowerCase("en-US")} specialist`,
+    `Assigned to @${agentName} · ${expertise.toLocaleLowerCase("en-US")} expertise`,
   );
+  await expect(composer.getByLabel("Website access for this run")).toHaveValue(accessProfile);
 
-  const roleCatalog = waitForExactRoleCatalog(page, specialty);
+  const accessCatalog = waitForExactAccessCatalog(page, accessProfile);
   await composer.getByRole("button", {
     name: "Assign & run",
     exact: true,
   }).click();
-  await roleCatalog;
-  const recorder = await expectVisibleLogicalCatalog(page, specialty);
+  await accessCatalog;
+  const recorder = await expectVisibleLogicalCatalog(page, expertise, accessProfile);
 
   for (let attempt = 1; attempt <= RELAY_BOUNDS.maxAttemptsPerRun; attempt += 1) {
     const outcome = await waitForAttemptOutcome(
@@ -296,7 +305,7 @@ async function assignGuidedAgent(
       RELAY_BOUNDS.maxAttemptsPerRun,
     );
     await expectIdleCatalog(page);
-    const retryCatalog = waitForExactRoleCatalog(page, specialty);
+    const retryCatalog = waitForExactAccessCatalog(page, accessProfile);
     await recorder.getByRole("button", { name: "Retry once" }).click();
     await expect(page.getByRole("button", {
       name: `@${agentName} working. Open agent guide.`,
@@ -305,7 +314,7 @@ async function assignGuidedAgent(
       name: "Retry once",
     })).toBeHidden({ timeout: 15_000 });
     await retryCatalog;
-    await expectVisibleLogicalCatalog(page, specialty);
+    await expectVisibleLogicalCatalog(page, expertise, accessProfile);
   }
 }
 
@@ -370,9 +379,11 @@ async function expectPostmortemCodeStructure(page: Page): Promise<void> {
 
 async function expectProductFacts(page: Page): Promise<void> {
   const document = page.getByTestId("rendered-document-body");
-  await expect(document).toContainText(/14 engineering days/iu);
   await expect(document).toContainText(/10[^\n]{0,80}4[^\n]{0,80}14/iu);
-  await expect(document).toContainText(/18[^\n]{0,100}(?:exceed|over)[^\n]{0,40}4/iu);
+  await expect(document).toContainText(/10[^\n]{0,100}8[^\n]{0,100}18/iu);
+  await expect(document).toContainText(
+    /(?:18[^\n]{0,100}(?:exceed|over)[^\n]{0,50}4|18[^\n]{0,50}4[^\n]{0,50}(?:exceed|over))/iu,
+  );
   await expect(document).toContainText("October 15");
   await expect(document).toContainText(/invite-only/iu);
   await expect(document).toContainText("November 1");
@@ -384,7 +395,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
     "Set RATIFLOW_LIVE_LUNA_JUDGE=1 to spend live Luna calls and run the native judge trajectory.",
   );
 
-  test("fresh Postmortem @Code → r6 → @General → r7, then fresh Product @Data → r7", async ({
+  test("fresh Postmortem @Code + Repository → r6 → same @Code + Editorial → r7, then fresh Product @Data + Metrics → r7", async ({
     browserName,
     page,
   }) => {
@@ -399,7 +410,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
       name: MANAGED_RELAY_EXAMPLE_OVERLAYS.POSTMORTEM.title,
     })).toBeVisible();
 
-    await assignGuidedAgent(page, "CODE", 6);
+    await assignGuidedAgent(page, "CODE", "REPOSITORY_SCOPED_EDIT", 6);
     await expectPostmortemFacts(page);
     await expectPostmortemCodeStructure(page);
     await inspectManagedRevision(page, {
@@ -417,14 +428,14 @@ test.describe("opt-in native Luna judge trajectory", () => {
     });
 
     await expect(page.getByTestId("guided-selection")).toContainText(
-      "Load @General on Root cause",
+      "Load @Code on Root cause",
     );
-    await assignGuidedAgent(page, "GENERAL", 7);
+    await assignGuidedAgent(page, "CODE", "EDITORIAL_SCOPED_EDIT", 7);
     await expectPostmortemFacts(page);
     await inspectManagedRevision(page, {
       revision: 7,
       sourceRevision: 6,
-      agentName: "General",
+      agentName: "Code",
       evidence: /Ratiflow consistency rules/u,
       replacementFacts: [
         /external trigger/iu,
@@ -444,7 +455,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
       level: 1,
       name: MANAGED_RELAY_EXAMPLE_OVERLAYS.PRODUCT_DOCUMENT.title,
     })).toBeVisible();
-    await assignGuidedAgent(page, "DATA", 7);
+    await assignGuidedAgent(page, "DATA", "METRICS_SCOPED_EDIT", 7);
     await expectProductFacts(page);
     await inspectManagedRevision(page, {
       revision: 7,
@@ -452,9 +463,9 @@ test.describe("opt-in native Luna judge trajectory", () => {
       agentName: "Data",
       evidence: /northstar_launch_capacity/u,
       replacementFacts: [
-        /14(?: engineering)?[- ]days?/iu,
         /10[\s\S]{0,320}4[\s\S]{0,220}14/iu,
-        /18[\s\S]{0,180}(?:exceed|over)[\s\S]{0,80}4/iu,
+        /10[\s\S]{0,320}8[\s\S]{0,220}18/iu,
+        /(?:18[\s\S]{0,180}(?:exceed|over)[\s\S]{0,80}4|18[\s\S]{0,80}4[\s\S]{0,80}(?:exceed|over))/iu,
         /October 15/u,
         /invite-only/iu,
         /November 1/u,

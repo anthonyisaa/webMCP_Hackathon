@@ -13,10 +13,10 @@ export interface ManagedDirectoryProps {
   showHumans?: boolean;
 }
 
-const SPECIALTY_COPY: Readonly<Record<ManagedAgentDirectoryEntry["specialty"], string>> = {
-  DATA: "Synthetic metrics",
-  CODE: "Synthetic repository",
-  GENERAL: "Writing + consistency",
+const EXPERTISE_COPY: Readonly<Record<ManagedAgentDirectoryEntry["expertise"], string>> = {
+  DATA: "Data analysis expertise",
+  CODE: "Software analysis expertise",
+  GENERAL: "Generalist expertise",
 };
 
 function initials(value: string): string {
@@ -39,12 +39,12 @@ export function ManagedDirectory({ directory, activeProfileId = null, onChoose, 
   const item = (entry: DirectoryEntry) => {
     const content = (
       <>
-        <span className={styles.directoryAvatar} data-specialty={entry.kind === "AGENT" ? entry.specialty.toLowerCase() : "human"}>{initials(entry.displayName)}</span>
+        <span className={styles.directoryAvatar} data-expertise={entry.kind === "AGENT" ? entry.expertise.toLowerCase() : "human"}>{initials(entry.displayName)}</span>
         <span className={styles.directoryIdentity}>
           <strong>@{entry.displayName}</strong>
-          <small>{entry.kind === "AGENT" ? SPECIALTY_COPY[entry.specialty] : "Collaborator · discussion only"}</small>
+          <small>{entry.kind === "AGENT" ? EXPERTISE_COPY[entry.expertise] : "Collaborator · discussion only"}</small>
         </span>
-        {entry.kind === "AGENT" ? <span className={styles.directoryScope}>{entry.scope.toLowerCase()}</span> : null}
+        {entry.kind === "AGENT" ? <span className={styles.directoryScope}>{entry.visibility.toLowerCase()} visibility</span> : null}
       </>
     );
     return onChoose ? (
@@ -62,8 +62,8 @@ export function ManagedDirectory({ directory, activeProfileId = null, onChoose, 
 
   return (
     <div className={styles.managedDirectory} data-testid="managed-agent-directory">
-      <section aria-label="Managed agents">
-        <header><span>Managed agents</span><small>Demo directory</small></header>
+      <section aria-label="Managed bots">
+        <header><span>Managed bots</span><small>Expertise, not access</small></header>
         <div>{agents.length ? agents.map(item) : <p>No matching managed agent.</p>}</div>
       </section>
       {showHumans && humans.length ? (

@@ -1,5 +1,4 @@
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS,
   RELAY_BOUNDS,
   type RelayBrowserObservedCatalogTransition,
@@ -9,6 +8,7 @@ import {
   type RelayResult,
   type RelayWorkspaceState,
 } from "../contracts";
+import { relayAccessPolicy } from "../access-policy";
 import { REPOSITORY_TOOL_NAMES } from "../../repository/contracts";
 import type { WebMCPRegisteredToolLike } from "../../webmcp/types";
 import { RelayBrowserError, relayAbortError, safeRelayErrorMessage } from "./errors";
@@ -258,6 +258,12 @@ export class RelayBrowserRuntime {
     claim: Extract<RelayClaimOutcome, { outcome: "CLAIMED" }>,
     controller: AbortController,
   ): Promise<void> {
+    if (claim.run.accessProfile !== claim.capabilityGrant.accessProfile) {
+      throw new RelayBrowserError(
+        "RELAY_MANIFEST_MISMATCH",
+        "The claimed run and website access grant do not match.",
+      );
+    }
     this.#activeGrant = claim.grant;
     this.#activeAttempt = claim.attempt;
     let runError: unknown = null;
@@ -281,10 +287,10 @@ export class RelayBrowserRuntime {
       const registeredNames = await this.#relayRegistrations.register({
         grant: claim.grant,
         attempt: claim.attempt,
-        agent: claim.agent,
+        capabilityGrant: claim.capabilityGrant,
         signal: controller.signal,
       });
-      const expectedNames = MANAGED_AGENT_TOOL_CATALOGS[claim.agent.specialty].map(
+      const expectedNames = relayAccessPolicy(claim.capabilityGrant.accessProfile).logicalToolNames.map(
         (logicalName) => registeredNames.find((name) =>
           this.#relayRegistrations.logicalNameForPhysical(name) === logicalName,
         ) ?? "",
@@ -320,7 +326,7 @@ export class RelayBrowserRuntime {
           const tools = await this.#dependencies.context.getTools();
           discovered = await normalizeRelayManifest({
             tools,
-            agent: claim.agent,
+            capabilityGrant: claim.capabilityGrant,
             attempt: claim.attempt,
             origin: this.#dependencies.environment.origin,
             topLevelWindow: this.#dependencies.environment.topLevelWindow,
@@ -524,7 +530,7 @@ export class RelayBrowserRuntime {
       if (signal?.aborted) throw relayAbortError(signal.reason);
       latest = await this.#dependencies.context.getTools();
       // WebMCP getTools() returns descriptors in ascending name order, which is not
-      // the role catalog's semantic order. Compare the exact set here; manifest
+      // the access catalog's semantic order. Compare the exact set here; manifest
       // normalization restores the frozen logical order separately.
       const names = latest.map(({ name }) => name).sort();
       const exactNames = names.length === expectedNames.length

@@ -177,7 +177,7 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new SpecialistFixtureError(
       "FIXTURE_ABORTED",
-      "The deterministic specialist fixture read was cancelled.",
+      "The deterministic access-source fixture read was cancelled.",
     );
   }
 }
@@ -280,7 +280,7 @@ function inspectConsistency(section: string): ConsistencyIssue[] {
   return issues;
 }
 
-/** Pure, deterministic specialist data for the public demo; no connector or filesystem access. */
+/** Pure, deterministic access-source data for the public demo; no connector or filesystem access. */
 export class DeterministicSpecialistFixtureAdapter implements SpecialistFixturePort {
   async queryDemoMetrics(
     input: QueryDemoMetricsInput,
@@ -395,7 +395,7 @@ export class DeterministicSpecialistFixtureAdapter implements SpecialistFixtureP
 
     const selectedLines = source.lines;
     return cloneRecord({
-      // The role sequence requires a successful deterministic search before this
+      // The repository-access sequence requires a successful deterministic search before this
       // read. Carry its complete, server-known incident evidence bundle forward
       // so the eventual revision can be bound to both canonical sources.
       ...sourceMetadata(CHECKOUT_INCIDENT_EVIDENCE_REFS),
@@ -434,7 +434,7 @@ export class DeterministicSpecialistFixtureAdapter implements SpecialistFixtureP
     const section = requireBoundedText(input?.section, "section", 8_000);
     const issues = inspectConsistency(section);
     return cloneRecord({
-      // The role sequence requires a successful style-guide read before this
+      // The editorial-access sequence requires a successful style-guide read before this
       // consistency check, so carry the complete editorial evidence bundle.
       ...sourceMetadata(GENERAL_EDITORIAL_EVIDENCE_REFS),
       status: issues.some(({ severity }) => severity === "ERROR")

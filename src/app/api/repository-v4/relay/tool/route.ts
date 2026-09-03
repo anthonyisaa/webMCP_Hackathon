@@ -6,12 +6,18 @@ import {
   idempotencyKeyFrom,
   relayResponse,
 } from "../../_response";
-import { relayGrantFrom, relayPermitFrom } from "../_request";
+import {
+  rejectIncompatibleRelayContract,
+  relayGrantFrom,
+  relayPermitFrom,
+} from "../_request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
+  const incompatible = rejectIncompatibleRelayContract(request);
+  if (incompatible) return incompatible;
   const grant = relayGrantFrom(request);
   const permit = relayPermitFrom(request);
   const requestId = idempotencyKeyFrom(request);

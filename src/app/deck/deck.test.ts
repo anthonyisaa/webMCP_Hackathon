@@ -33,7 +33,7 @@ describe("Ratiflow HTML deck", () => {
       "Agent context should not disappear into chat.",
       "From @mention to revision in one governed flow.",
       "Demo flow: choose, assign, watch.",
-      "Role-scoped catalogs. Turn-scoped execution.",
+      "Three bot archetypes. Dynamic access per assignment.",
       "Code verifies the incident and rewrites only the selected section.",
       "Every agent change keeps its decision trail.",
       "Without WebMCP, managed execution stops safely.",
@@ -45,16 +45,16 @@ describe("Ratiflow HTML deck", () => {
     assert.deepEqual(DECK_SLIDES.map(({ subtitle }) => subtitle), [
       "Turn @mentions into scoped, reversible agent work—inside the document.",
       "Ratiflow keeps prompts, sources, scope, authorship, and outcomes attached to the document.",
-      "Mention the expert → publish its role-scoped WebMCP tools → commit a bounded, restorable change.",
-      "Open Postmortem. Assign @Code to Root cause. Follow tool discovery, required calls, and the committed revision.",
-      "WebMCP publishes one catalog for the selected role and run; the relay advances one server-required function per turn.",
+      "Choose the bot and assignment access separately → expose matching site tools → commit a bounded, restorable change.",
+      "Open Postmortem. Assign @Code with Repository access to Root cause. Follow tool discovery, required calls, and the revision.",
+      "Code, Data, and General describe expertise. Each run receives exactly one temporary Metrics, Repository, or Editorial catalog.",
       "Repository evidence separates the external trigger from the retry amplifier in a restorable revision.",
-      "History preserves who asked, which tools ran, what changed, why it changed, and how to restore it.",
+      "History shows the same @Code identity receiving Repository then Editorial grants, with tools, authorship, and Restore preserved.",
       "The document and comments still work; dynamic discovery and the managed relay fail closed.",
       "@Data checks capacity, updates Success Measures, and leaves inspectable arithmetic behind.",
-      "Luna composes each required call; the browser discovers and executes WebMCP tools; Ratiflow records the result.",
+      "WebMCP exposes and invokes assignment tools; Ratiflow enforces authority, then withdraws the temporary catalog when the run ends.",
       "Our proposal: typed, opt-in pub/sub first; then durable workers, attested scopes, and reviewable replay.",
-      "Choose Postmortem for @Code or Product for @Data, then inspect the tool trace, revision history, and Restore.",
+      "Choose a bot and assignment access, then inspect the site-tool trace, revision history, and Restore.",
     ]);
     assert.equal(new Set(DECK_SLIDES.map(({ title }) => title)).size, 12);
   });
@@ -99,17 +99,25 @@ describe("Ratiflow HTML deck", () => {
     assert.match(markup, /PRODUCT FLOW VISUAL/u);
     assert.match(markup, /LUNA TOOL SEARCH · LOCAL API OBSERVED/u);
     assert.match(markup, /NATIVE PROOF IS DATED, OBSERVATIONAL EVIDENCE/u);
-    assert.match(markup, /WebMCP publishes one catalog for the selected role and run/u);
-    assert.match(markup, /DATA <b>6<\/b>/u);
-    assert.match(markup, /CODE <b>7<\/b>/u);
-    assert.match(markup, /GENERAL <b>7<\/b>/u);
-    assert.match(markup, /read_assignment/u);
+    assert.match(markup, /Three bot archetypes\. Dynamic access per assignment/u);
+    assert.match(markup, /Each run receives exactly one temporary Metrics, Repository, or Editorial catalog/u);
+    assert.match(markup, /@Code \+ Metrics/u);
+    assert.match(markup, /@Data \+ Metrics/u);
+    assert.match(markup, /same catalog · 6 tools/u);
+    assert.match(markup, /@Code \+ Repository/u);
+    assert.match(markup, /@General \+ Editorial/u);
+    assert.match(markup, /May suggest a default; never grants authority/u);
+    assert.match(markup, /same @Code identity receiving Repository then Editorial grants/u);
+    assert.match(markup, /r7 · Code/u);
+    assert.match(markup, /Editorial access · facts preserved/u);
     assert.match(markup, /search_demo_code/u);
     assert.match(markup, /read_demo_file/u);
-    assert.match(markup, /submit_scoped_revision/u);
-    assert.match(markup, /WEBMCP · ROLE\/RUN CATALOG/u);
-    assert.match(markup, /RELAY · ONE REQUIRED FUNCTION PER TURN/u);
-    assert.match(markup, /LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER/u);
+    assert.match(markup, /BOT EXPERTISE · DESCRIPTIVE/u);
+    assert.match(markup, /ASSIGNMENT ACCESS · EXPLICIT GRANT/u);
+    assert.match(markup, /WEBMCP · EXPOSES \/ INVOKES TOOLS/u);
+    assert.match(markup, /RATIFLOW SERVER · ENFORCES ACCESS/u);
+    assert.match(markup, /revision → catalog withdrawn → idle/u);
+    assert.match(markup, /RUN END · IDLE CATALOG RESTORED/u);
     assert.match(markup, /PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP/u);
     assert.match(markup, /Typed, opt-in resource invalidation and pub\/sub/u);
     assert.match(markup, /Idempotent receipts with reviewable replay/u);
@@ -121,6 +129,8 @@ describe("Ratiflow HTML deck", () => {
     assert.match(markup, /PATH 02 · NORTHSTAR/u);
     assert.match(markup, /Open the live demo picker →/u);
     assert.match(markup, /target="_blank" rel="noreferrer noopener"/u);
+    assert.doesNotMatch(markup, /role[- /]scoped|role catalog|specialist catalog/iu);
+    assert.doesNotMatch(markup, /WebMCP (?:grants?|enforces?|authenticates?)/iu);
     assert.doesNotMatch(markup, /darkSlide/u);
     assert.doesNotMatch(markup, /\bjudge(?:s)?\b|judging|criteria|criterion|rubric/iu);
     assert.doesNotMatch(markup, /WebMCP Leverage|Potential Impact|Creativity & Ambition/u);

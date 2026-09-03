@@ -7,6 +7,8 @@ import type { DirectoryEntry, RelayWorkspaceState } from "@/agent-relay/contract
 
 import { ManagedDirectory } from "./ManagedDirectory";
 import { RelayFlightRecorder } from "./RelayFlightRecorder";
+import { WebsiteAccessSelector } from "./WebsiteAccessSelector";
+import { repositoryRecommendedAccessProfile } from "./relay-access-copy";
 
 const member = { memberId: "member-1", displayName: "Ari" };
 const directory: DirectoryEntry[] = [
@@ -16,20 +18,11 @@ const directory: DirectoryEntry[] = [
     principal: { memberId: "managed-data", displayName: "Data" },
     handle: "data",
     displayName: "Data",
-    scope: "COMPANY",
+    visibility: "COMPANY",
     readiness: "READY",
-    syntheticSourceLabels: ["Synthetic demo data"],
     identitySource: "DEMO_DIRECTORY",
-    specialty: "DATA",
+    expertise: "DATA",
     runtime: "OPENAI_LUNA_WEBMCP_RELAY",
-    logicalToolNames: [
-      "read_assignment",
-      "read_document_context",
-      "read_collaboration_context",
-      "comment_on_assignment",
-      "submit_scoped_revision",
-      "query_demo_metrics",
-    ],
   },
   { kind: "HUMAN", member, handle: "ari", displayName: "Ari" },
 ];
@@ -41,7 +34,8 @@ function waitingRetryState(): RelayWorkspaceState {
       runId: "run-retry",
       taskId: "task-retry",
       profileId: "profile-data",
-      specialty: "DATA",
+      agentExpertise: "DATA",
+      accessProfile: "METRICS_SCOPED_EDIT",
       runtime: "OPENAI_LUNA_WEBMCP_RELAY",
       model: "gpt-5.6-luna",
       status: "WAITING_RETRY",
@@ -60,25 +54,27 @@ function waitingRetryState(): RelayWorkspaceState {
   };
 }
 
-test("managed directory separates ready specialists from discussion-only people", () => {
+test("managed directory presents expertise and visibility without implying tool access", () => {
   const markup = renderToStaticMarkup(createElement(ManagedDirectory, { directory }));
-  assert.match(markup, /Managed agents/u);
-  assert.match(markup, /Demo directory/u);
+  assert.match(markup, /Managed bots/u);
+  assert.match(markup, /Expertise, not access/u);
   assert.match(markup, /@Data/u);
-  assert.match(markup, /Synthetic metrics/u);
+  assert.match(markup, /Data analysis expertise/u);
+  assert.match(markup, /company visibility/u);
   assert.match(markup, /People/u);
   assert.match(markup, /@Ari/u);
   assert.match(markup, /discussion only/u);
 });
 
-test("flight recorder shows a role-scoped catalog and sanitized execution proof", () => {
+test("flight recorder shows the access-granted catalog and sanitized execution proof", () => {
   const state = {
     directory,
     runs: [{
       runId: "run-1",
       taskId: "task-1",
       profileId: "profile-data",
-      specialty: "DATA",
+      agentExpertise: "DATA",
+      accessProfile: "METRICS_SCOPED_EDIT",
       runtime: "OPENAI_LUNA_WEBMCP_RELAY",
       model: "gpt-5.6-luna",
       status: "ACTIVE",
@@ -118,34 +114,26 @@ test("flight recorder shows a role-scoped catalog and sanitized execution proof"
   assert.match(markup, /@Data/u);
   assert.match(markup, /gpt-5.6-luna/u);
   assert.match(markup, /Application-owned Luna ↔ WebMCP relay/u);
-  assert.match(markup, /6 tools · role scoped/u);
+  assert.match(markup, /Bot expertise/u);
+  assert.match(markup, /Website access/u);
+  assert.match(markup, /6 tools · Metrics grant/u);
   assert.match(markup, /Luna returned the required tool call/u);
   assert.match(markup, /Synthetic sources are labeled/u);
   assert.doesNotMatch(markup, /leaseId|pageSessionId|rfrelay_v1/u);
 });
 
-test("flight recorder keeps the newest completed specialist visible", () => {
+test("flight recorder keeps the newest completed run and its access visible", () => {
   const general = {
     kind: "AGENT" as const,
     profileId: "profile-general",
     principal: { memberId: "managed-general", displayName: "General" },
     handle: "general",
     displayName: "General",
-    scope: "COMPANY" as const,
+    visibility: "COMPANY" as const,
     readiness: "READY" as const,
-    syntheticSourceLabels: ["Synthetic company style guide"],
     identitySource: "DEMO_DIRECTORY" as const,
-    specialty: "GENERAL" as const,
+    expertise: "GENERAL" as const,
     runtime: "OPENAI_LUNA_WEBMCP_RELAY" as const,
-    logicalToolNames: [
-      "read_assignment",
-      "read_document_context",
-      "read_collaboration_context",
-      "comment_on_assignment",
-      "submit_scoped_revision",
-      "read_company_style_guide",
-      "check_document_consistency",
-    ],
   };
   const state = {
     directory: [...directory, general],
@@ -154,7 +142,8 @@ test("flight recorder keeps the newest completed specialist visible", () => {
         runId: "run-data",
         taskId: "task-data",
         profileId: "profile-data",
-        specialty: "DATA",
+        agentExpertise: "DATA",
+        accessProfile: "METRICS_SCOPED_EDIT",
         runtime: "OPENAI_LUNA_WEBMCP_RELAY",
         model: "gpt-5.6-luna",
         status: "COMPLETED",
@@ -169,7 +158,8 @@ test("flight recorder keeps the newest completed specialist visible", () => {
         runId: "run-general",
         taskId: "task-general",
         profileId: "profile-general",
-        specialty: "GENERAL",
+        agentExpertise: "GENERAL",
+        accessProfile: "EDITORIAL_SCOPED_EDIT",
         runtime: "OPENAI_LUNA_WEBMCP_RELAY",
         model: "gpt-5.6-luna",
         status: "COMPLETED",
@@ -193,7 +183,7 @@ test("flight recorder keeps the newest completed specialist visible", () => {
     runtime: { phase: "IDLE", activeLogicalTool: null, lastError: null, webMcpAvailable: true },
   }));
   assert.match(markup, /@General/u);
-  assert.match(markup, /7 tools · role scoped/u);
+  assert.match(markup, /7 tools · Editorial grant/u);
   assert.doesNotMatch(markup, /@Data/u);
 });
 
@@ -204,7 +194,8 @@ test("flight recorder exposes durable provider reconciliation instead of ready",
       runId: "run-reconciling",
       taskId: "task-reconciling",
       profileId: "profile-data",
-      specialty: "DATA",
+      agentExpertise: "DATA",
+      accessProfile: "METRICS_SCOPED_EDIT",
       runtime: "OPENAI_LUNA_WEBMCP_RELAY",
       model: "gpt-5.6-luna",
       status: "ACTIVE",
@@ -262,7 +253,7 @@ test.each([
 
 test.each([
   ["CLAIMING", null, "Starting bounded retry"],
-  ["TRANSITIONING_TO_RELAY", null, "Switching to specialist tools"],
+  ["TRANSITIONING_TO_RELAY", null, "Switching to granted website tools"],
   ["DISCOVERING", null, "Discovering page tools"],
   ["AWAITING_MODEL", null, "Luna is composing the required call"],
   ["EXECUTING_TOOL", "submit_scoped_revision", "Running submit_scoped_revision"],
@@ -275,4 +266,53 @@ test.each([
   }));
   assert.ok(markup.includes(status));
   assert.doesNotMatch(markup, />Retry once</u);
+});
+
+test("a Code bot can receive Metrics access without changing its expertise", () => {
+  const codeBot: DirectoryEntry = {
+    kind: "AGENT",
+    profileId: "profile-code",
+    principal: { memberId: "managed-code", displayName: "Code" },
+    handle: "code",
+    displayName: "Code",
+    visibility: "TEAM",
+    readiness: "READY",
+    identitySource: "DEMO_DIRECTORY",
+    expertise: "CODE",
+    runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+  };
+  const state = {
+    ...waitingRetryState(),
+    directory: [codeBot],
+    runs: [{
+      ...waitingRetryState().runs[0]!,
+      profileId: "profile-code",
+      agentExpertise: "CODE",
+      accessProfile: "METRICS_SCOPED_EDIT",
+    }],
+  } satisfies RelayWorkspaceState;
+
+  const markup = renderToStaticMarkup(createElement(RelayFlightRecorder, {
+    state,
+    runtime: { phase: "IDLE", activeLogicalTool: null, lastError: null, webMcpAvailable: true },
+  }));
+  assert.match(markup, /@Code/u);
+  assert.match(markup, />code</u);
+  assert.match(markup, /6 tools · Metrics grant/u);
+  assert.match(markup, /query_demo_metrics/u);
+  assert.doesNotMatch(markup, /search_demo_code/u);
+});
+
+test("website access stays an explicit, independently editable run choice", () => {
+  const markup = renderToStaticMarkup(createElement(WebsiteAccessSelector, {
+    value: "METRICS_SCOPED_EDIT",
+    onChange: () => undefined,
+  }));
+  assert.match(markup, /Website access for this run/u);
+  assert.match(markup, /Metrics/u);
+  assert.match(markup, /Repository/u);
+  assert.match(markup, /Editorial/u);
+  assert.match(markup, /not the bot’s expertise/u);
+  assert.equal(repositoryRecommendedAccessProfile("CODE"), "REPOSITORY_SCOPED_EDIT");
+  assert.equal(repositoryRecommendedAccessProfile("DATA"), "METRICS_SCOPED_EDIT");
 });

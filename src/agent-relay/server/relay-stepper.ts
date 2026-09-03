@@ -1,8 +1,8 @@
 import {
   MANAGED_AGENT_RUNTIME,
   MANAGED_AGENT_MODEL_OUTPUT_SCHEMAS,
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  MANAGED_AGENT_EXPERTISES,
   RELAY_BOUNDS,
   RELAY_PHYSICAL_TOOL_NAME_MAX_LENGTH,
   RELAY_PHYSICAL_TOOL_NAME_PATTERN,
@@ -14,6 +14,7 @@ import {
   type RelayAttemptAuthorizationPort,
   type RelayExecutionPermit,
   type RelayGrant,
+  type RelayAccessProfile,
   type RelayNormalizedToolManifest,
   type RelayNormalizedToolManifestEntry,
   type RelayProviderFunctionTool,
@@ -23,6 +24,11 @@ import {
   type RelayStepOutcome,
   type RelayStepRecordInput,
 } from "@/agent-relay/contracts";
+import {
+  capabilityGrantMatchesPolicy,
+  isRelayAccessProfile,
+  relayAccessPolicy,
+} from "@/agent-relay/access-policy";
 import { FIXED_RELAY_START_PROMPT } from "@/agent-relay/server/luna-responses-provider";
 import {
   isPlainRecord,
@@ -40,16 +46,6 @@ import type {
 const REQUEST_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REGISTRATION_SCOPE_PATTERN = /^[a-f0-9]{16}$/;
-const REQUIRED_SPECIALTY_TOOL_ORDER = {
-  DATA: ["read_assignment", "query_demo_metrics", "submit_scoped_revision"],
-  CODE: ["read_assignment", "search_demo_code", "read_demo_file", "submit_scoped_revision"],
-  GENERAL: [
-    "read_assignment",
-    "read_company_style_guide",
-    "check_document_consistency",
-    "submit_scoped_revision",
-  ],
-} as const satisfies Record<string, readonly ManagedAgentLogicalToolName[]>;
 const SYNTHETIC_SOURCE_LABEL = "Synthetic demo data";
 const MODEL_UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
@@ -187,7 +183,8 @@ export class BoundedLunaRelayStepper {
 
       const expectedManifest = buildExpectedManifest(
         request.requestOrigin,
-        context.agent,
+        context.run.accessProfile,
+        context.agent.runtime,
         context.attempt.registrationScope,
         context.attempt.registrationGeneration,
       );
@@ -335,7 +332,7 @@ export class BoundedLunaRelayStepper {
     if (!executedTool) return continuationMismatch();
     const executedIndex = toolCallCount - 1;
     if (executedIndex < 0
-      || REQUIRED_SPECIALTY_TOOL_ORDER[run.specialty][executedIndex]
+      || relayAccessPolicy(run.accessProfile).requiredToolOrder[executedIndex]
         !== executedTool.logicalName) return continuationMismatch();
     const projected = projectRelayToolResultForModel(
       executedTool.logicalName,
@@ -405,7 +402,8 @@ export class BoundedLunaRelayStepper {
         };
       }
       const selected = expectedManifest.byPhysicalName.get(providerResult.physicalToolName);
-      const requiredLogicalName = REQUIRED_SPECIALTY_TOOL_ORDER[run.specialty][toolCallCount];
+      const requiredLogicalName = relayAccessPolicy(run.accessProfile)
+        .requiredToolOrder[toolCallCount];
       if (!selected
         || !matchesJsonSchema(providerResult.arguments, selected.definition.inputSchema)
         || selected.logicalName !== requiredLogicalName
@@ -486,7 +484,8 @@ function requiredProviderTool(
   run: RelayRun,
   completedToolCallCount: number,
 ): RelayProviderFunctionTool | null {
-  const logicalName = REQUIRED_SPECIALTY_TOOL_ORDER[run.specialty][completedToolCallCount];
+  const logicalName = relayAccessPolicy(run.accessProfile)
+    .requiredToolOrder[completedToolCallCount];
   if (!logicalName) return null;
   const entry = [...expectedManifest.byPhysicalName.entries()]
     .find(([, value]) => value.logicalName === logicalName);
@@ -587,7 +586,12 @@ function projectAssignment(data: Record<string, unknown>): Record<string, unknow
   const task = taskView && plain(taskView.task);
   const context = task && plain(task.context);
   const agent = plain(data.agent);
-  if (!task || !context || !agent || !isSpecialty(agent.specialty)) return null;
+  const capabilityGrant = data.capabilityGrant;
+  if (!task
+    || !context
+    || !agent
+    || !isManagedAgentExpertise(agent.expertise)
+    || !capabilityGrantMatchesPolicy(capabilityGrant)) return null;
   const documentTitle = modelText(context.documentTitle, 160);
   const instruction = modelText(task.instruction, 1_000);
   const selectedText = modelText(context.targetText, 8_000, true);
@@ -595,7 +599,7 @@ function projectAssignment(data: Record<string, unknown>): Record<string, unknow
   const contextAfter = modelText(context.afterText, 600, true);
   const basedOnRevision = safeInteger(context.sourceRevision, 1);
   const syntheticSourceLabels = modelStringArray(
-    agent.syntheticSourceLabels,
+    capabilityGrant.syntheticSourceLabels,
     12,
     240,
     true,
@@ -608,7 +612,8 @@ function projectAssignment(data: Record<string, unknown>): Record<string, unknow
     || basedOnRevision === null
     || syntheticSourceLabels === null) return null;
   return {
-    specialty: agent.specialty,
+    expertise: agent.expertise,
+    accessProfile: capabilityGrant.accessProfile,
     documentTitle,
     instruction,
     selectedText,
@@ -1012,8 +1017,10 @@ function safeNumber(value: unknown, minimum: number): number | null {
     : null;
 }
 
-function isSpecialty(value: unknown): value is keyof typeof REQUIRED_SPECIALTY_TOOL_ORDER {
-  return value === "DATA" || value === "CODE" || value === "GENERAL";
+function isManagedAgentExpertise(
+  value: unknown,
+): value is (typeof MANAGED_AGENT_EXPERTISES)[number] {
+  return MANAGED_AGENT_EXPERTISES.some((expertise) => expertise === value);
 }
 
 function invalidToolResult(): RelayResult<never> {
@@ -1036,21 +1043,19 @@ function providerOutcomeUnknown(): RelayResult<never> {
 
 export function buildExpectedManifest(
   origin: string,
-  agent: {
-    specialty: keyof typeof MANAGED_AGENT_TOOL_CATALOGS;
-    runtime: string;
-    logicalToolNames: ManagedAgentLogicalToolName[];
-  },
+  accessProfile: RelayAccessProfile,
+  runtime: string,
   registrationScope: string,
   registrationGeneration: number,
 ): RelayResult<ExpectedManifest> {
-  const logicalNames = [...MANAGED_AGENT_TOOL_CATALOGS[agent.specialty]];
-  if (agent.runtime !== MANAGED_AGENT_RUNTIME
-    || !jsonValuesEqual(agent.logicalToolNames, logicalNames)
+  if (!isRelayAccessProfile(accessProfile)
+    || runtime !== MANAGED_AGENT_RUNTIME
     || !validOrigin(origin)
     || !REGISTRATION_SCOPE_PATTERN.test(registrationScope)
     || !Number.isInteger(registrationGeneration)
     || registrationGeneration < 1) return manifestFailure();
+  const policy = relayAccessPolicy(accessProfile);
+  const logicalNames = [...policy.logicalToolNames];
 
   const entries: RelayNormalizedToolManifestEntry[] = [];
   const tools: RelayProviderFunctionTool[] = [];
@@ -1059,7 +1064,7 @@ export function buildExpectedManifest(
     const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
     const physicalName = [
       "rf",
-      agent.specialty.toLowerCase(),
+      policy.physicalDiscriminator,
       registrationScope,
       `g${registrationGeneration}`,
       definition.providerKey,
@@ -1136,6 +1141,7 @@ function validateAuthorizedContext(
   if (context.attempt.attemptId !== input.attemptId
     || context.attempt.runId !== context.run.runId
     || context.run.profileId !== context.agent.profileId
+    || !isRelayAccessProfile(context.run.accessProfile)
     || (context.run.status !== "ACTIVE"
       && !(input.action === "SUBMIT_FUNCTION_RESULT" && context.run.status === "COMPLETED"))
     || (terminalAttempt && !completingFinalResponse)

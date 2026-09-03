@@ -14,11 +14,28 @@ import {
   relaySecretDigest,
   relaySha256,
 } from "@/domain/repository-relay-security";
+import { RELAY_CAPABILITY_CONTRACT_VALUE } from "@/repository/contracts";
 import { SupabaseRepositoryRelayService } from "./repository-supabase-relay-service";
 
 const SECRET = "supabase-relay-test-secret-with-at-least-32-bytes";
 const now = "2026-09-02T00:00:00.000Z";
 const later = "2026-09-02T00:02:00.000Z";
+
+function capabilityFirstState() {
+  return {
+    directory: [{
+      kind: "AGENT",
+      identitySource: "DEMO_DIRECTORY",
+      expertise: "CODE",
+    }],
+    runs: [],
+    activeAttempt: null,
+    trace: [],
+    currentRelayEventVersion: 0,
+    webMcpRequired: true,
+    recoveryHeartbeatMs: 15_000,
+  };
+}
 
 test("step persistence removes plaintext permits and rehydrates exact replay tokens", async () => {
   const ids = Array.from({ length: 10 }, () => randomUUID());
@@ -39,7 +56,7 @@ test("step persistence removes plaintext permits and rehydrates exact replay tok
     issuedAt: now,
     expiresAt: later,
   };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_assignment";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_assignment";
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1,
     aud: "ratiflow-webmcp-relay-tool",
@@ -139,7 +156,12 @@ test("claim finalizes only a digest while returning a signed in-memory grant", a
     issuedAt: now, expiresAt: later,
   };
   const observed: Array<Record<string, unknown>> = [];
-  const request = (async (_url: URL | RequestInfo, init?: RequestInit) => {
+  let stateReads = 0;
+  const request = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    if (String(url).endsWith("/ratiflow_read_issue_relay_state_v4")) {
+      stateReads += 1;
+      return Response.json({ ok: true, data: capabilityFirstState() });
+    }
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
     observed.push(body);
     if (body.p_action === "FINALIZE_GRANT") {
@@ -149,7 +171,48 @@ test("claim finalizes only a digest while returning a signed in-memory grant", a
       ok: true,
       data: {
         outcome: "CLAIMED",
-        run: {}, attempt: {}, agent: {}, grantClaims,
+        run: {
+          runId: grantClaims.runId,
+          taskId: grantClaims.taskId,
+          profileId: grantClaims.profileId,
+          agentExpertise: "CODE",
+          accessProfile: "METRICS_SCOPED_EDIT",
+          runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+          model: "gpt-5.6-luna",
+          status: "ACTIVE",
+          attemptCount: 1,
+          maxAttempts: 2,
+          terminalReason: null,
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+        },
+        attempt: {},
+        agent: {
+          kind: "AGENT",
+          profileId: grantClaims.profileId,
+          principal: { memberId: randomUUID(), displayName: "Code · managed agent" },
+          handle: "code",
+          displayName: "Code",
+          visibility: "TEAM",
+          readiness: "READY",
+          identitySource: "DEMO_DIRECTORY",
+          expertise: "CODE",
+          runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+        },
+        capabilityGrant: {
+          accessProfile: "METRICS_SCOPED_EDIT",
+          documentAuthority: "DIRECT_SELECTION",
+          logicalToolNames: [
+            "read_assignment", "read_document_context", "read_collaboration_context",
+            "comment_on_assignment", "submit_scoped_revision", "query_demo_metrics",
+          ],
+          syntheticSourceLabels: [
+            "Synthetic demo data · northstar_launch_capacity",
+            "Synthetic demo data · inc_482_checkout_impact",
+          ],
+        },
+        grantClaims,
       },
     });
   }) as typeof fetch;
@@ -166,10 +229,66 @@ test("claim finalizes only a digest while returning a signed in-memory grant", a
   assert.equal(result.ok, true);
   if (!result.ok || result.data.outcome !== "CLAIMED") return;
   assert.equal(result.data.grant, codec.signGrant(grantClaims));
+  assert.equal(result.data.agent.expertise, "CODE");
+  assert.equal(result.data.capabilityGrant.accessProfile, "METRICS_SCOPED_EDIT");
+  assert.equal(stateReads, 1);
   assert.equal(observed.length, 2);
   assert.equal(observed[0]!.p_retry_run_id, retryRunId);
+  assert.equal(observed[0]!.p_contract, RELAY_CAPABILITY_CONTRACT_VALUE);
   assert.equal(observed[1]!.p_grant_digest, relaySecretDigest(result.data.grant));
   assert.equal(JSON.stringify(observed).includes(result.data.grant), false);
+});
+
+test("managed mention and claim fail closed before mutating a persona-era store", async () => {
+  let stateReads = 0;
+  let mutationCalls = 0;
+  const request = (async (url: URL | RequestInfo) => {
+    if (String(url).endsWith("/ratiflow_read_issue_relay_state_v4")) {
+      stateReads += 1;
+      return Response.json({
+        ok: true,
+        data: {
+          ...capabilityFirstState(),
+          directory: [{
+            kind: "AGENT",
+            identitySource: "DEMO_DIRECTORY",
+            specialty: "CODE",
+            logicalToolNames: ["read_assignment", "search_demo_code"],
+            syntheticSourceLabels: ["Synthetic demo data · commit:7d3c9e1"],
+          }],
+        },
+      });
+    }
+    mutationCalls += 1;
+    throw new Error(`Unexpected mutating RPC: ${String(url)}`);
+  }) as typeof fetch;
+  const service = new SupabaseRepositoryRelayService({
+    url: "https://example.supabase.co",
+    serviceRoleKey: "service-role",
+    signingSecret: SECRET,
+    fetch: request,
+  });
+
+  const mention = await service.createDirectoryMention("human-session", {
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    comment: "@Code inspect this selection",
+    target: { kind: "AGENT", profileId: randomUUID() },
+    accessProfile: "METRICS_SCOPED_EDIT",
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 4 },
+  });
+  const claim = await service.claimRelay(
+    "human-session",
+    randomUUID(),
+    randomUUID(),
+  );
+
+  assert.equal(mention.ok, false);
+  if (!mention.ok) assert.equal(mention.code, "RELAY_UNAVAILABLE");
+  assert.equal(claim.ok, false);
+  if (!claim.ok) assert.equal(claim.code, "RELAY_UNAVAILABLE");
+  assert.equal(stateReads, 2);
+  assert.equal(mutationCalls, 0);
 });
 
 test("a lost mutable response reuses its durable context and finishes one receipt", async () => {
@@ -184,7 +303,7 @@ test("a lost mutable response reuses its durable context and finishes one receip
     registrationGeneration: 1, nonce: "grant-nonce-123456789",
     issuedAt: now, expiresAt: later,
   };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_progress";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_progress";
   const toolInput = { body: "Progress", evidenceRefs: [] as string[] };
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1,
@@ -266,7 +385,7 @@ test("an in-request mutable response loss recovers the ledger result before FINI
     registrationGeneration: 1, nonce: "grant-nonce-123456789",
     issuedAt: now, expiresAt: later,
   };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_progress";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_progress";
   const toolInput = { body: "Progress", evidenceRefs: [] as string[] };
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1, aud: "ratiflow-webmcp-relay-tool",
@@ -344,7 +463,7 @@ test("concurrent exact mutable calls converge on one ledger mutation and receipt
     registrationGeneration: 1, nonce: "grant-nonce-123456789",
     issuedAt: now, expiresAt: later,
   };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_progress";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_progress";
   const toolInput = { body: "Progress", evidenceRefs: [] as string[] };
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1, aud: "ratiflow-webmcp-relay-tool",
@@ -433,7 +552,7 @@ test("an expired executing permit rejection never re-invokes the mutable adapter
     issuedAt: now, expiresAt: later,
   };
   const input = { body: "Progress", evidenceRefs: [] as string[] };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_progress";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_progress";
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1, aud: "ratiflow-webmcp-relay-tool",
     attemptId: grantClaims.attemptId, functionCallId: "expired-call",
@@ -483,7 +602,7 @@ test("a definitive retryable repository error is finalized instead of wedging EX
     registrationGeneration: 1, nonce: "grant-nonce-123456789",
     issuedAt: now, expiresAt: later,
   };
-  const physicalToolName = "rf_general_0123456789abcdef_g1_progress";
+  const physicalToolName = "rf_editorial_0123456789abcdef_g1_progress";
   const toolInput = { body: "Progress", evidenceRefs: [] as string[] };
   const permitClaims: RelayExecutionPermitClaims = {
     v: 1, aud: "ratiflow-webmcp-relay-tool",

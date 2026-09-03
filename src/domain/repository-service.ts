@@ -100,8 +100,8 @@ import {
 import {
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_ACCESS_POLICIES,
   RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS,
   RELAY_BOUNDS,
   RELAY_EXECUTION_PERMIT_AUDIENCE,
@@ -110,8 +110,10 @@ import {
   RELAY_TRACE_KINDS,
   type DirectoryMentionReceipt,
   type ManagedAgentDirectoryEntry,
+  type ManagedAgentExpertise,
   type ManagedAgentLogicalToolName,
-  type ManagedAgentSpecialty,
+  type RelayAccessProfile,
+  type RelayCapabilityGrant,
   type RelayAttempt,
   type RelayBrowserTraceInput,
   type RelayClaimOutcome,
@@ -409,42 +411,29 @@ const MANAGED_AGENT_DIRECTORY_SEEDS = [
     handle: "data",
     displayName: "Data",
     principalName: "Data · managed agent",
-    scope: "COMPANY",
-    specialty: "DATA",
-    syntheticSourceLabels: [
-      "Synthetic demo data · northstar_launch_capacity",
-      "Synthetic demo data · inc_482_checkout_impact",
-    ],
+    visibility: "COMPANY",
+    expertise: "DATA",
   },
   {
     handle: "code",
     displayName: "Code",
     principalName: "Code · managed agent",
-    scope: "TEAM",
-    specialty: "CODE",
-    syntheticSourceLabels: [
-      "Synthetic demo data · commit:7d3c9e1",
-      "Synthetic demo data · checkout.log",
-    ],
+    visibility: "TEAM",
+    expertise: "CODE",
   },
   {
     handle: "general",
     displayName: "General",
     principalName: "General · managed agent",
-    scope: "PERSONAL",
-    specialty: "GENERAL",
-    syntheticSourceLabels: [
-      "Synthetic demo data · Ratiflow company style guide",
-      "Synthetic demo data · Ratiflow consistency rules",
-    ],
+    visibility: "PERSONAL",
+    expertise: "GENERAL",
   },
 ] as const satisfies ReadonlyArray<{
   handle: "data" | "code" | "general";
   displayName: string;
   principalName: string;
-  scope: "COMPANY" | "TEAM" | "PERSONAL";
-  specialty: ManagedAgentSpecialty;
-  syntheticSourceLabels: readonly string[];
+  visibility: "COMPANY" | "TEAM" | "PERSONAL";
+  expertise: ManagedAgentExpertise;
 }>;
 
 function clone<T>(value: T): T {
@@ -777,7 +766,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     if (!resolved) return relayFailure("UNAUTHORIZED", "A valid human session is required.");
     const replay = this.relayReplay<DirectoryMentionReceipt>(resolved, "directory.mention", input);
     if (replay) return replay;
-    if (!hasExactKeys(input, ["expectedRevision", "requestId", "comment", "target", "anchor"])
+    if (!isRecord(input)
       || !isUuid(input.requestId)
       || !isCounter(input.expectedRevision)
       || !boundedText(input.comment, ISSUE_COMMENT_MAX_LENGTH)
@@ -791,6 +780,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     if (stale) return this.recordRelayReplay(resolved, "directory.mention", input, stale);
 
     if (input.target.kind === "HUMAN"
+      && hasExactKeys(input, ["expectedRevision", "requestId", "comment", "target", "anchor"])
       && hasExactKeys(input.target, ["kind", "memberId"])
       && isUuid(input.target.memberId)) {
       const managedMemberIds = new Set([...workspace.managedAgentsByProfileId.values()]
@@ -858,9 +848,15 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         { ok: true, data: receipt });
     }
 
-    if (input.target.kind !== "AGENT"
+    const selectedAccessProfile = (input as unknown as Record<string, unknown>).accessProfile;
+    if (!hasExactKeys(input, [
+      "expectedRevision", "requestId", "comment", "target", "accessProfile", "anchor",
+    ])
+      || input.target.kind !== "AGENT"
       || !hasExactKeys(input.target, ["kind", "profileId"])
       || !isUuid(input.target.profileId)
+      || typeof selectedAccessProfile !== "string"
+      || !Object.hasOwn(RELAY_ACCESS_POLICIES, selectedAccessProfile)
       || input.anchor.scope !== "SELECTION") {
       return this.recordRelayReplay(resolved, "directory.mention", input,
         relayFailure("INVALID_INPUT", "The canonical directory target is invalid."));
@@ -893,6 +889,8 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         relayFailure("INVALID_INPUT", "Managed work requires a valid bounded selection."));
     }
     const timestamp = this.stamp(workspace);
+    const accessProfile = selectedAccessProfile as RelayAccessProfile;
+    const accessPolicy = RELAY_ACCESS_POLICIES[accessProfile];
     const taskId = randomUUID();
     const threadId = randomUUID();
     const commentId = randomUUID();
@@ -923,7 +921,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       taskId,
       taskKey: `TASK-${workspace.nextTaskNumber++}`,
       title: compiled.value.title,
-      category: ({ DATA: "DATA", CODE: "CODEBASE", GENERAL: "GENERAL" } as const)[managed.specialty],
+      category: accessPolicy.taskCategory,
       instruction: compiled.value.instruction,
       agentLabel: managed.displayName,
       agentProfileId: null,
@@ -959,7 +957,8 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       runId,
       taskId,
       profileId: managed.profileId,
-      specialty: managed.specialty,
+      agentExpertise: managed.expertise,
+      accessProfile,
       runtime: MANAGED_AGENT_RUNTIME,
       model: MANAGED_AGENT_MODEL,
       status: "QUEUED",
@@ -1046,10 +1045,10 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
           profile.name, profile.profileId, "a", usedHandles,
         ),
         displayName: profile.name,
-        scope: "PERSONAL" as const,
+        visibility: "PERSONAL" as const,
         readiness: "READY" as const,
         identitySource: "SELF_DECLARED" as const,
-        specialty: "GENERAL" as const,
+        expertise: "GENERAL" as const,
         runtime: "BRING_YOUR_OWN_AGENT" as const,
         logicalToolNames: [...REPOSITORY_TOOL_NAMES],
         syntheticSourceLabels: [] as [],
@@ -1108,6 +1107,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
           run: clone(run),
           attempt: claimedAttemptView(prior),
           agent: clone(agent),
+          capabilityGrant: this.capabilityGrant(run),
           grant: this.relayTokenCodec.signGrant(prior.grantClaims),
         },
       };
@@ -1218,6 +1218,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         run: clone(run),
         attempt: claimedAttemptView(attempt),
         agent: clone(agent),
+        capabilityGrant: this.capabilityGrant(run),
         grant,
       },
     };
@@ -1337,11 +1338,11 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     }
     const authorized = this.authorizeRelayGrant(grant);
     if (!authorized.ok) return authorized;
-    const { workspace, attempt, run, agent } = authorized;
+    const { workspace, attempt, run } = authorized;
     if (attempt.attemptId !== input.attemptId) {
       return relayFailure("RELAY_STATE_CONFLICT", "The execution permit targets another attempt.");
     }
-    const logicalToolName = this.logicalToolForPhysicalName(agent, attempt, input.physicalToolName);
+    const logicalToolName = this.logicalToolForPhysicalName(run, attempt, input.physicalToolName);
     if (!logicalToolName) {
       return relayFailure("RELAY_MANIFEST_MISMATCH", "The physical tool is not in the active managed catalog.");
     }
@@ -1433,7 +1434,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     }
     const permit = workspace.relayPermits.get(`${attempt.attemptId}:${permitClaims.functionCallId}`);
     if (!permit || permit.tokenDigest !== relaySecretDigest(input.permit)
-      || permit.logicalToolName !== this.logicalToolForPhysicalName(agent, attempt, input.physicalToolName)
+      || permit.logicalToolName !== this.logicalToolForPhysicalName(run, attempt, input.physicalToolName)
       || relayCanonicalJson(permit.arguments) !== relayCanonicalJson(input.input)) {
       return relayFailure("RELAY_EXECUTION_NOT_ARMED", "The managed tool execution permit does not match this call.");
     }
@@ -1531,8 +1532,8 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
     throwIfAborted(signal);
     const authorized = this.authorizeRelayGrant(grant);
     if (!authorized.ok) return authorized;
-    const { attempt, agent } = authorized;
-    if (!this.validRelayManifest(manifest, agent, attempt)) {
+    const { attempt, run } = authorized;
+    if (!this.validRelayManifest(manifest, run, attempt)) {
       return relayFailure("RELAY_MANIFEST_MISMATCH", "The page tool manifest does not match the managed catalog.");
     }
     if (attempt.manifest && relayCanonicalJson(attempt.manifest) !== relayCanonicalJson(manifest)) {
@@ -1791,6 +1792,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       data: {
         task: { task: this.managedTaskProjection(authorized.task), thread: publicThread(thread) },
         agent: clone(authorized.agent),
+        capabilityGrant: this.capabilityGrant(authorized.run),
       },
     };
   }
@@ -3776,13 +3778,11 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
           principal,
           handle: seed.handle,
           displayName: seed.displayName,
-          scope: seed.scope,
+          visibility: seed.visibility,
           identitySource: "DEMO_DIRECTORY",
-          specialty: seed.specialty,
+          expertise: seed.expertise,
           runtime: MANAGED_AGENT_RUNTIME,
           readiness: this.relayTokenCodec ? "READY" : "DISABLED",
-          logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[seed.specialty]],
-          syntheticSourceLabels: [...seed.syntheticSourceLabels],
         },
       });
     }
@@ -4245,14 +4245,15 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
   }
 
   private logicalToolForPhysicalName(
-    agent: ManagedAgentDirectoryEntry,
+    run: StoredRelayRun,
     attempt: StoredRelayAttempt,
     physicalToolName: string,
   ): ManagedAgentLogicalToolName | null {
-    for (const logicalName of agent.logicalToolNames) {
+    const policy = RELAY_ACCESS_POLICIES[run.accessProfile];
+    for (const logicalName of policy.logicalToolNames) {
       const expected = [
         "rf",
-        agent.specialty.toLowerCase(),
+        policy.physicalDiscriminator,
         attempt.registrationScope,
         `g${attempt.registrationGeneration}`,
         MANAGED_AGENT_TOOL_DEFINITIONS[logicalName].providerKey,
@@ -4264,17 +4265,28 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
 
   private validRelayManifest(
     manifest: RelayNormalizedToolManifest,
-    agent: ManagedAgentDirectoryEntry,
+    run: StoredRelayRun,
     attempt: StoredRelayAttempt,
   ): boolean {
-    if (!isRecord(manifest) || !Array.isArray(manifest.entries)
+    const policy = RELAY_ACCESS_POLICIES[run.accessProfile];
+    if (!isRecord(manifest)
+      || !hasExactKeys(manifest, ["entries", "digest"])
+      || !Array.isArray(manifest.entries)
       || manifest.digest !== relaySha256({ entries: manifest.entries })
-      || manifest.entries.length !== agent.logicalToolNames.length) return false;
+      || manifest.entries.length !== policy.logicalToolNames.length) return false;
     let origin: string | null = null;
-    for (const [index, logicalName] of agent.logicalToolNames.entries()) {
+    const physicalNames = new Set<string>();
+    for (const [index, logicalName] of policy.logicalToolNames.entries()) {
       const entry = manifest.entries[index];
       const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
-      if (!entry || typeof entry.origin !== "string") return false;
+      if (!entry || !isRecord(entry)
+        || !hasExactKeys(entry, [
+          "origin", "physicalName", "logicalName", "registrationGeneration",
+          "description", "inputSchema", "annotations",
+        ])
+        || typeof entry.origin !== "string"
+        || typeof entry.physicalName !== "string"
+        || physicalNames.has(entry.physicalName)) return false;
       try {
         const url = new URL(entry.origin);
         if (url.origin !== entry.origin || !["http:", "https:"].includes(url.protocol)) return false;
@@ -4285,13 +4297,24 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       if (entry.origin !== origin
         || entry.logicalName !== logicalName
         || entry.registrationGeneration !== attempt.registrationGeneration
-        || entry.physicalName !== ["rf", agent.specialty.toLowerCase(), attempt.registrationScope,
+        || entry.physicalName !== ["rf", policy.physicalDiscriminator, attempt.registrationScope,
           `g${attempt.registrationGeneration}`, definition.providerKey].join("_")
         || entry.description !== definition.description
         || relayCanonicalJson(entry.inputSchema) !== relayCanonicalJson(definition.inputSchema)
         || relayCanonicalJson(entry.annotations) !== relayCanonicalJson(definition.annotations)) return false;
+      physicalNames.add(entry.physicalName);
     }
     return true;
+  }
+
+  private capabilityGrant(run: StoredRelayRun): RelayCapabilityGrant {
+    const policy = RELAY_ACCESS_POLICIES[run.accessProfile];
+    return {
+      accessProfile: run.accessProfile,
+      documentAuthority: policy.documentAuthority,
+      logicalToolNames: [...policy.logicalToolNames],
+      syntheticSourceLabels: [...policy.syntheticSourceLabels],
+    };
   }
 
   private validBrowserRelayTraceInput(input: RelayBrowserTraceInput): boolean {
@@ -4406,7 +4429,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
       || attempt.runId !== run.runId || run.taskId !== task.taskId || run.profileId !== agent.profileId
       || attempt.registrationGeneration !== context.registrationGeneration
       || task.managedAgentProfileId !== agent.profileId
-      || this.logicalToolForPhysicalName(agent, attempt, context.physicalToolName) !== context.logicalToolName
+      || this.logicalToolForPhysicalName(run, attempt, context.physicalToolName) !== context.logicalToolName
       || !["ACTIVE", "COMPLETED"].includes(run.status)
       || !["EXECUTING_TOOL", "SUCCEEDED"].includes(attempt.status)) {
       return failure("UNAUTHORIZED", "The managed tool context is not authorized.");

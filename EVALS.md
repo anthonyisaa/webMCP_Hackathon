@@ -1,14 +1,44 @@
 # Ratiflow evaluation contract
 
-Version 4.2 · Managed-agent WebMCP Relay · 2026-09-02
+Version 4.3 · Capability-first WebMCP Relay · 2026-09-03
+
+## v4.3 correction gate (authoritative)
+
+Version 4.3 replaces every v4.2 rule that treated Data/Code/General expertise as a
+WebMCP permission, catalog key, physical namespace, or required sequence.
+
+The release must prove all of the following:
+
+1. The managed agent mention shape requires one explicit `accessProfile` while the human
+   mention shape rejects it; raw tools and sources are never caller-selectable.
+2. `RelayRun.accessProfile` and its server-expanded `RelayCapabilityGrant`—not agent
+   expertise—determine catalog order, source access, task category, physical names,
+   required calls, manifest validation, and permit authorization.
+3. Code+Metrics and Data+Metrics have identical logical catalogs/order while retaining
+   distinct expertise and authorship. Code+Metrics and Code+Repository retain identical
+   agent identity while changing catalog, required source sequence, and evidence.
+4. A crossed pairing completes through native WebMCP and commits access-specific evidence
+   under the selected bot identity. A forged wrong known catalog, including the equal-size
+   Repository/Editorial pair, fails before provider continuation, source access, mutation,
+   or permit creation.
+5. The server independently rejects out-of-grant tools and out-of-range mutations.
+   Catalog absence and `readOnlyHint` are guidance, not authorization.
+6. Existing pre-v4.3 rows and exact v1 signed grant/permit claims replay without semantic
+   drift after the forward-only access-profile migration.
+
+Active product, deck, runbook, capture, and submission copy must use **assignment access
+grant**, **site capability catalog**, and **server-required task sequence**. It must never
+describe the catalog as bot-kind-derived or assign identity/access-policy authority to
+WebMCP.
 
 ## 0. Authority and proof classes
 
 This suite evaluates one focused promise: **Mention the expert. The page supplies the
 tools. The document keeps the proof.** People collaborate in an Incident postmortem or
 Product document by leaving anchored comments; selecting `@Data`, `@Code`, or `@General`
-creates durable work; the open top-level page exposes only that role's WebMCP catalog;
-the server pins each required next function in a bounded role workflow; Luna composes its
+and an explicit assignment access profile creates durable work; the open top-level page
+exposes that grant's site capability catalog; the server pins each required next function
+from the immutable run profile; Luna composes its
 strict arguments and returns the call; the browser executes it through WebMCP; and
 Ratiflow preserves
 the exact prompt, source context, catalog, calls, rationale, evidence, owner, diff,
@@ -18,7 +48,7 @@ hero-scenario documents, `src/repository/contracts.ts`, and
 `src/agent-relay/contracts.ts`.
 
 Protocol v3, decision-room, v4.0, and v4.1-only evidence remains dated compatibility
-evidence. It cannot prove v4.2 directory identity, Luna tool search, dynamic catalog
+evidence. It cannot prove v4.3 directory identity, Luna tool search, dynamic catalog
 changes, actual in-page execution, Relay leases/permits, or the composed managed run.
 Historical v4 `COMMENT` and `REVIEW` records have a separately scoped compatibility
 oracle; they are not the flagship creation flow.
@@ -41,7 +71,7 @@ fixture never substitutes for a first-run template flow.
 Native Site Tools and the application-owned Luna Relay are different evidence classes.
 `NATIVE_CAPTURED` proves the deployed `document.modelContext` surface. A real server-side
 Luna response proves client-executed `tool_search`. Only one composed trace containing
-both, plus a scoped revision from the same task/run/attempt lineage, proves the v4.2 hero.
+both, plus a scoped revision from the same task/run/attempt lineage, proves the v4.3 hero.
 Never describe Luna as natively supporting WebMCP Site Tools.
 
 ## 1. Evidence integrity and release identity
@@ -104,12 +134,13 @@ portion of the Product golden independently freeze blank r1 source, digests, req
 headings, and empty profile/task/discussion state. First-run templates are not validated
 by importing completed-example builders.
 
-### Independent v4.2 managed-relay golden
+### Independent v4.3 managed-relay golden
 
 `evals/goldens/repo-document-v4.2/managed-relay.json` independently freezes the three
-managed profiles, exact common and specialist catalogs, fixed Luna runtime/model,
-Postmortem Code prompt and synthetic code/log facts, Product Data prompt and capacity
-facts, required trace subsequence, forbidden conclusions, and WebMCP-off behavior.
+managed bot identities, three assignment access profiles and their exact catalogs, fixed
+Luna runtime/model, Postmortem Repository prompt and synthetic code/log facts, Product
+Metrics prompt and capacity facts, orthogonality invariants, required trace subsequence,
+forbidden conclusions, and WebMCP-off behavior.
 Production fixtures and catalogs must not import it.
 
 ## 3. Layer D — domain, protocol, rendering, and persistence oracle
@@ -141,7 +172,7 @@ All rows run without an LLM and pass 100%.
 | D21 Wait discipline | Fetch-subscribe-refetch closes lost wake; owned Open work returns immediately; unrelated activity advances the internal cursor without false wake; higher revision returns DOCUMENT_CHANGED; one absolute ≤20s deadline and future-cursor rejection are exact. A database lease keyed by document/member/credential-session/page-session enforces WAIT_ALREADY_ACTIVE across server instances. Begin atomically inserts or replaces only an already expired lease; expiry is deadline +5s; cleanup conditionally deletes the same lease UUID so a prior waiter cannot delete its successor. Process-local state is not authority. |
 | D22 Surface reconciliation | Higher revision wins content; at equal revision higher activity wins tasks/threads/history; presence merges by heartbeat. Profiles merge independently by member using access count then last-access time because profile access does not move document counters. Delayed responses cannot erase comments, a newer profile, completion, or revisions; old cached surfaces normalize missing profiles to `[]`. |
 | D23 Bounds and schemas | Unicode lengths, safe integers, IDs, enums, required/optional fields, evidence limits, lifetime caps, and `additionalProperties:false` reject malformed/overlong input at schema and service layers. Results are JSON-serializable and every returned string remains bounded/untrusted. |
-| D24 Catalog oracle | Idle/BYOA registration deep-equals the exported eight-entry checked catalog, in order: connect_agent, inspect_document, read_document_history, read_collaboration_context, list_my_tasks, wait_for_my_tasks, comment_on_task, submit_task_result. A managed catalog instead begins read_assignment, read_document_context, read_collaboration_context, comment_on_assignment, submit_scoped_revision, followed only by query_demo_metrics for Data (6 total), search_demo_code and read_demo_file for Code (7), or read_company_style_guide and check_document_consistency for General (7). Idle and managed catalogs are mutually exclusive. Names, descriptions, closed schemas, annotations, outcomes, and errors are exact; no human management, task creation, authority selection, decision, Close, Restore, reset, actor, or owner field/tool appears. |
+| D24 Catalog oracle | Idle/BYOA registration deep-equals the exported eight-entry checked catalog, in order: connect_agent, inspect_document, read_document_history, read_collaboration_context, list_my_tasks, wait_for_my_tasks, comment_on_task, submit_task_result. Every managed catalog begins read_assignment, read_document_context, read_collaboration_context, comment_on_assignment, submit_scoped_revision. Metrics adds query_demo_metrics (6 total); Repository adds search_demo_code and read_demo_file (7); Editorial adds read_company_style_guide and check_document_consistency (7). Bot expertise never changes these catalogs. Idle and managed catalogs are mutually exclusive. Names, descriptions, closed schemas, annotations, outcomes, and errors are exact; no human management, task creation, raw authority selection, decision, Close, Restore, reset, actor, or owner field/tool appears. |
 | D25 Namespace isolation | Exact v4 routes/tables/RPCs are enumerated; v3 pages expose only v3, v4 pages expose only v4. Cross-protocol rows/sessions return PROTOCOL_MISMATCH, and old v4 routes remain callable only according to compatibility authority. |
 | D26 SQL security | All exposed v4 tables have RLS, direct table access is revoked, every security-definer RPC fixes `search_path`, no exposed name is overloaded, EXECUTE is explicitly revoked/granted by exact signature, bearer lookup uses hashes, locks are document-first, and profile/activity/task/history/comment predicates are indexed. |
 | D27 Migration and old-code sequence | The additive v4.1 migration passes fresh-database and replay checks without editing an applied migration. It extends the request-operation CHECK without dropping old values, makes task profile/context immutable, and backfills comment creation revision from linked activity while the named append-only trigger is transactionally disabled/re-enabled—never from mutable anchors. Private generation-bound page connections and UUID-CAS wait leases bind profile, credential session, and page. Replaced pre-v4.1 RPCs use a final server-only response-contract selector defaulting to exact legacy inputs/projections and profile-free delegated-agent behavior; the new adapter sends `v4.1`. The legacy Save branch accepts but ignores bounded `changeSummary`, while the v4.1 branch/HTTP boundary reject it. After apply, unchanged pre-v4.1 route/RPC smoke must pass before v4.1 adapter/reset/browser smoke; database advisors and deployment/native evidence follow in the frozen order. |
@@ -149,20 +180,22 @@ All rows run without an LLM and pass 100%.
 | D29 Safe Markdown and charts | Reading mode renders safe GFM headings, lists, links, code, task lists, and tables from exact revision source while skipping raw HTML, blocking remote images, disabling interactive task checkboxes, and rejecting unsafe URLs. Exact `chart` JSON accepts only the frozen v1 bar/line schema and finite bounds, renders labelled SVG plus accessible data table from the fixed palette, and leaves invalid/malicious source inert, editable, revisioned, diffable, and restorable. |
 | D30 Rendered-to-source mapping | Exact HAST text-leaf UTF-16 positions map once to Unicode code-point source anchors; valid cross-leaf selections preserve intervening Markdown delimiters. Entity/escape interiors, code, generated footnotes, image text, chart internals, and surrogate interiors fail closed; keyboard whole-table/chart selection is exact; active highlights split only exact leaves and never alter stored source. |
 | D31 Completed-example oracle | Public example requires `{kind, displayName}` and returns the selected fresh completed historical golden plus that caller only as the current non-authoring viewer. It does not pre-seed the continuity agent; that profile is created by the later checked connect overlay. Postmortem equals r5/av11 and Product equals its own checked terminal graph after normalizing only fresh IDs, credentials/paths, timestamps/expiry, and colors; seeded names/owners, historical profiles, prompts/context, comments/Close, tasks, chart/table source, counters, diffs, provenance, rationales, evidence, and graph relationships remain exact. Protected reset independently returns the first three comment-first Direct mentions at r1/av4 with their profiles/comments/context but no page connection, and never exposes raw paths in evidence. |
-| D32 Directory principals | `@Data`, `@Code`, and `@General` each resolve by immutable canonical profile ID to a distinct internal member, case-insensitively unique ASCII handle, display scope, specialty, `DEMO_DIRECTORY` identity source, fixed runtime, and checked catalog. Scope is display metadata only. A typed name, stale selection, cross-document ID, or forged model field has no authority. Existing `SELF_DECLARED` profiles remain isolated Advanced compatibility data. |
-| D33 Atomic target compilation | The new discriminated mention input accepts a HUMAN member ID or AGENT profile ID. Human target creates exactly one thread/root comment and no task/run. Managed agent target requires a non-empty ≤8,000-code-point Selection and atomically creates comment, thread, Direct task/context, mention snapshot, and one `QUEUED` run. Legacy v4.1 mention input remains byte-compatible. |
+| D32 Directory principals | `@Data`, `@Code`, and `@General` each resolve by immutable canonical profile ID to a distinct internal member, case-insensitively unique ASCII handle, directory visibility, descriptive expertise, `DEMO_DIRECTORY` identity source, and fixed runtime. A managed directory profile owns no authoritative tools or source labels. A typed name, stale selection, cross-document ID, or forged model field has no authority. Existing `SELF_DECLARED` profiles remain isolated Advanced compatibility data. |
+| D33 Atomic target compilation | The new discriminated mention input accepts a HUMAN member ID or an AGENT profile ID plus explicit `accessProfile`. Human target rejects `accessProfile` and creates exactly one thread/root comment with no task/run. Managed agent target requires one known profile, a non-empty ≤8,000-code-point Selection, and exactly one known access profile; it atomically creates comment, thread, Direct task/context, mention snapshot, and one `QUEUED` run with immutable access. Raw tools/sources are rejected. Legacy v4.1 mention input remains byte-compatible. |
 | D34 Run/attempt lifecycle | One task owns one run lineage and ≤2 numbered attempts. Run and attempt transitions match checked enums; one document has at most one active Relay run. Explicit Retry creates new attempt/provider/mutation IDs. Cancelling or staling the task atomically cancels every nonterminal run/attempt. |
-| D35 Lease and claim | Claim occurs before paid work and returns `CLAIMED | NO_WORK | BUSY`; normal empty heartbeat is not an error. One renewable 45-second lease across tabs, renewed every 15 seconds, binds document/profile/task/run/attempt/human/page/session. Lease loss, expiry, cross-page use, and takeover fail safely without duplicate provider dispatch. |
-| D36 Relay grant and permit | A 120-second in-memory same-origin Relay grant is server-minted and never reaches Luna or storage. Every function call receives a 30-second one-shot permit bound to attempt, provider call, physical tool, exact argument digest, generation, lease, and server mutation ID. Unarmed native invocation, replay with changed arguments, stale generation, and expired/revoked permit fail with zero effect; exact completed replay returns its stored receipt. |
+| D35 Lease and claim | Claim occurs before paid work and returns `CLAIMED | NO_WORK | BUSY`; normal empty heartbeat is not an error. One renewable 45-second lease across tabs, renewed every 15 seconds, binds document/profile/task/run/attempt/human/page/session. A successful claim returns bot expertise and a separate server-expanded `RelayCapabilityGrant`. Lease loss, expiry, cross-page use, and takeover fail safely without duplicate provider dispatch. |
+| D36 Relay grant and permit | A 120-second in-memory same-origin Relay grant is server-minted and never reaches Luna or storage. The grant is reconstructed from `run.accessProfile`; existing v1 signed claim keys remain byte-exact. Every function call receives a 30-second one-shot permit bound to attempt, provider call, physical tool, exact argument digest, generation, lease, and server mutation ID. The server authorizes that physical/logical tool against the immutable run profile. Unarmed native invocation, out-of-grant tool use, replay with changed arguments, stale generation, and expired/revoked permit fail with zero effect; exact completed replay returns its stored receipt. |
 | D37 Provider stepper | Fixed `gpt-5.6-luna` starts with only client `tool_search`; browser manifest output is server-validated before checked function definitions are injected. Every nonterminal continuation exposes one active strict function and names that exact physical function in `tool_choice`, so stored deferred tools cannot be reselected; the terminal continuation sends `tools:[]` plus `tool_choice:"none"`. `instructions` repeat on every continuation; `parallel_tool_calls:false`; malformed or mixed item families fail closed. Client cannot choose model, prompt, provider response ID, definitions, or previous response. `/step` continues only from a server-stored verified tool-result receipt. |
 | D38 Bounds and reconciliation | Each attempt is bounded to 90 seconds, 6 Responses calls, 8 sequential tool calls, 1,600 output tokens/call, 8 KiB arguments, 32 KiB result, 4 KiB trace payload, and 64 trace events. Post-dispatch ambiguity enters `RECONCILING` and reads authority; it never reports clean cancellation or silently retries paid work. |
-| D39 Persistence and compatibility | One additive migration compiles against real PostgreSQL, keeps protocol/storage literal 4, leaves every applied migration untouched, sidecars Relay state instead of altering strict v4.1 surface projection, secures tables/RPCs, uses document-first locks, and passes unchanged old-route/RPC/browser smoke before new tests. |
+| D39 Persistence and compatibility | One forward-only migration compiles against real PostgreSQL, keeps protocol/storage literal 4, leaves every applied migration untouched, adds immutable `access_profile` to Relay runs, backfills historical rows from the previous framing's legacy `specialty` column, leaves the strict v4.1 ordinary surface projection unchanged, secures tables/RPCs, and uses document-first locks. The v4.3 app deploys first, old deployment URLs become unreachable (or maintenance blocks them), the app detects a v4.2 Relay store read-only, and `X-Ratiflow-Relay-Contract: capability-first-v43` is required before any Relay route effect. Managed mentions and claims then fail retryably with zero mutation until old attempts/grants/permits expire and the approved migration is applied. The migration removes the public four-argument claim and exposes only a five-argument claim with that exact discriminator, providing a durable post-migration fence for old servers. A negative store probe is not cached, so polling recovers automatically. Migration-first and rollback to v4.2 after migration are forbidden. |
 | D40 Trace privacy | A separate document-monotonic `relayEventVersion` records sanitized proof events/digests without moving legacy `activityVersion`. State returns at most 100 newest events. No bearer, permit, page/session handle, API key, raw chain-of-thought, or unrestricted provider transcript reaches trace, History, screenshots, or logs. |
 
 Deterministic boundary and adversarial matrices cover Unicode/source anchors, profile
 rename/duplication, authorization, replay, concurrency, pagination, wait races, unsafe
 Markdown/chart input, and protocol isolation. Static SQL inspection does not replace
-local adapter parity or post-apply database advisors and old-code smoke.
+local adapter parity or post-apply database advisors and crossed-run smoke. Historical
+v4.1 compatibility gates remain scoped to the migration that introduced v4.1; they do
+not authorize migration-first rollout of the capability-first Relay.
 
 ## 4. Layer B — ordinary browser and adapter evidence
 
@@ -171,7 +204,7 @@ injected `modelContext` are `ADAPTER_CAPTURED`, never native.
 
 | ID | Required browser assertion |
 |---|---|
-| B01 First run | `/` and `/new` ask for a nonblank nickname even when an older credential exists, then show exactly two primary choices: the completed two-sheet Postmortem and completed two-sheet Product document. The three-agent managed directory (`@Data`, `@Code`, `@General`) and each example's guided specialist action are visible before launch. Exactly two blank r1 templates remain secondary inside the collapsed **Prefer a blank document?** disclosure; no additional primary document choice appears. Each `{kind, displayName}` example opens a fresh exact completed historical clone at `/issue/[shareToken]` and adds the caller only as its current non-authoring viewer; each blank action launches its independently frozen readable r1. |
+| B01 First run | `/` and `/new` ask for a nonblank nickname even when an older credential exists, then show exactly two primary choices: the completed two-sheet Postmortem and completed two-sheet Product document. The three-bot managed directory (`@Data`, `@Code`, `@General`) and each example's guided managed assignment are visible before launch. Exactly two blank r1 templates remain secondary inside the collapsed **Prefer a blank document?** disclosure; no additional primary document choice appears. Each `{kind, displayName}` example opens a fresh exact completed historical clone at `/issue/[shareToken]` and adds the caller only as its current non-authoring viewer; each blank action launches its independently frozen readable r1. |
 | B02 Session/share | Direct `/issue/[shareToken]` reload/tab resume, isolated named collaborator join, precedence and fragment scrubbing, credential-only persistence, invalid/expired recovery, and blocked-storage fallback are correct. Root setup never silently redirects to the most recent issue. |
 | B03 Document primacy and rendering | A calm top bar and semantic rendered Markdown document dominate. Tables and accessible charts render from revisioned source; type, `rN · Saved`, presence, Share, Edit, comments, and History remain legible without dashboard/stage/chat residue. |
 | B04 Human editing | Explicit Edit swaps to native source controls; Done and Cmd/Ctrl+S create a derived-summary revision. Native undo/redo, spellcheck, reload, remote sync, stale-draft preservation, Use latest/manual merge, and visible errors work without WebMCP. |
@@ -186,18 +219,18 @@ injected `modelContext` are `ADAPTER_CAPTURED`, never native.
 | B13 New-owner continuity | A genuinely new human joins after completion and connects a new adapter agent with no assigned task. Activity-context pages expose cross-contributor facts, decisions, comment-only discussion, prompts, and rationales needed for the checked answer. |
 | B14 Identity honesty | Before connect, the workspace names the human owner, distinguishes registered tools from “no agent connected,” and composes but does not submit a named connection prompt. First successful page-scoped connect shows `agent name · owned by human`; duplicate names show owners, rename reconciles without changing counters, invalidation/teardown clears the connection state, reload requires reconnect, and UI labels the name self-declared rather than vendor-verified. Forged owner/member fields are neither accepted nor sent. |
 | B15 WebMCP-off | The setup strip clearly reports Human mode when WebMCP is absent. Humans can create/render/edit/save/share/join/comment/reply/Close, inspect/compare/Restore history, and see queued @ assignments. UI never claims an agent connected, started, ran, or completed. |
-| B16 Catalog/lifecycle | From page start, exactly the eight idle/BYOA tools register in frozen order. A managed claim withdraws all eight before registering exactly one generation-scoped Data catalog (6 tools), Code catalog (7), or General catalog (7); idle and managed tools never coexist. Completion, terminal failure, or release withdraws the role catalog before restoring the same eight idle tools. Route/session/navigation teardown removes tools, waits, listeners, and timers; reconnect is required for the next registration lifetime, retries are bounded, and no duplicate registration remains. |
+| B16 Catalog/lifecycle | From page start, exactly the eight idle/BYOA tools register in frozen order. A managed claim withdraws all eight before registering exactly one generation-scoped Metrics catalog (6 tools), Repository catalog (7), or Editorial catalog (7), chosen only by immutable run access; idle and managed tools never coexist. Completion, terminal failure, or release withdraws the assignment catalog before restoring the same eight idle tools. Route/session/navigation teardown removes tools, waits, listeners, and timers; reconnect is required for the next registration lifetime, retries are bounded, and no duplicate registration remains. |
 | B17 390px/accessibility | No horizontal overflow; ≥44px targets; comment bubble/autocomplete, comments, completed diff, History, chart data, Restore, and new document actions are reachable. Drawers/listboxes support expected keys, focus return, and reduced motion. |
 | B18 Runtime health | Full two-example, multi-human, multi-agent flow has no uncaught page, hydration, request-loop, stale-session, secret, duplicate-listener, unsafe-rendering, or overflow error. |
-| B19 Judge NUX | A fresh judge sets a nickname, chooses Postmortem or Product, understands the two-sheet document, selects the guided section, opens one familiar comment bubble, types `@`, and distinguishes grouped Humans from managed Agents without narration. Copy states that Relay runs only while an eligible page is open and selected context goes to OpenAI. |
-| B20 Managed directory | Autocomplete shows `@Data`, `@Code`, and `@General` with specialty/scope/readiness and stable disambiguation. A human mention creates discussion only; an agent mention creates exactly one visible queued task. Stale/deleted selection fails recoverably. Advanced BYOA remains available but secondary. |
-| B21 Top-level mode switch | One coordinator—not two bridges—moves exact idle eight tools → one generation-scoped role catalog → exact idle eight tools. It observes `toolchange`, discovers with `getTools()`, executes the exact returned descriptor with `executeTool()`, and tears down on navigation/failure. |
+| B19 Judge NUX | A fresh judge sets a nickname, chooses Postmortem or Product, understands the two-sheet document, selects the guided section, opens one familiar comment bubble, types `@`, distinguishes grouped Humans from managed Agents, and confirms a separately labeled website-access choice without narration. Guided flows may preselect a matching profile but never lock it to bot identity. Copy states that Relay runs only while an eligible page is open and selected context goes to OpenAI. |
+| B20 Managed directory | Autocomplete shows `@Data`, `@Code`, and `@General` with descriptive expertise, visibility, readiness, and stable disambiguation. The same composer separately offers exactly Metrics, Repository, and Editorial scoped edit for managed assignments. A human mention creates discussion only and has no access selector; a managed mention creates exactly one visible queued task with the chosen access. Stale/deleted selection fails recoverably. Advanced BYOA remains available but secondary. |
+| B21 Top-level mode switch | One coordinator—not two bridges—moves exact idle eight tools → one generation-scoped assignment capability catalog → exact idle eight tools. It observes `toolchange`, discovers with `getTools()`, executes the exact returned descriptor with `executeTool()`, and tears down on navigation/failure. |
 | B22 Permit and descriptor safety | Unarmed invocation reaches the callback but returns `RELAY_EXECUTION_NOT_ARMED`; armed exact invocation succeeds once; replay is denied; execution cancellation reaches page code; after abort, a saved stale descriptor is rejected without callback effect. |
-| B23 Live Code hero | The frozen prompt is `@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.` It produces one lineage, searches/reads only synthetic code/log sources, commits only Root cause, shows the 429 trigger versus retry amplifier with 5.8×/420→18,240 evidence, and restores idle tools. Flight Recorder and History agree. |
-| B24 Live Data transfer | The frozen `@Data` prompt queries only synthetic Northstar data, proves 10+4=14 and 10+8=18, preserves October 15 invite-only beta/November 1 GA/$180,000 renewal, changes only Success measures, and restores idle tools. |
-| B25 Role delta | Sequential Code and General runs on the same page visibly remove the prior specialty tools and add only the new role's tools while keeping the common catalog. Physical names and generations differ; stable logical labels remain readable. |
+| B23 Live Code hero | The frozen prompt is `@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.` With explicit Repository access, it produces one lineage, searches/reads only synthetic code/log sources, commits only Root cause, shows the 429 trigger versus retry amplifier with 5.8×/420→18,240 evidence, and restores idle tools. Flight Recorder and History agree. |
+| B24 Live Data transfer | With explicit Metrics access, the frozen `@Data` prompt queries only synthetic Northstar data, proves 10+4=14 and 10+8=18, preserves October 15 invite-only beta/November 1 GA/$180,000 renewal, changes only Success measures, and restores idle tools. |
+| B25 Access independence | Code+Metrics and Data+Metrics visibly register identical logical catalogs/order while keeping distinct bot identity/authorship. Code+Metrics and Code+Repository keep the same bot identity while changing catalog, physical discriminator, required source sequence, and evidence. A crossed pairing commits the correct evidence. Physical names and generations differ; stable logical labels remain readable. |
 | B26 Two-tab/cancel/retry | Two tabs create at most one paid attempt and one revision. Navigation before dispatch revokes locally; task Cancel or stale edit terminates lineage; post-dispatch timeout reconciles; a visible Retry creates a fresh attempt without canned fallback. |
-| B27 HTML deck | `/deck` has exactly 12 16:9 slides, arrow/key and direct-hash navigation, progress, responsive fit, print and reduced-motion behavior, descriptive alt text, and one claim per slide. Every visual is either a clearly labeled rendered product visual or an exact-SHA verified screenshot with source notes; rendered visuals never carry live-Luna, native-WebMCP, or deployment-proof labels. |
+| B27 HTML deck | `/deck` has exactly 12 16:9 slides, arrow/key and direct-hash navigation, progress, responsive fit, print and reduced-motion behavior, descriptive alt text, and one claim per slide. The mechanism slide visually separates bot expertise, explicit assignment access, capability grant, WebMCP exposure/invocation, and server enforcement, including same-access/different-bot and same-bot/different-access examples. Every visual is either a clearly labeled rendered product visual or an exact-SHA verified screenshot with source notes; rendered visuals never carry live-Luna, native-WebMCP, or deployment-proof labels. |
 
 A dated manual capture must verify the real platform spelling/dictionary menu. Synthetic
 `contextmenu` tests prove branching only.
@@ -214,19 +247,19 @@ and exact SHA.
 | N01 Discovery | Page exposes exactly, in order, connect_agent, inspect_document, read_document_history, read_collaboration_context, list_my_tasks, wait_for_my_tasks, comment_on_task, and submit_task_result. No v3, reset, task-create, actor/owner/mode, direct-apply, approval, Close, Restore, or internal tool appears. |
 | N02 Connect and profile | First non-connect call returns AGENT_IDENTITY_REQUIRED. `connect_agent({name})` creates/reconciles a bounded SELF_DECLARED profile bound to the authenticated human owner, cannot forge that owner, changes no document counters, and permits later calls only for that page registration lifetime. |
 | N03 Inspect, history, and context | From protected r1/av4 and completed states, native reads current/exact historical source, immutable newest-first history, and activity-cursor continuity with correct counters/provenance. Context includes cross-contributor prompts, live linked threads, comment-only/Close decisions, and profiles, with no credential or raw path. |
-| N04 Owned task filtering | Each connected specialist sees only its assigned task; resolved opt-in includes its complete thread/context. Cross-agent task IDs fail without disclosure, while document-wide collaboration context remains readable as designed. |
+| N04 Owned task filtering | Each connected self-declared agent sees only its assigned task; resolved opt-in includes its complete thread/context. Cross-agent task IDs fail without disclosure, while document-wide collaboration context remains readable as designed. |
 | N05 Direct result | Native Databot, Logbot, or Builder invocation has no actor/owner/mode/scope fields. Server returns COMMITTED, creates the expected scoped revision with rationale/evidence, resolves the task thread, and the UI shows highlighted change/diff/Restore without a Ratiflow approval action. |
 | N06 Wait | Explicit cursors prove immediate owned work, lost-wake closure, DOCUMENT_CHANGED, TIMEOUT, WAIT_ALREADY_ACTIVE, future-cursor rejection, unrelated-activity filtering, and one absolute deadline without claiming a dormant/background agent. |
 | N07 Fresh-owner reasoning | A newly joined human connects a fresh agent with no task, pages collaboration context/history, and gives the keyed trigger-versus-amplifier answer using r5 evidence plus Priya's comment-only decision. The equivalent Product run recovers the checked launch decision. |
 | N08 Authority and identity attacks | Native attempts to forge owner/profile, use a stale name, self-upgrade authority, cross tasks, decide, Close, Restore, or modify outside the stored anchor fail with zero mutation. Malicious document/Markdown text cannot create tool authority or executable chart/HTML behavior. |
 | N09 Abort and teardown | Execution/registration honor AbortSignal; navigation/session change leaves no active wait, timer, listener, stale callback, connection state, or tool. Selection changes alone do not cancel. |
 | N10 Runtime health | No uncaught error, hydration issue, phantom handle, secret-bearing output, bootstrap leak, pre-scrub registration, unsafe render, or profile/counter drift occurs across setup and the full flow. |
-| N11 Consumer lifecycle | On the deployed top-level page, standard `document.modelContext.getTools()` observes idle → role catalog → idle and `toolchange`; `executeTool()` uses the exact returned descriptor. Evidence records `OBJECT` or `JSON_STRING_COMPAT` from that descriptor and `NATIVE_CALLBACK_SIGNAL` or `APPLICATION_PROPAGATED` for cancellation. `navigator.modelContext` is labeled compatibility-only. |
+| N11 Consumer lifecycle | On the deployed top-level page, standard `document.modelContext.getTools()` observes idle → assignment capability catalog → idle and `toolchange`; `executeTool()` uses the exact returned descriptor. Evidence records `OBJECT` or `JSON_STRING_COMPAT` from that descriptor and `NATIVE_CALLBACK_SIGNAL` or `APPLICATION_PROPAGATED` for cancellation. `navigator.modelContext` is labeled compatibility-only. |
 | N12 Stale and unarmed rejection | A real supported client cannot actuate a Relay callback without its matching armed permit and cannot execute a descriptor after that registration generation is withdrawn. Effect counts remain unchanged. |
-| N13 Composed Luna Code run | One frozen Postmortem mention links a real Luna client-tool-search response to the exact native `getTools()` manifest, its observed descriptor-bound input encoding, native `executeTool()` calls, stored result receipts, one completed task, and one revision. Every ID/digest in sanitized evidence reconciles. |
-| N14 Composed Luna Data run | One frozen Product mention provides the equivalent composed Data proof with the checked capacity arithmetic and scoped revision. |
+| N13 Composed Luna Repository run | One frozen Postmortem `@Code + Repository` assignment links a real Luna client-tool-search response to the exact native `getTools()` manifest, its observed descriptor-bound input encoding, native `executeTool()` calls, stored result receipts, one completed task, and one revision. Every ID/digest in sanitized evidence reconciles. |
+| N14 Composed Luna Metrics run | One frozen Product `@Data + Metrics` assignment provides the equivalent composed proof with the checked capacity arithmetic and scoped revision. |
 | N15 WebMCP ablation | With WebMCP removed, human editing/comments/History/Restore remain usable but managed discovery and execution fail closed, no revision lands, and the queued task remains honest. |
-| N16 Truthful labeling | UI, deck, evidence, and submission all say application-owned Luna WebMCP Relay; none claims native Luna Site Tools, background cron, real customer connectors, verified model identity, or hidden reasoning. |
+| N16 Truthful labeling | UI, deck, evidence, and submission all say application-owned Luna WebMCP Relay and separate descriptive bot expertise from assignment access. None claims native Luna Site Tools, assigns bot authentication or Ratiflow policy authority to WebMCP, promises background cron or real customer connectors, treats model identity as verified, or displays hidden reasoning. |
 
 A platform safety confirmation is reported separately from Ratiflow's stored Direct
 authority. If the host asks for action-time confirmation, evidence must not claim that
@@ -250,17 +283,17 @@ fixed model; they never invent a BYOA connect identity.
 | A05 Conflict/replay | Race overlapping edits, stale cursors, cancellation, and aborted retry. Agent re-inspects and never duplicates or forces a write. | ≥4/5 recovery; 5/5 no bad mutation |
 | A06 New-owner continuity | A freshly joined owner connects a new agent with no task. It pages activity context/history and explains why provider latency alone was insufficient, citing retry amplification and Priya's closed comment. | 5/5 keyed answer using tools |
 | A07 Product continuity | A fresh agent on the completed Product example reconstructs the capacity correction, option arithmetic, launch choice, rationale, and closed discussion across multiple contributors. | ≥4/5 exact; 5/5 no unsupported fact |
-| A08 Luna Code Relay | Fixed Luna begins with client `tool_search`; each continuation pins the exact next physical function by name, reads its assignment first, gathers both synthetic sources without repeating an earlier deferred tool, and commits the exact scoped conclusion. | 5/5 composed native lineage; zero unsupported claim |
-| A09 Luna Data Relay | Fixed Luna discovers only Data catalog; each continuation pins the exact next physical function by name, calls the metrics fixture, computes exact capacity arithmetic, and commits only Success measures. | 5/5 composed native lineage; exact arithmetic |
-| A10 Role switch | A later General run gets a catalog that excludes Code/Data specialty tools and uses style/consistency evidence for one bounded rewrite. | 5/5 exact catalog delta; no stale descriptor |
+| A08 Luna Repository assignment | Fixed Luna begins with client `tool_search`; explicit Repository access determines the exact next physical function by name, reads its assignment first, gathers both synthetic sources without repeating an earlier deferred tool, and commits the exact scoped conclusion under the selected bot identity. | 5/5 composed native lineage; zero unsupported claim |
+| A09 Luna Metrics assignment | Fixed Luna discovers only the Metrics catalog; each continuation pins the exact next physical function by name, calls the metrics fixture, computes exact capacity arithmetic, and commits only Success measures under the selected bot identity. | 5/5 composed native lineage; exact arithmetic |
+| A10 Access switch and crossed pairing | A later run changes access without changing the bot and receives the new profile's catalog; a separate crossed pairing uses a non-matching bot/expertise label with the correct access-specific evidence. | 5/5 exact catalog delta and authorship; no stale descriptor |
 | A11 Failure honesty | Rate limit, malformed tool result, WebMCP absence, lease loss, ambiguous dispatch, and exhausted attempts show bounded Retry/failure states; no canned result or phantom revision appears. | 5/5 honest state and zero duplicate spend |
 
 ## 7. WebMCP ablation
 
 With identical model/version, golden state, prompt, five seeds, and timing, compare:
 
-1. v4.2 Ratiflow with the same fixed Luna model, managed role, prompt, seed, and timing,
-   where the browser dynamically discovers and executes the role catalog through native
+1. v4.3 Ratiflow with the same fixed Luna model, managed bot, assignment access, prompt,
+   seed, and timing, where the browser dynamically discovers and executes the site capability catalog through native
    WebMCP; and
 2. WebMCP disabled, where the document remains human-usable but the managed Relay has no
    discoverable or executable surface and must fail closed.
@@ -277,20 +310,20 @@ better, narrow the claim or fix the surface.
 |---|---|
 | V01 Fresh visual review | After UI work, a fresh read-only design judge drives desktop and 390px; any BLOCK prevents presentation. |
 | V02 Document primacy | Rendered postmortem/Product content is unmistakably primary; typography, tables/charts, comments, completed changes, provenance, and History are legible but quiet. |
-| V03 First-time clarity | Without narration, a new evaluator can enter a nickname, choose either two-sheet demo, select the guided section, leave a plain human comment or choose `@Data`, `@Code`, or `@General`, understand that Relay runs while the page is open, follow discovery/execution/revision in the Flight Recorder, and find History/Restore. Advanced BYOA does not obstruct the path. |
+| V03 First-time clarity | Without narration, a new evaluator can enter a nickname, choose either two-sheet demo, select the guided section, leave a plain human comment or choose `@Data`, `@Code`, or `@General` plus separate assignment access, understand that Relay runs while the page is open, follow discovery/execution/revision in the Flight Recorder, and find History/Restore. Advanced BYOA does not obstruct the path. |
 | V04 History clarity | The simple Git-like view makes r1-r5 authorship, prompts, context, rationale, evidence, diffs, and reversible Restore understandable without turning the document into a developer dashboard. |
 | V05 Mobile/a11y | 390px flow, keyboard focus, autocomplete/drawer behavior, native editing controls, contrast, reduced motion, long untrusted content, chart data, and error states pass. |
 | R01 Five rehearsals | Exact postmortem and Product heroes each pass five consecutive fresh runs without repair. |
-| R02 Build and health | `.codex/verify.sh`, production build, ordered migration/advisors/old-code smoke, local/release browser suite, runtime reachability, and post-flow error scan pass on the release SHA. |
-| R03 Native proof | Exact-SHA N01-N16 evidence is sanitized and eligible, including the v4.2 Relay-native and truth-label gates; adapter-only rows remain labeled. |
-| R04 Demo | Public YouTube video is under three minutes, has audio, shows the working app, starts from nickname and document choice, lands one scoped `@Code` postmortem run and one `@Data` Product run, makes the role-catalog delta and Luna-powered application-owned Relay visible in the Flight Recorder, then proves the exact revisions and History/Restore. |
+| R02 Build and health | `.codex/verify.sh`, production build, local browser suite, and the controlled app-first/fail-closed rollout pass on the release SHA: app cutover, old-deployment/maintenance fence, stale/missing HTTP-contract rejection, zero-mutation old-store probe, zero active attempt/grant/permit check, approved transactional migration, four-argument claim rejection, database advisors, aligned plus crossed bot/access smoke, runtime reachability, release browser suite, and post-flow error scan. |
+| R03 Native proof | Exact-SHA N01-N16 evidence is sanitized and eligible, including the v4.3 Relay-native and truth-label gates; adapter-only rows remain labeled. |
+| R04 Demo | Public YouTube video is under three minutes, has audio, shows the working app, starts from nickname and document choice, lands one `@Code + Repository` postmortem run and one `@Data + Metrics` Product run, makes bot expertise versus assignment access explicit, shows the capability-catalog transition and Luna-powered application-owned Relay in the Flight Recorder, then proves the exact revisions and History/Restore. |
 | R05 Public package | Live URL remains accessible; public repository contains source/assets/setup/license; copy, video, deployment, manifest, and submission identify one SHA. |
 | R06 HTML deck | The public `/deck` has 12 visually reviewed slides, clearly labeled rendered product visuals and/or exact-SHA screenshots, keyboard/mobile/print proof, correct live/repo links, no secret or invented result, and an explicit application-owned Relay truth label. Any live-Luna or native-WebMCP label is backed by the matching exact-SHA evidence; rendered visuals never substitute for R03. |
 
-Application promotion is authorized in principle, but the exact v4.2 database migration
-still requires explicit project approval. The matching v4.2 production deployment and
-observation remain `PENDING`; public repository visibility, video upload, and Devpost
-submission remain separate pending release actions.
+The production URL currently serves the prior v4.2 persona-coupled build. The v4.3
+capability-first migration, promotion, native observation, recaptured evidence, public
+repository visibility, video upload, and Devpost submission remain separate pending
+release actions.
 
 ## 9. Independent competition judges
 
@@ -306,10 +339,10 @@ judges. Final results must have `mustFix: null`.
 
 | Judge | A 5 requires | Final threshold |
 |---|---|---|
-| J01 WebMCP Leverage | Native top-level `toolchange/getTools/executeTool` materially changes Luna's role-scoped capabilities and is necessary for actuation; composed trace and ablation prove it. Adapter, server-only functions, or generic wrapper cap at 3. | 5.0/5 |
+| J01 WebMCP Leverage | Native top-level `toolchange/getTools/executeTool` materially exposes Luna's assignment-specific site capabilities and is necessary for actuation; the composed trace and ablation prove it while Ratiflow remains the grant/enforcement boundary. Adapter, server-only functions, or generic wrapper cap at 3. | 5.0/5 |
 | J02 Execution | A first-time named user completes either guided mention; one bounded lineage lands one exact, reversible revision without duplicate spend; failures stay honest; desktop, 390px, and deck pass. Scripted or completed-example-only UI caps at 3. | ≥4.5/5 |
-| J03 Potential Impact | A directory of humans and specialists collaborates in two substantial decision records while every request, tool, source, grant, change, and Restore remains inspectable. Generic AI-doc claims cap at 3. | ≥4.5/5 |
-| J04 Creativity & Ambition | The document dynamically becomes Luna's tool runtime and durable organizational memory, with visible role deltas and Git-grade provenance—not a themed editor or rewrite button. | ≥4.5/5 |
+| J03 Potential Impact | A directory of humans and bots collaborates in two substantial decision records while every request, access grant, tool, source, change, and Restore remains inspectable. Generic AI-doc claims cap at 3. | ≥4.5/5 |
+| J04 Creativity & Ambition | The document dynamically becomes Luna's tool runtime and durable organizational memory, with visible access-grant deltas independent of bot identity and Git-grade provenance—not a themed editor or rewrite button. | ≥4.5/5 |
 
 Release requires every individual threshold, total ≥19/20, no unresolved BLOCK, and no
 final must-fix. Scores cannot be published as credible before native, visual, demo, and
@@ -331,5 +364,5 @@ evals/
 ```
 
 The compatibility namespace remains `v4`; every new manifest records product release
-`v4.2` and protocol version `4`. `EVAL_RESULTS.md` is the human index. The machine-readable
+`v4.3` and protocol version `4`. `EVAL_RESULTS.md` is the human index. The machine-readable
 manifest owns row status, artifact hashes, SHA identity, and remaining `PENDING` gates.

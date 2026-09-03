@@ -205,6 +205,7 @@ export const MANAGED_RELAY_EXAMPLE_OVERLAYS = {
     ],
     guidedWork: {
       agentHandle: "code",
+      accessProfile: "REPOSITORY_SCOPED_EDIT",
       sectionHeading: "## Root cause",
       selectionText: POSTMORTEM_EXAMPLE.tasks.clarification.replacement,
       prompt:
@@ -239,6 +240,7 @@ export const MANAGED_RELAY_EXAMPLE_OVERLAYS = {
     ],
     guidedWork: {
       agentHandle: "data",
+      accessProfile: "METRICS_SCOPED_EDIT",
       sectionHeading: "## Success measures",
       selectionText: `- Reliability work completes before beta.
 - Design partners can export correct CSV files on October 15.

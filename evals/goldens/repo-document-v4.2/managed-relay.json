@@ -1,17 +1,36 @@
 {
-  "oracleSchemaVersion": "ratiflow.managed-relay-oracle/v1",
+  "oracleSchemaVersion": "ratiflow.managed-relay-oracle/v2",
   "protocolVersion": 4,
-  "releaseName": "v4.2",
-  "claim": "Mention the expert. The page supplies the tools. The document keeps the proof.",
+  "releaseName": "v4.3",
+  "claim": "Bot expertise is descriptive. Ratiflow grants assignment access; WebMCP exposes and invokes the matching site tools; the server enforces document, range, and action authority.",
   "runtime": "OPENAI_LUNA_WEBMCP_RELAY",
   "model": "gpt-5.6-luna",
   "agents": [
     {
       "handle": "data",
       "displayName": "Data",
-      "scope": "COMPANY",
-      "specialty": "DATA",
-      "identitySource": "DEMO_DIRECTORY",
+      "visibility": "COMPANY",
+      "expertise": "DATA",
+      "identitySource": "DEMO_DIRECTORY"
+    },
+    {
+      "handle": "code",
+      "displayName": "Code",
+      "visibility": "TEAM",
+      "expertise": "CODE",
+      "identitySource": "DEMO_DIRECTORY"
+    },
+    {
+      "handle": "general",
+      "displayName": "General",
+      "visibility": "PERSONAL",
+      "expertise": "GENERAL",
+      "identitySource": "DEMO_DIRECTORY"
+    }
+  ],
+  "accessProfiles": {
+    "METRICS_SCOPED_EDIT": {
+      "documentAuthority": "DIRECT_SELECTION",
       "logicalTools": [
         "read_assignment",
         "read_document_context",
@@ -19,14 +38,15 @@
         "comment_on_assignment",
         "submit_scoped_revision",
         "query_demo_metrics"
+      ],
+      "requiredToolOrder": [
+        "read_assignment",
+        "query_demo_metrics",
+        "submit_scoped_revision"
       ]
     },
-    {
-      "handle": "code",
-      "displayName": "Code",
-      "scope": "TEAM",
-      "specialty": "CODE",
-      "identitySource": "DEMO_DIRECTORY",
+    "REPOSITORY_SCOPED_EDIT": {
+      "documentAuthority": "DIRECT_SELECTION",
       "logicalTools": [
         "read_assignment",
         "read_document_context",
@@ -35,14 +55,16 @@
         "submit_scoped_revision",
         "search_demo_code",
         "read_demo_file"
+      ],
+      "requiredToolOrder": [
+        "read_assignment",
+        "search_demo_code",
+        "read_demo_file",
+        "submit_scoped_revision"
       ]
     },
-    {
-      "handle": "general",
-      "displayName": "General",
-      "scope": "PERSONAL",
-      "specialty": "GENERAL",
-      "identitySource": "DEMO_DIRECTORY",
+    "EDITORIAL_SCOPED_EDIT": {
+      "documentAuthority": "DIRECT_SELECTION",
       "logicalTools": [
         "read_assignment",
         "read_document_context",
@@ -51,13 +73,31 @@
         "submit_scoped_revision",
         "read_company_style_guide",
         "check_document_consistency"
+      ],
+      "requiredToolOrder": [
+        "read_assignment",
+        "read_company_style_guide",
+        "check_document_consistency",
+        "submit_scoped_revision"
       ]
     }
-  ],
+  },
+  "orthogonalityProof": {
+    "sameAccessDifferentBots": [
+      { "agent": "code", "accessProfile": "METRICS_SCOPED_EDIT" },
+      { "agent": "data", "accessProfile": "METRICS_SCOPED_EDIT" }
+    ],
+    "sameBotDifferentAccess": [
+      { "agent": "code", "accessProfile": "METRICS_SCOPED_EDIT" },
+      { "agent": "code", "accessProfile": "REPOSITORY_SCOPED_EDIT" }
+    ],
+    "equalSizeForgeryPair": ["REPOSITORY_SCOPED_EDIT", "EDITORIAL_SCOPED_EDIT"]
+  },
   "postmortem": {
     "documentKind": "POSTMORTEM",
     "title": "INC-482 · Checkout outage postmortem",
     "heroAgent": "code",
+    "accessProfile": "REPOSITORY_SCOPED_EDIT",
     "guidedSection": "Root cause",
     "prompt": "@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.",
     "requiredToolOrder": [
@@ -86,6 +126,7 @@
     "documentKind": "PRODUCT_DOCUMENT",
     "title": "Northstar · CSV export launch decision",
     "heroAgent": "data",
+    "accessProfile": "METRICS_SCOPED_EDIT",
     "guidedSection": "Success measures",
     "prompt": "@Data Check these success measures against the synthetic Northstar capacity plan. Show which October 15 scope fits 14 engineering days and preserve the November 1 renewal commitment, then replace only this section.",
     "requiredToolOrder": [

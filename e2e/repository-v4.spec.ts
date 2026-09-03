@@ -3,7 +3,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_TOOL_CATALOGS,
   RELAY_BOUNDS,
   type ManagedAgentDirectoryEntry,
   type RelayRun,
@@ -73,13 +72,13 @@ const TEMPLATE_CASES: ReadonlyArray<{
 ];
 
 function managedAgent(
-  specialty: ManagedAgentDirectoryEntry["specialty"],
+  expertise: ManagedAgentDirectoryEntry["expertise"],
   profileId: string,
   principalId: string,
 ): ManagedAgentDirectoryEntry {
-  const displayName = specialty === "DATA"
+  const displayName = expertise === "DATA"
     ? "Data"
-    : specialty === "CODE"
+    : expertise === "CODE"
       ? "Code"
       : "General";
   return {
@@ -91,13 +90,11 @@ function managedAgent(
     },
     handle: displayName.toLocaleLowerCase(),
     displayName,
-    scope: specialty === "DATA" ? "COMPANY" : specialty === "CODE" ? "TEAM" : "PERSONAL",
+    visibility: expertise === "DATA" ? "COMPANY" : expertise === "CODE" ? "TEAM" : "PERSONAL",
     readiness: "READY",
     identitySource: "DEMO_DIRECTORY",
-    specialty,
+    expertise,
     runtime: MANAGED_AGENT_RUNTIME,
-    logicalToolNames: [...MANAGED_AGENT_TOOL_CATALOGS[specialty]],
-    syntheticSourceLabels: [`Synthetic demo data · ${specialty.toLocaleLowerCase()} smoke fixture`],
   };
 }
 
@@ -123,7 +120,8 @@ const MANAGED_QUEUED_RUN: RelayRun = {
   runId: MANAGED_RELAY_RUN_ID,
   taskId: MANAGED_RELAY_TASK_ID,
   profileId: MANAGED_CODE_PROFILE_ID,
-  specialty: "CODE",
+  agentExpertise: "CODE",
+  accessProfile: "METRICS_SCOPED_EDIT",
   runtime: MANAGED_AGENT_RUNTIME,
   model: MANAGED_AGENT_MODEL,
   status: "QUEUED",
@@ -449,7 +447,7 @@ test("v4.2 Advanced BYOA guides one page-scoped agent from a named prompt to a t
   try {
     await launchTemplate(page, "POSTMORTEM");
     await expect(page.getByRole("heading", {
-      name: "Select a passage. Mention a specialist. Watch the proof.",
+      name: "Select a passage. Pick a bot and its website access. Watch the proof.",
     })).toBeVisible();
     await page.getByText("Advanced: bring your own agent", { exact: true }).click();
     await expect.poll(() => page.evaluate(() => {
@@ -491,7 +489,7 @@ test("v4.2 Advanced BYOA guides one page-scoped agent from a named prompt to a t
     await expect(status).toBeVisible();
     await status.click();
     await expect(page.getByRole("heading", {
-      name: "Select a passage. Mention a specialist. Watch the proof.",
+      name: "Select a passage. Pick a bot and its website access. Watch the proof.",
     })).toBeVisible();
     await page.getByText("Advanced: Contextbot connected", { exact: true }).click();
     await expect(page.getByText("Connected for this page · owned by Quinn Patel")).toBeVisible();
@@ -507,7 +505,7 @@ test("v4.2 Home and /new always show setup while the issue URL resumes its docum
   await page.goto("/");
   await expect(page).toHaveURL(/\/$/u);
   await expect(page.getByLabel("What should collaborators call you?")).toBeVisible();
-  await expect(page.getByText("Your specialist directory")).toBeVisible();
+  await expect(page.getByText("Your bot directory")).toBeVisible();
 
   await page.goto(issueUrl);
   await expect(page.getByRole("heading", {
@@ -672,6 +670,7 @@ test("v4.2 exact rendered-source selection creates an anchored human comment", a
   const composer = page.getByTestId("selection-comment-composer");
   const comment = "Should this include the exact customer-visible recovery time?";
   await composer.getByLabel("Comment or @ an agent").fill(comment);
+  await expect(composer.getByTestId("website-access-selector")).toHaveCount(0);
   const created = waitForSuccessfulMutation(page, "/api/repository-v4/thread/create");
   await composer.getByRole("button", { name: "Comment", exact: true }).click();
   await created;
@@ -713,6 +712,7 @@ test("v4.2 literal @ text stays a human comment until an autocomplete agent is e
   await expect(composer.getByRole("listbox", { name: "Company directory" })).toBeVisible();
   await expect(composer.getByRole("option", { name: /Databot.*Quinn Patel/u })).toBeVisible();
   await expect(composer.getByText(/^Assigned to/u)).toHaveCount(0);
+  await expect(composer.getByTestId("website-access-selector")).toHaveCount(0);
 
   const created = waitForSuccessfulMutation(page, "/api/repository-v4/thread/create");
   await composer.getByRole("button", { name: "Comment", exact: true }).click();
@@ -725,7 +725,7 @@ test("v4.2 literal @ text stays a human comment until an autocomplete agent is e
   await expect(rail.locator('article[data-kind="human"]')).toContainText(literal);
 });
 
-test("v4.2 guided @Code selection posts canonical profile authority and opens the Flight Recorder without Luna", async ({
+test("v4.3 @Code can independently receive Metrics website access and expose that catalog", async ({
   browser,
   baseURL,
 }) => {
@@ -930,9 +930,14 @@ test("v4.2 guided @Code selection posts canonical profile authority and opens th
     const directory = composer.getByRole("listbox", { name: "Company directory" });
     await expect(directory).toBeVisible();
     await directory.getByRole("option", { name: /@Code\b/u }).click();
-    const instruction = "@Code verify this failure against the synthetic repository.";
+    const accessSelector = composer.getByLabel("Website access for this run");
+    await expect(accessSelector).toHaveValue("REPOSITORY_SCOPED_EDIT");
+    await accessSelector.selectOption("METRICS_SCOPED_EDIT");
+    await expect(accessSelector).toHaveValue("METRICS_SCOPED_EDIT");
+    const instruction = "@Code check this passage against the synthetic metrics.";
     await composer.getByLabel("Comment or @ an agent").fill(instruction);
-    await expect(composer.getByText(/Assigned to @Code · code specialist/u)).toBeVisible();
+    await expect(composer.getByText(/Assigned to @Code · code expertise/u)).toBeVisible();
+    await expect(composer.getByText(/not the bot’s expertise.*sets the WebMCP catalog/u)).toBeVisible();
     const mentionRequestPromise = page.waitForRequest((request) =>
       request.url().endsWith("/api/repository-v4/task/mention")
       && request.method() === "POST");
@@ -941,6 +946,7 @@ test("v4.2 guided @Code selection posts canonical profile authority and opens th
     const mentionRequest = await mentionRequestPromise;
     const mentionBody = mentionRequest.postDataJSON() as Record<string, unknown>;
     expect(Object.keys(mentionBody).sort()).toEqual([
+      "accessProfile",
       "anchor",
       "comment",
       "expectedRevision",
@@ -949,6 +955,7 @@ test("v4.2 guided @Code selection posts canonical profile authority and opens th
     expect(mentionBody).toMatchObject({
       expectedRevision: 5,
       comment: instruction,
+      accessProfile: "METRICS_SCOPED_EDIT",
       target: { kind: "AGENT", profileId: MANAGED_CODE_PROFILE_ID },
       anchor: {
         scope: "SELECTION",
@@ -977,7 +984,12 @@ test("v4.2 guided @Code selection posts canonical profile authority and opens th
     })).toBeVisible();
     await expect(recorder).toContainText("@Code");
     await expect(recorder).toContainText(MANAGED_AGENT_MODEL);
-    await expect(recorder.getByRole("list", { name: "Code tool catalog" })).toBeVisible();
+    const catalog = recorder.getByRole("list", { name: "Metrics website tool catalog" });
+    await expect(catalog).toBeVisible();
+    await expect(catalog).toContainText("query_demo_metrics");
+    await expect(catalog).not.toContainText("search_demo_code");
+    await expect(recorder).toContainText("code");
+    await expect(recorder).toContainText("Metrics");
     await expect(recorder).toContainText("Mention became durable work");
     await expect(recorder).toContainText("Queued for this open page");
     await expect(page.getByRole("status")).toContainText(

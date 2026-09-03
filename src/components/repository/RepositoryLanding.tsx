@@ -20,7 +20,7 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
   title: string;
   description: string;
   sections: readonly string[];
-  specialist: string;
+  suggestedBot: string;
   guidedAction: string;
 }> = [
   {
@@ -29,8 +29,8 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
     title: "Postmortem",
     description: "A two-sheet incident record with prior human and agent revisions—and one root-cause question left for you.",
     sections: ["Impact", "Timeline", "Root cause", "Corrective actions"],
-    specialist: "@Code",
-    guidedAction: "Verify the failure against a synthetic repository",
+    suggestedBot: "@Code",
+    guidedAction: "Repository access suggested · editable before the run",
   },
   {
     kind: "PRODUCT_DOCUMENT",
@@ -38,8 +38,8 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
     title: "Product document",
     description: "A two-sheet launch decision with prior collaboration—and one capacity question left for you.",
     sections: ["Problem", "Options", "Decisions", "Success measures"],
-    specialist: "@Data",
-    guidedAction: "Check the launch plan against synthetic metrics",
+    suggestedBot: "@Data",
+    guidedAction: "Metrics access suggested · editable before the run",
   },
 ];
 
@@ -62,8 +62,8 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
 
         <div className={styles.intro}>
           <p className={styles.eyebrow}>A living document for humans + agents</p>
-          <h1 id="repository-landing-title">Mention the expert.<br />Keep the proof.</h1>
-          <p>Choose a nickname and open either working demo. Select a passage and mention a specialist. In a WebMCP-enabled browser, this open page supplies role-specific tools to GPT-5.6 Luna; the resulting change lands as a reversible revision.</p>
+          <h1 id="repository-landing-title">Pick the bot. Grant the tools.<br />Keep the proof.</h1>
+          <p>Choose a bot for its expertise, then separately choose the website access its run can use. In a WebMCP-enabled browser, this page exposes that selected tool catalog to GPT-5.6 Luna; any change stays bounded to your selected passage and lands as a reversible revision.</p>
         </div>
 
         <section className={styles.setupCard} aria-labelledby="repository-identity-heading">
@@ -88,13 +88,13 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
           </div>
           <aside className={styles.agentHandoff} aria-label="Managed demo agent directory">
             <span>Listed in every demo copy</span>
-            <strong>Your specialist directory</strong>
+            <strong>Your bot directory</strong>
             <div className={styles.agentPreview}>
-              <span><i data-agent="data">D</i><b>@Data</b><small>Metrics</small></span>
-              <span><i data-agent="code">C</i><b>@Code</b><small>Repository</small></span>
-              <span><i data-agent="general">G</i><b>@General</b><small>Writing</small></span>
+              <span><i data-agent="data">D</i><b>@Data</b><small>Data expertise</small></span>
+              <span><i data-agent="code">C</i><b>@Code</b><small>Code expertise</small></span>
+              <span><i data-agent="general">G</i><b>@General</b><small>General expertise</small></span>
             </div>
-            <p>No agent setup is required. Managed agents run only in a WebMCP-enabled browser while this document page is open; the 15-second check is recovery, not background cron.</p>
+            <p>Website access is chosen per run: Metrics, Repository, or Editorial. Any bot can use any of those profiles. The 15-second check is recovery, not background cron.</p>
           </aside>
         </section>
 
@@ -117,7 +117,7 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
                 <span className={styles.templateIcon} aria-hidden="true">{template.kind === "POSTMORTEM" ? "↯" : "◇"}</span>
                 <span className={styles.templateCopy}><small>{template.eyebrow}</small><strong>{template.title}</strong><span>{template.description}</span></span>
                 <span className={styles.sectionPreview} aria-hidden="true">{template.sections.map((section) => <i key={section}>{section}</i>)}</span>
-                <span className={styles.guidedAction}><b>{template.specialist}</b><span>{template.guidedAction}</span></span>
+                <span className={styles.guidedAction}><b>{template.suggestedBot}</b><span>{template.guidedAction}</span></span>
                 <span className={styles.createLabel}>{busy ? "Opening…" : `Open live ${template.title.toLowerCase()}`}<b aria-hidden="true">→</b></span>
               </button>
             ))}
@@ -126,7 +126,7 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
 
         <section className={styles.runtimeNote} aria-label="How the managed relay works">
           <span className={styles.runtimePulse} aria-hidden="true" />
-          <div><strong>Page-bound, visible, reversible.</strong><span>The Flight Recorder shows the discovered catalog, every tool call, its synthetic evidence, and the exact revision.</span></div>
+          <div><strong>Page-bound, explicit, reversible.</strong><span>The Flight Recorder shows the access-driven catalog, every tool call, its synthetic evidence, and the exact revision.</span></div>
           <code>Application-owned WebMCP relay · GPT-5.6 Luna</code>
         </section>
 

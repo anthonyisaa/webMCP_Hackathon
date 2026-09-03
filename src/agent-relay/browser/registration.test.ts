@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
-  type ManagedAgentSpecialty,
-  RelayBrowserClientPort,
+  RELAY_ACCESS_POLICIES,
+  type RelayAccessProfile,
+  type RelayBrowserClientPort,
   type RelayExecutionPermit,
   type RelayExecutionPermitToken,
   type RelayGrant,
@@ -14,7 +14,13 @@ import { RelayBrowserError } from "./errors";
 import { normalizeRelayManifest } from "./manifest";
 import { RelayWebMCPRegistrationManager } from "./registration";
 import { decodeRelayExecuteToolResult } from "./result-decoder";
-import { FakeWebMCPConsumer, TEST_ORIGIN, TEST_WINDOW, claimedAttempt, managedAgent } from "./test-helpers";
+import {
+  FakeWebMCPConsumer,
+  TEST_ORIGIN,
+  TEST_WINDOW,
+  capabilityGrant,
+  claimedAttempt,
+} from "./test-helpers";
 
 const GRANT = "rfrelay_v1.test" as RelayGrant;
 
@@ -35,34 +41,43 @@ function permit(input: {
   };
 }
 
-test("switches among exact Data, Code, and General catalogs without overlap", async () => {
+test("one bot switches among exact access-profile catalogs", async () => {
   const context = new FakeWebMCPConsumer();
   const manager = new RelayWebMCPRegistrationManager({
     context,
     client: {} as RelayBrowserClientPort,
   });
-  const expectedCounts: Record<ManagedAgentSpecialty, number> = {
-    DATA: 6,
-    CODE: 7,
-    GENERAL: 7,
+  const expectedCounts: Record<RelayAccessProfile, number> = {
+    METRICS_SCOPED_EDIT: 6,
+    REPOSITORY_SCOPED_EDIT: 7,
+    EDITORIAL_SCOPED_EDIT: 7,
+  };
+  const discriminators: Record<RelayAccessProfile, string> = {
+    METRICS_SCOPED_EDIT: "metrics",
+    REPOSITORY_SCOPED_EDIT: "repository",
+    EDITORIAL_SCOPED_EDIT: "editorial",
   };
   let previousDescriptors = await context.getTools();
 
-  for (const [index, specialty] of (["DATA", "CODE", "GENERAL"] as const).entries()) {
+  for (const [index, accessProfile] of ([
+    "METRICS_SCOPED_EDIT",
+    "REPOSITORY_SCOPED_EDIT",
+    "EDITORIAL_SCOPED_EDIT",
+  ] as const).entries()) {
     await manager.register({
       grant: GRANT,
-      agent: managedAgent(specialty),
+      capabilityGrant: capabilityGrant(accessProfile),
       attempt: claimedAttempt(index + 1),
     });
     const descriptors = await context.getTools();
-    assert.equal(descriptors.length, expectedCounts[specialty]);
+    assert.equal(descriptors.length, expectedCounts[accessProfile]);
     assert.deepEqual(
       descriptors.map(({ name }) => manager.logicalNameForPhysical(name)).sort(),
-      [...MANAGED_AGENT_TOOL_CATALOGS[specialty]].sort(),
+      [...RELAY_ACCESS_POLICIES[accessProfile].logicalToolNames].sort(),
     );
     assert.equal(
       descriptors.every(({ name }) =>
-        name.startsWith(`rf_${specialty.toLowerCase()}_0123456789abcdef_g${index + 1}_`)),
+        name.startsWith(`rf_${discriminators[accessProfile]}_0123456789abcdef_g${index + 1}_`)),
       true,
     );
     for (const staleDescriptor of previousDescriptors) {
@@ -72,6 +87,50 @@ test("switches among exact Data, Code, and General catalogs without overlap", as
   }
 
   await manager.dispose();
+});
+
+test("the same website access grant deterministically produces identical descriptors", async () => {
+  const context = new FakeWebMCPConsumer();
+  const manager = new RelayWebMCPRegistrationManager({
+    context,
+    client: {} as RelayBrowserClientPort,
+  });
+  const grant = capabilityGrant("METRICS_SCOPED_EDIT");
+  const attempt = claimedAttempt();
+  const catalogs = [];
+  for (let registration = 0; registration < 2; registration += 1) {
+    await manager.register({ grant: GRANT, capabilityGrant: grant, attempt });
+    catalogs.push(await context.getTools());
+  }
+  assert.deepEqual(catalogs[1], catalogs[0]);
+  assert.deepEqual(
+    catalogs[1]?.map(({ name }) => manager.logicalNameForPhysical(name)).sort(),
+    [...RELAY_ACCESS_POLICIES.METRICS_SCOPED_EDIT.logicalToolNames].sort(),
+  );
+  assert.equal(catalogs[1]?.every(({ title }) => title?.startsWith("Ratiflow ·")), true);
+  await manager.dispose();
+});
+
+test("rejects a catalog smuggled through a mismatched capability grant", async () => {
+  const context = new FakeWebMCPConsumer();
+  const manager = new RelayWebMCPRegistrationManager({
+    context,
+    client: {} as RelayBrowserClientPort,
+  });
+  const forged = capabilityGrant("REPOSITORY_SCOPED_EDIT");
+  forged.logicalToolNames = [
+    ...RELAY_ACCESS_POLICIES.EDITORIAL_SCOPED_EDIT.logicalToolNames,
+  ];
+  await assert.rejects(
+    manager.register({
+      grant: GRANT,
+      capabilityGrant: forged,
+      attempt: claimedAttempt(),
+    }),
+    (error: unknown) => error instanceof RelayBrowserError
+      && error.code === "RELAY_MANIFEST_MISMATCH",
+  );
+  assert.deepEqual(await context.getTools(), []);
 });
 
 test("denies unarmed calls, consumes one permit, propagates cancellation, and rejects stale descriptors", async () => {
@@ -117,14 +176,14 @@ test("denies unarmed calls, consumes one permit, propagates cancellation, and re
     client,
     now: () => Date.parse("2026-09-02T01:00:00.000Z"),
   });
-  const agent = managedAgent("CODE");
+  const grant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
   const attempt = claimedAttempt();
-  await manager.register({ grant: GRANT, agent, attempt });
+  await manager.register({ grant: GRANT, capabilityGrant: grant, attempt });
   assert.equal(manager.registeredNames.length, 7);
 
   const discovered = await normalizeRelayManifest({
     tools: await context.getTools(),
-    agent,
+    capabilityGrant: grant,
     attempt,
     origin: TEST_ORIGIN,
     topLevelWindow: TEST_WINDOW,
@@ -215,12 +274,12 @@ test("uses the exact native input encoding advertised by a string-schema descrip
     client,
     now: () => Date.parse("2026-09-02T01:00:00.000Z"),
   });
-  const agent = managedAgent("CODE");
+  const grant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
   const attempt = claimedAttempt();
-  await manager.register({ grant: GRANT, agent, attempt });
+  await manager.register({ grant: GRANT, capabilityGrant: grant, attempt });
   const discovered = await normalizeRelayManifest({
     tools: await context.getTools(),
-    agent,
+    capabilityGrant: grant,
     attempt,
     origin: TEST_ORIGIN,
     topLevelWindow: TEST_WINDOW,

@@ -1,5 +1,4 @@
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
   RELAY_BOUNDS,
   RELAY_PHYSICAL_TOOL_NAME_PATTERN,
@@ -37,13 +36,15 @@ import {
   relaySha256,
   validRelaySigningSecret,
 } from "@/domain/repository-relay-security";
-import type {
-  IssueComment,
-  IssueRevision,
-  IssueTask,
-  RepositoryFailure,
-  RepositoryResult,
-  CreateDirectoryMentionServiceInput,
+import { capabilityGrantMatchesPolicy } from "@/agent-relay/access-policy";
+import {
+  RELAY_CAPABILITY_CONTRACT_VALUE,
+  type CreateDirectoryMentionServiceInput,
+  type IssueComment,
+  type IssueRevision,
+  type IssueTask,
+  type RepositoryFailure,
+  type RepositoryResult,
 } from "@/repository/contracts";
 import type {
   IssueRelayPermitInput,
@@ -101,6 +102,23 @@ function isRelayResult(value: unknown): value is RelayResult<unknown> {
         && typeof value.retryable === "boolean");
 }
 
+function isCapabilityFirstRelayWorkspace(value: unknown): value is RelayWorkspaceState {
+  if (!isObject(value) || !Array.isArray(value.directory) || !Array.isArray(value.runs)) {
+    return false;
+  }
+  const managedAgents = value.directory.filter((entry) =>
+    isObject(entry) && entry.identitySource === "DEMO_DIRECTORY");
+  return managedAgents.length > 0
+    && managedAgents.every((entry) => typeof entry.expertise === "string"
+      && !Object.hasOwn(entry, "specialty")
+      && !Object.hasOwn(entry, "logicalToolNames")
+      && !Object.hasOwn(entry, "syntheticSourceLabels"))
+    && value.runs.every((run) => isObject(run)
+      && typeof run.agentExpertise === "string"
+      && typeof run.accessProfile === "string"
+      && !Object.hasOwn(run, "specialty"));
+}
+
 function repositoryFailure(value: RelayFailure): RepositoryFailure {
   const repositoryCodes = new Set([
     "INVALID_INPUT", "UNAUTHORIZED", "AGENT_IDENTITY_REQUIRED", "STALE_AGENT_PROFILE",
@@ -125,6 +143,7 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
   readonly #request: FetchLike;
   readonly #tokens: RepositoryRelayTokenCodec;
   readonly #specialistFixturePort?: SpecialistFixturePort;
+  #capabilityFirstStoreReady = false;
 
   constructor(options: SupabaseRepositoryRelayServiceOptions) {
     if (!/^https:\/\//u.test(options.url) || !options.serviceRoleKey
@@ -156,11 +175,15 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     });
   }
 
-  createDirectoryMention(
+  async createDirectoryMention(
     sessionToken: string,
     input: CreateDirectoryMentionServiceInput,
     signal?: AbortSignal,
   ): Promise<RelayResult<DirectoryMentionReceipt>> {
+    if (isObject(input.target) && input.target.kind === "AGENT") {
+      const ready = await this.#requireCapabilityFirstStore(sessionToken, signal);
+      if (!ready.ok) return ready;
+    }
     return this.#rpc("ratiflow_create_issue_directory_mention_v4", {
       p_handle: sessionToken,
       p_request_id: input.requestId,
@@ -168,11 +191,25 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     }, signal);
   }
 
-  readRelayState(
+  async readRelayState(
     sessionToken: string,
     signal?: AbortSignal,
   ): Promise<RelayResult<RelayWorkspaceState>> {
-    return this.#rpc("ratiflow_read_issue_relay_state_v4", { p_handle: sessionToken }, signal);
+    const result = await this.#rpc<unknown>(
+      "ratiflow_read_issue_relay_state_v4",
+      { p_handle: sessionToken },
+      signal,
+    );
+    if (!result.ok) return result;
+    if (!isCapabilityFirstRelayWorkspace(result.data)) {
+      return relayFailure(
+        "RELAY_UNAVAILABLE",
+        "The capability-first Relay store is not ready.",
+        true,
+      );
+    }
+    this.#capabilityFirstStoreReady = true;
+    return result as RelayResult<RelayWorkspaceState>;
   }
 
   async claimRelay(
@@ -182,6 +219,8 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     retryRunId?: string,
     signal?: AbortSignal,
   ): Promise<RelayResult<RelayClaimOutcome>> {
+    const ready = await this.#requireCapabilityFirstStore(sessionToken, signal);
+    if (!ready.ok) return ready;
     const reserved = await this.#rpc<RelayClaimOutcome & { grantClaims?: RelayGrantClaims }>(
       "ratiflow_claim_issue_relay_v4",
       {
@@ -189,12 +228,21 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
         p_page_session_id: pageSessionId,
         p_request_id: requestId,
         p_retry_run_id: retryRunId ?? null,
+        p_contract: RELAY_CAPABILITY_CONTRACT_VALUE,
       },
       signal,
     );
     if (!reserved.ok || reserved.data.outcome !== "CLAIMED") return reserved;
     const claims = reserved.data.grantClaims;
-    if (!claims) return relayFailure("RELAY_RESULT_INVALID", "The durable claim omitted its grant binding.");
+    if (!claims
+      || !capabilityGrantMatchesPolicy(reserved.data.capabilityGrant)
+      || reserved.data.run.accessProfile !== reserved.data.capabilityGrant.accessProfile
+      || reserved.data.run.agentExpertise !== reserved.data.agent.expertise) {
+      return relayFailure(
+        "RELAY_RESULT_INVALID",
+        "The durable claim omitted its grant or capability binding.",
+      );
+    }
     const grant = this.#tokens.signGrant(claims);
     const finalized = await this.#rpc<true>("ratiflow_transition_issue_relay_attempt_v4", {
       p_action: "FINALIZE_GRANT",
@@ -327,10 +375,10 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
   ): Promise<RelayResult<{ digest: `sha256:${string}` }>> {
     const claims = this.#tokens.verifyGrant(grant);
     if (!claims) return Promise.resolve(relayFailure("UNAUTHORIZED", "The Relay grant is invalid."));
-    if (!this.#validRelayManifest(manifest, claims.registrationGeneration)) {
+    if (!this.#validRelayManifestShape(manifest, claims.registrationGeneration)) {
       return Promise.resolve(relayFailure(
         "RELAY_MANIFEST_MISMATCH",
-        "The page tool manifest does not match a frozen managed catalog.",
+        "The page tool manifest is not a valid managed catalog.",
       ));
     }
     return this.#transition(grant, "RECORD_MANIFEST", { manifest }, signal);
@@ -502,6 +550,15 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     }, signal);
   }
 
+  async #requireCapabilityFirstStore(
+    sessionToken: string,
+    signal?: AbortSignal,
+  ): Promise<RelayResult<true>> {
+    if (this.#capabilityFirstStoreReady) return { ok: true, data: true };
+    const state = await this.readRelayState(sessionToken, signal);
+    return state.ok ? { ok: true, data: true } : state;
+  }
+
   #grantRpc<T>(
     functionName: string,
     grant: RelayGrant,
@@ -620,7 +677,7 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     };
   }
 
-  #validRelayManifest(
+  #validRelayManifestShape(
     manifest: RelayNormalizedToolManifest,
     registrationGeneration: number,
   ): boolean {
@@ -628,11 +685,6 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
       || Object.keys(manifest).sort().join(",") !== "digest,entries"
       || !Array.isArray(manifest.entries)
       || manifest.digest !== relaySha256({ entries: manifest.entries })) return false;
-    const matchedCatalog = Object.entries(MANAGED_AGENT_TOOL_CATALOGS).find(([, catalog]) =>
-      catalog.length === manifest.entries.length
-      && catalog.every((logicalName, index) => manifest.entries[index]?.logicalName === logicalName));
-    if (!matchedCatalog) return false;
-    const specialty = matchedCatalog[0].toLowerCase();
     const names = new Set<string>();
     let origin: string | null = null;
     for (const entry of manifest.entries) {
@@ -652,7 +704,6 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
       if (entry.origin !== origin
         || entry.registrationGeneration !== registrationGeneration
         || !RELAY_PHYSICAL_TOOL_NAME_PATTERN.test(entry.physicalName)
-        || !entry.physicalName.startsWith(`rf_${specialty}_`)
         || names.has(entry.physicalName)
         || entry.description !== definition.description
         || relayCanonicalJson(entry.inputSchema) !== relayCanonicalJson(definition.inputSchema)

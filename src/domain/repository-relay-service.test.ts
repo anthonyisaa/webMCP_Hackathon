@@ -5,6 +5,11 @@ import { test } from "vitest";
 
 import { createSpecialistFixturePort } from "@/agent-relay/fixtures";
 import { buildExpectedManifest } from "@/agent-relay/server/relay-stepper";
+import type {
+  ManagedAgentExpertise,
+  RelayAccessProfile,
+} from "@/agent-relay/contracts";
+import type { CreateDirectoryMentionServiceInput } from "@/repository/contracts";
 import { relaySha256 } from "@/domain/repository-relay-security";
 import {
   LocalRepositoryService,
@@ -21,7 +26,8 @@ function success<T>(result: { ok: true; data: T } | { ok: false; code: string })
 async function queueManagedWorkspace(
   local: LocalRepositoryService,
   displayName = "Priya",
-  specialty: "GENERAL" | "CODE" = "GENERAL",
+  expertise: ManagedAgentExpertise = "GENERAL",
+  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
   const owner = success(await local.launch({ kind: "POSTMORTEM", displayName }));
   success(await local.saveHumanRevision(owner.humanSessionToken, {
@@ -34,17 +40,18 @@ async function queueManagedWorkspace(
   const initial = success(await relay.readRelayState(owner.humanSessionToken));
   const agent = initial.directory.find((entry) =>
     entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY"
-      && entry.specialty === specialty);
+      && entry.expertise === expertise);
   if (!agent || agent.kind !== "AGENT" || agent.identitySource !== "DEMO_DIRECTORY") {
-    throw new Error(`managed ${specialty} agent missing`);
+    throw new Error(`managed ${expertise} agent missing`);
   }
   const receipt = success(await relay.createDirectoryMention(owner.humanSessionToken, {
     requestId: randomUUID(),
     expectedRevision: 2,
-    comment: specialty === "CODE"
+    comment: expertise === "CODE"
       ? "@Code Check this passage against the synthetic repository."
-      : "@General Rewrite this passage clearly.",
+      : `@${agent.displayName} Rewrite this passage clearly.`,
     target: { kind: "AGENT", profileId: agent.profileId },
+    accessProfile,
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 6, rangeEnd: 10 },
   }));
   assert.equal(receipt.outcome, "MANAGED_TASK_QUEUED");
@@ -54,9 +61,10 @@ async function queueManagedWorkspace(
 async function claimManagedWorkspace(
   local: LocalRepositoryService,
   displayName = "Priya",
-  specialty: "GENERAL" | "CODE" = "GENERAL",
+  expertise: ManagedAgentExpertise = "GENERAL",
+  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
-  const queued = await queueManagedWorkspace(local, displayName, specialty);
+  const queued = await queueManagedWorkspace(local, displayName, expertise, accessProfile);
   const pageSessionId = randomUUID();
   const claimRequestId = randomUUID();
   const claim = success(await queued.relay.claimRelay(
@@ -68,14 +76,15 @@ async function claimManagedWorkspace(
 
 async function managedWorkspace(
   options: LocalRepositoryServiceOptions = {},
-  specialty: "GENERAL" | "CODE" = "GENERAL",
+  expertise: ManagedAgentExpertise = "GENERAL",
+  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
   const local = new LocalRepositoryService({
     relaySigningSecret: SIGNING_SECRET,
     specialistFixturePort: createSpecialistFixturePort(),
     ...options,
   });
-  return { local, ...await claimManagedWorkspace(local, "Priya", specialty) };
+  return { local, ...await claimManagedWorkspace(local, "Priya", expertise, accessProfile) };
 }
 
 async function failAttempt(
@@ -152,7 +161,8 @@ test("managed mention preserves v4.1 projection and emits the frozen discovery t
 
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
-    claim.agent,
+    claim.run.accessProfile,
+    claim.agent.runtime,
     claim.attempt.registrationScope,
     claim.attempt.registrationGeneration,
   ));
@@ -170,11 +180,155 @@ test("managed mention preserves v4.1 projection and emits the frozen discovery t
   ]);
 });
 
+test("bot expertise and website access vary independently while access alone selects the catalog", async () => {
+  const dataMetrics = await managedWorkspace({}, "DATA", "METRICS_SCOPED_EDIT");
+  const codeMetrics = await managedWorkspace({}, "CODE", "METRICS_SCOPED_EDIT");
+  assert.equal(dataMetrics.claim.agent.expertise, "DATA");
+  assert.equal(codeMetrics.claim.agent.expertise, "CODE");
+  assert.deepEqual(
+    dataMetrics.claim.capabilityGrant,
+    codeMetrics.claim.capabilityGrant,
+  );
+  assert.equal(codeMetrics.claim.run.accessProfile, "METRICS_SCOPED_EDIT");
+  assert.equal(codeMetrics.claim.run.agentExpertise, "CODE");
+
+  const codeRepository = await managedWorkspace({}, "CODE", "REPOSITORY_SCOPED_EDIT");
+  assert.equal(codeRepository.claim.agent.expertise, codeMetrics.claim.agent.expertise);
+  assert.notDeepEqual(
+    codeRepository.claim.capabilityGrant.logicalToolNames,
+    codeMetrics.claim.capabilityGrant.logicalToolNames,
+  );
+  assert.equal(codeRepository.claim.run.accessProfile, "REPOSITORY_SCOPED_EDIT");
+});
+
+test("a Code bot completes a Metrics-scoped run with metrics authority and evidence", async () => {
+  const { local, owner, relay, claim } = await managedWorkspace(
+    {}, "CODE", "METRICS_SCOPED_EDIT",
+  );
+  const expected = success(buildExpectedManifest(
+    "https://ratiflow.test",
+    claim.run.accessProfile,
+    claim.agent.runtime,
+    claim.attempt.registrationScope,
+    claim.attempt.registrationGeneration,
+  ));
+  success(await relay.recordRelayManifest(claim.grant, expected.manifest));
+
+  const execute = async (
+    logicalName: "read_assignment" | "query_demo_metrics" | "submit_scoped_revision",
+    functionCallId: string,
+    input: Readonly<Record<string, unknown>>,
+  ) => {
+    const entry = expected.manifest.entries.find((candidate) =>
+      candidate.logicalName === logicalName);
+    if (!entry) throw new Error(`${logicalName} missing from Metrics catalog`);
+    const permit = success(await relay.issueExecutionPermit(claim.grant, {
+      attemptId: claim.attempt.attemptId,
+      functionCallId,
+      physicalToolName: entry.physicalName,
+      arguments: input,
+    }));
+    return success(await relay.executeRelayTool(claim.grant, {
+      requestId: randomUUID(),
+      permit: permit.token,
+      physicalToolName: entry.physicalName,
+      input,
+    }));
+  };
+
+  const assignment = JSON.parse((await execute("read_assignment", "cross-assignment", {})).output);
+  assert.equal(assignment.data.agent.expertise, "CODE");
+  assert.equal(assignment.data.capabilityGrant.accessProfile, "METRICS_SCOPED_EDIT");
+  await execute("query_demo_metrics", "cross-metrics", {
+    dataset: "northstar_launch_capacity",
+    question: "What launch constraint should this passage state?",
+  });
+  await execute("submit_scoped_revision", "cross-submit", {
+    basedOnRevision: 2,
+    resultSummary: "Applied the metrics-backed capacity constraint.",
+    replacementText: "capacity-constrained",
+    evidenceRefs: ["northstar_launch_capacity"],
+  });
+
+  const surface = success(await local.inspect(owner.humanSessionToken));
+  assert.equal(surface.document.body, "Alpha capacity-constrained gamma");
+  assert.deepEqual(surface.history[0]?.evidenceRefs, ["northstar_launch_capacity"]);
+});
+
+test("an equal-cardinality Editorial manifest cannot cross a Repository-scoped run boundary", async () => {
+  const { owner, relay, claim } = await managedWorkspace(
+    {}, "CODE", "REPOSITORY_SCOPED_EDIT",
+  );
+  const forged = success(buildExpectedManifest(
+    "https://ratiflow.test",
+    "EDITORIAL_SCOPED_EDIT",
+    claim.agent.runtime,
+    claim.attempt.registrationScope,
+    claim.attempt.registrationGeneration,
+  ));
+  assert.equal(forged.manifest.entries.length, claim.capabilityGrant.logicalToolNames.length);
+  const rejected = await relay.recordRelayManifest(claim.grant, forged.manifest);
+  assert.equal(rejected.ok, false);
+  if (!rejected.ok) assert.equal(rejected.code, "RELAY_MANIFEST_MISMATCH");
+
+  const editorialTool = forged.manifest.entries.find((entry) =>
+    entry.logicalName === "read_company_style_guide");
+  if (!editorialTool) throw new Error("forged Editorial tool missing");
+  const permit = await relay.issueExecutionPermit(claim.grant, {
+    attemptId: claim.attempt.attemptId,
+    functionCallId: "forged-editorial-tool",
+    physicalToolName: editorialTool.physicalName,
+    arguments: {},
+  });
+  assert.equal(permit.ok, false);
+  if (!permit.ok) assert.equal(permit.code, "RELAY_MANIFEST_MISMATCH");
+  const state = success(await relay.readRelayState(owner.humanSessionToken));
+  assert.equal(state.trace.some(({ kind }) => kind === "WEBMCP_GET_TOOLS_COMPLETED"), false);
+  assert.equal(state.runs[0]?.status, "ACTIVE");
+});
+
+test("agent mentions require access and human mentions reject it", async () => {
+  const local = new LocalRepositoryService({ relaySigningSecret: SIGNING_SECRET });
+  const owner = success(await local.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
+  const relay = local.getRelayService();
+  const state = success(await relay.readRelayState(owner.humanSessionToken));
+  const agent = state.directory.find((entry) =>
+    entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY");
+  if (!agent || agent.kind !== "AGENT") throw new Error("managed agent missing");
+  const base = {
+    requestId: randomUUID(),
+    expectedRevision: 1,
+    comment: `@${agent.displayName} Review this passage.`,
+    target: { kind: "AGENT", profileId: agent.profileId },
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 5 },
+  };
+  const missing = await relay.createDirectoryMention(
+    owner.humanSessionToken,
+    base as unknown as CreateDirectoryMentionServiceInput,
+  );
+  assert.equal(missing.ok, false);
+  if (!missing.ok) assert.equal(missing.code, "INVALID_INPUT");
+
+  const humanWithAccess = await relay.createDirectoryMention(
+    owner.humanSessionToken,
+    {
+      requestId: randomUUID(), expectedRevision: 1,
+      comment: "@Priya Discuss this document.",
+      target: { kind: "HUMAN", memberId: owner.selfMemberId },
+      accessProfile: "METRICS_SCOPED_EDIT",
+      anchor: { scope: "DOCUMENT" },
+    } as unknown as CreateDirectoryMentionServiceInput,
+  );
+  assert.equal(humanWithAccess.ok, false);
+  if (!humanWithAccess.ok) assert.equal(humanWithAccess.code, "INVALID_INPUT");
+});
+
 test("one-shot managed tool permits replay one receipt and reject a changed request", async () => {
   const { relay, claim } = await managedWorkspace();
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
-    claim.agent,
+    claim.run.accessProfile,
+    claim.agent.runtime,
     claim.attempt.registrationScope,
     claim.attempt.registrationGeneration,
   ));
@@ -208,10 +362,11 @@ test("one-shot managed tool permits replay one receipt and reject a changed requ
 });
 
 test("read_demo_file permits match the exact path-only catalog schema", async () => {
-  const { relay, claim } = await managedWorkspace({}, "CODE");
+  const { relay, claim } = await managedWorkspace({}, "CODE", "REPOSITORY_SCOPED_EDIT");
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
-    claim.agent,
+    claim.run.accessProfile,
+    claim.agent.runtime,
     claim.attempt.registrationScope,
     claim.attempt.registrationGeneration,
   ));
@@ -253,7 +408,8 @@ test("a completed submit tool still replays its exact durable receipt", async ()
   const { owner, relay, claim } = await managedWorkspace();
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
-    claim.agent,
+    claim.run.accessProfile,
+    claim.agent.runtime,
     claim.attempt.registrationScope,
     claim.attempt.registrationGeneration,
   ));
@@ -398,6 +554,7 @@ test("an older WAITING_RETRY head blocks newer work and only its exact retry can
     expectedRevision: 2,
     comment: "@General Rewrite the next passage clearly.",
     target: { kind: "AGENT", profileId: firstClaim.agent.profileId },
+    accessProfile: "EDITORIAL_SCOPED_EDIT",
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 11, rangeEnd: 16 },
   }));
   if (!secondReceipt.runId) throw new Error("second run missing");
@@ -609,7 +766,8 @@ test("an expired execution permit cannot invoke its Relay tool", async () => {
   const { owner, relay, claim } = await managedWorkspace({ now: () => now });
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
-    claim.agent,
+    claim.run.accessProfile,
+    claim.agent.runtime,
     claim.attempt.registrationScope,
     claim.attempt.registrationGeneration,
   ));
@@ -668,7 +826,7 @@ test("ordinary task compatibility rejects managed principals but preserves human
 
   const managed = state.directory.find((entry) =>
     entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY"
-      && entry.specialty === "GENERAL");
+      && entry.expertise === "GENERAL");
   if (!managed || managed.kind !== "AGENT") throw new Error("managed directory principal missing");
   const rejected = await local.createMentionTask(owner.humanSessionToken, {
     requestId: randomUUID(),

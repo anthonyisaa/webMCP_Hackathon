@@ -10,6 +10,7 @@ import {
 import { relayFailure } from "@/agent-relay/server/safety";
 import { jsonObject } from "@/domain/http-session";
 import { idempotencyKeyFrom } from "../../_response";
+import { rejectIncompatibleRelayContract } from "../_request";
 
 const RELAY_GRANT_MAX_BYTES = 4 * 1_024;
 
@@ -24,6 +25,8 @@ export async function handleRelayStepRequest(
   request: Request,
   executor: RelayStepExecutor,
 ): Promise<Response> {
+  const incompatible = rejectIncompatibleRelayContract(request);
+  if (incompatible) return incompatible;
   const grant = relayGrantFrom(request);
   if (!grant) {
     return relayResponse(relayFailure(

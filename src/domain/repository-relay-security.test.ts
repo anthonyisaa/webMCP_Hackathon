@@ -44,7 +44,7 @@ function permitClaims(grant: RelayGrantClaims): RelayExecutionPermitClaims {
     aud: RELAY_EXECUTION_PERMIT_AUDIENCE,
     attemptId: grant.attemptId,
     functionCallId: "call_assignment",
-    physicalToolName: "rf_data_0011223344556677_g1_assignment",
+    physicalToolName: "rf_metrics_0011223344556677_g1_assignment",
     argumentsDigest: relaySha256({}),
     registrationGeneration: grant.registrationGeneration,
     leaseId: grant.leaseId,

@@ -647,7 +647,7 @@
 .onboardingFlow {
   display: grid;
   min-height: 0;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 3.2%;
   align-items: stretch;
   margin: 3.6% 0 2%;
@@ -804,6 +804,27 @@
   font-size: 12px;
 }
 
+.accessChoice {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--green);
+  background: #edf5f1;
+}
+
+.accessChoice span {
+  color: #667069;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.accessChoice b {
+  color: #285f53;
+  font-size: 12px;
+}
+
 /* Slide 5 */
 .assignmentPreview {
   display: grid;
@@ -927,16 +948,6 @@
   color: #8f9990;
 }
 
-.catalogRole {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #e2e7e2;
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-}
-
 .commonTools {
   padding: 14px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
@@ -999,66 +1010,111 @@
   margin: 2.6% 0 1.8%;
 }
 
-.roleCatalogs {
+.capabilitySeparation {
   display: grid;
   min-height: 0;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: 1fr 54px 1fr 54px 1.08fr;
+  align-items: stretch;
 }
 
-.roleCatalog {
+.identityCard,
+.accessCard,
+.grantCard {
   display: grid;
   min-width: 0;
   align-content: center;
   gap: 10px;
-  padding: 25px 24px;
+  padding: 24px;
   border: 1px solid rgba(32, 34, 31, 0.18);
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.7);
 }
 
-.roleCatalogActive {
-  border-color: rgba(115, 86, 161, 0.5);
-  background: var(--violet-soft);
+.accessCard {
+  border-color: rgba(41, 104, 91, 0.42);
+  background: rgba(219, 235, 228, 0.58);
 }
 
-.roleCatalog > span {
+.grantCard {
+  border-color: rgba(115, 86, 161, 0.45);
+  background: rgba(233, 225, 243, 0.6);
+}
+
+.identityCard > span,
+.accessCard > span,
+.grantCard > span {
+  color: #737a73;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.identityCard > b,
+.accessCard > b,
+.grantCard > b {
   display: flex;
   align-items: center;
   gap: 9px;
   color: #343934;
-  font-size: 18px;
-  font-weight: 680;
-  letter-spacing: 0.06em;
+  font-size: clamp(1.2rem, 1.45vw, 1.7rem);
+  font-weight: 630;
+  letter-spacing: -0.03em;
 }
 
-.roleCatalog > span b {
-  margin-left: auto;
-  color: #70766f;
-  font-family: var(--font-geist-mono, ui-monospace, monospace);
+.identityCard p,
+.accessCard p {
+  margin: 0;
+  color: #555d56;
   font-size: 14px;
 }
 
-.roleCatalog p {
-  margin: 2px 0 4px;
-  padding: 10px 0;
+.identityCard small,
+.accessCard small {
+  padding-top: 9px;
   border-top: 1px solid rgba(32, 34, 31, 0.12);
-  border-bottom: 1px solid rgba(32, 34, 31, 0.12);
-  color: #60665f;
-  font-size: 13px;
+  color: #687068;
+  font-size: 11px;
 }
 
-.roleCatalog code {
+.grantCard code {
   overflow-wrap: anywhere;
   color: #684b92;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.roleCatalog:first-child code {
-  color: #8c531a;
+.capabilityArrow {
+  display: grid;
+  place-items: center;
+  color: #747c75;
+  font-size: 24px;
 }
 
-.roleCatalog:last-child code {
-  color: #246456;
+.orthogonalityProof {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid rgba(32, 34, 31, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.orthogonalityProof > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px;
+}
+
+.orthogonalityProof > div + div {
+  border-left: 1px solid rgba(32, 34, 31, 0.12);
+}
+
+.orthogonalityProof span {
+  color: #343934;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.orthogonalityProof code {
+  color: #5f675f;
+  font-size: 10px;
 }
 
 .turnRail {
@@ -2013,7 +2069,7 @@
   .onboardingFlow,
   .sequence,
   .catalogCompare,
-  .roleCatalogs,
+  .capabilitySeparation,
   .historyComposition,
   .ablationCompare,
   .dataComposition,
@@ -2053,13 +2109,33 @@
     margin: 34px 0 18px;
   }
 
-  .roleCatalog {
-    min-height: 230px;
-    padding: 38px 28px 28px;
-  }
-
   .turnRail {
     grid-template-columns: 1fr;
+  }
+
+  .capabilitySeparation {
+    gap: 12px;
+  }
+
+  .capabilityArrow {
+    min-height: 34px;
+    transform: rotate(90deg);
+  }
+
+  .identityCard,
+  .accessCard,
+  .grantCard {
+    min-height: 220px;
+    padding: 34px 28px;
+  }
+
+  .orthogonalityProof {
+    grid-template-columns: 1fr;
+  }
+
+  .orthogonalityProof > div + div {
+    border-top: 1px solid rgba(32, 34, 31, 0.12);
+    border-left: 0;
   }
 
   .turnRail ol {

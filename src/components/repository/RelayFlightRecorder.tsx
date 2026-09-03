@@ -1,6 +1,7 @@
 import {
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
+  RELAY_ACCESS_POLICIES,
   type ManagedAgentDirectoryEntry,
   type RelayAttemptStatus,
   type RelayRun,
@@ -9,6 +10,7 @@ import {
 } from "@/agent-relay/contracts";
 
 import styles from "./repository-workspace.module.css";
+import { repositoryAccessProfileLabel } from "./relay-access-copy";
 
 export interface RelayRuntimeView {
   phase: string;
@@ -28,7 +30,7 @@ const TRACE_COPY: Readonly<Record<RelayTraceEvent["kind"], string>> = {
   RUN_CLAIMED: "This page claimed one lease",
   LEASE_RENEWED: "Page lease renewed",
   IDLE_CATALOG_WITHDRAWN: "Idle tools withdrawn",
-  RELAY_CATALOG_REGISTERED: "Specialist catalog registered",
+  RELAY_CATALOG_REGISTERED: "Granted catalog registered",
   WEBMCP_TOOLCHANGE_OBSERVED: "WebMCP announced the catalog change",
   MODEL_TOOL_SEARCH_REQUESTED: "Luna requested page tools",
   WEBMCP_GET_TOOLS_COMPLETED: "Page returned the discovered catalog",
@@ -36,7 +38,7 @@ const TRACE_COPY: Readonly<Record<RelayTraceEvent["kind"], string>> = {
   WEBMCP_EXECUTE_STARTED: "Page dispatched the selected tool",
   WEBMCP_EXECUTE_COMPLETED: "Application recorded the tool result",
   REVISION_COMMITTED: "Scoped revision committed",
-  RELAY_CATALOG_WITHDRAWN: "Specialist catalog withdrawn",
+  RELAY_CATALOG_WITHDRAWN: "Granted catalog withdrawn",
   IDLE_CATALOG_RESTORED: "Idle tools restored",
   ATTEMPT_RECONCILING: "Checking an ambiguous dispatch",
   ATTEMPT_FAILED: "Attempt stopped safely",
@@ -77,7 +79,7 @@ function statusCopy(
       ? "Starting bounded retry"
       : "Claiming queued assignment";
   }
-  if (runtime?.phase === "TRANSITIONING_TO_RELAY") return "Switching to specialist tools";
+  if (runtime?.phase === "TRANSITIONING_TO_RELAY") return "Switching to granted website tools";
   if (runtime?.phase === "EXECUTING_TOOL" && runtime.activeLogicalTool) {
     return `Running ${runtime.activeLogicalTool}`;
   }
@@ -110,6 +112,8 @@ function eventTime(value: string): string {
 export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightRecorderProps) {
   const run = activeRun(state);
   const agent = activeAgent(state, run);
+  const accessPolicy = run ? RELAY_ACCESS_POLICIES[run.accessProfile] : null;
+  const accessLabel = run ? repositoryAccessProfileLabel(run.accessProfile) : null;
   const events = state?.trace.filter((event) => !run || event.runId === run.runId).slice(-8) ?? [];
   const status = statusCopy(run, runtime, state?.activeAttempt?.status);
   const hasError = Boolean(
@@ -133,23 +137,24 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
 
       <div className={styles.relayIdentityRow}>
         <span><small>Agent</small><strong>{agent ? `@${agent.displayName}` : "Waiting"}</strong></span>
-        <span><small>Model</small><strong>{MANAGED_AGENT_MODEL}</strong></span>
-        <span><small>Runtime</small><strong>{MANAGED_AGENT_RUNTIME === "OPENAI_LUNA_WEBMCP_RELAY" ? "Application-owned Luna ↔ WebMCP relay" : MANAGED_AGENT_RUNTIME}</strong></span>
+        <span><small>Bot expertise</small><strong>{run ? run.agentExpertise.toLocaleLowerCase() : "—"}</strong></span>
+        <span><small>Website access</small><strong>{accessLabel ?? "Not selected"}</strong></span>
+        <span><small>Runtime</small><strong>{MANAGED_AGENT_MODEL} · {MANAGED_AGENT_RUNTIME === "OPENAI_LUNA_WEBMCP_RELAY" ? "Application-owned Luna ↔ WebMCP relay" : MANAGED_AGENT_RUNTIME}</strong></span>
       </div>
 
-      {agent ? (
+      {run && accessPolicy && accessLabel ? (
         <div className={styles.discoveredCatalog}>
-          <div><span>Discovered catalog</span><small>{agent.logicalToolNames.length} tools · role scoped</small></div>
-          <ul aria-label={`${agent.displayName} tool catalog`}>
-            {agent.logicalToolNames.map((tool) => (
+          <div><span>Discovered website catalog</span><small>{accessPolicy.logicalToolNames.length} tools · {accessLabel} grant</small></div>
+          <ul aria-label={`${accessLabel} website tool catalog`}>
+            {accessPolicy.logicalToolNames.map((tool) => (
               <li key={tool} data-active={runtime?.activeLogicalTool === tool ? "true" : undefined}>{tool}</li>
             ))}
           </ul>
         </div>
       ) : (
         <div className={styles.recorderEmpty}>
-          <strong>Mention @Code, @Data, or @General.</strong>
-          <span>This panel will show the catalog WebMCP exposes, Luna&apos;s required calls, verified evidence, and the resulting revision.</span>
+          <strong>Mention a bot, then choose its website access.</strong>
+          <span>This panel will show the access-driven catalog WebMCP exposes, Luna&apos;s calls, verified evidence, and the resulting revision.</span>
         </div>
       )}
 

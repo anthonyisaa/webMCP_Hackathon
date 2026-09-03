@@ -1,11 +1,17 @@
 import { getRuntimeRepositoryRelayService } from "@/domain/repository-runtime";
 import { relayResponse } from "../../../_response";
-import { hasEmptyBody, relayGrantFrom } from "../../_request";
+import {
+  hasEmptyBody,
+  rejectIncompatibleRelayContract,
+  relayGrantFrom,
+} from "../../_request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
+  const incompatible = rejectIncompatibleRelayContract(request);
+  if (incompatible) return incompatible;
   const grant = relayGrantFrom(request);
   if (!grant) {
     return relayResponse({ ok: false, code: "UNAUTHORIZED", message: "A Relay grant is required.", retryable: false });

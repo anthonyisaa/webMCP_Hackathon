@@ -1,5 +1,5 @@
-# Ratiflow v4.2 HTML deck storyboard
-_Frozen audience, narrative, copy, composition, and evidence contract · 2026-09-02_
+# Ratiflow v4.3 HTML deck storyboard
+_Frozen audience, narrative, copy, composition, and evidence contract · 2026-09-03_
 
 ## 1. Purpose
 
@@ -9,12 +9,14 @@ dependency, and concrete next steps.
 
 The communication job is:
 
-> By the end, the audience should understand how a live document supplies role-scoped
-> WebMCP tools to Luna and preserves each resulting action as bounded, reversible
-> provenance—and know exactly what to try in the live product.
+> By the end, the audience should understand that Code, Data, and General are descriptive
+> bot archetypes; a person separately chooses exactly one temporary Metrics, Repository,
+> or Editorial catalog for each assignment; an archetype may suggest a default but never
+> grants authority; Ratiflow grants and enforces access; and WebMCP exposes and invokes the
+> matching tab-bound site tools until the run ends.
 
 The narrative is `lost agent context -> one new document primitive -> three-step demo ->
-role catalog versus relay turn -> Postmortem proof -> durable memory -> ablation ->
+bot identity versus assignment access -> Postmortem proof -> durable memory -> ablation ->
 Product/Data transfer -> truthful architecture -> WebMCP next steps -> Ratiflow next steps`.
 
 Sources:
@@ -78,9 +80,10 @@ broader or more flattering claims.
 | Data fixture, result, or chart | `SYNTHETIC DEMO DATA` |
 | Luna architecture boundary | `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS` |
 | Rendered HTML/CSS product visualization | `PRODUCT FLOW VISUAL` |
-| Role catalog boundary | `WEBMCP · ROLE/RUN CATALOG` |
-| Relay turn boundary | `RELAY · ONE REQUIRED FUNCTION PER TURN` |
-| Luna/server responsibility | `LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER` |
+| Bot identity boundary | `BOT EXPERTISE · DESCRIPTIVE` |
+| Access boundary | `ASSIGNMENT ACCESS · EXPLICIT GRANT` |
+| WebMCP boundary | `WEBMCP · EXPOSES / INVOKES TOOLS` |
+| Enforcement boundary | `RATIFLOW SERVER · ENFORCES ACCESS` |
 | Future-looking platform thesis | `PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP` |
 | Capture provenance | `VERIFIED ON {surface} · {YYYY-MM-DD} · {short SHA}` |
 
@@ -95,6 +98,8 @@ Never describe Luna as natively supporting OpenAI Site Tools. The approved claim
 > Ratiflow's application-owned in-page relay lets Luna discover the page's live WebMCP
 > tools; the server pins each required next function, Luna composes its strict arguments,
 > and the page routes the returned call through `document.modelContext.executeTool()`.
+> Bot expertise remains descriptive; Ratiflow maps explicit assignment access to the
+> catalog and enforces document, range, and action permissions server-side.
 
 ## 4. Visual and evidence provenance
 
@@ -224,13 +229,13 @@ They are conceptual typography, not product controls or a competitor imitation.
 
 **Visible copy**
 
-> Mention the expert → publish its role-scoped WebMCP tools → commit a bounded,
-> restorable change.
+> Choose the bot and assignment access separately → expose matching site tools → commit a
+> bounded, restorable change.
 
 **Composition**
 
-Use one horizontal sequence of three broad product frames: the selected mention, role
-tool discovery, and completed exact-range diff. A single hairline connects them. Labels
+Use one horizontal sequence of three broad product frames: the selected mention plus
+access choice, site-tool discovery, and completed exact-range diff. A single hairline connects them. Labels
 under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
 
 **Evidence**
@@ -248,15 +253,16 @@ under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
 
 **Visible copy**
 
-> Open Postmortem. Assign `@Code` to Root cause. Follow tool discovery, required calls,
-> and the committed revision.
+> Open Postmortem. Assign `@Code` with Repository access to Root cause. Follow tool
+> discovery, required calls, and the revision.
 
 **Composition**
 
 Use three vertical product-flow frames with oversized live-text numerals `1`, `2`, and
 `3`: `CHOOSE`, `ASSIGN`, and `WATCH EXECUTION`. The first combines nickname and document
-selection; the second shows the exact Root cause range and Code request; the third shows
-catalog, Luna, `executeTool`, committed revision, and the History/Restore destination.
+selection; the second shows the exact Root cause range, Code identity, and separate
+Repository access choice; the third shows the granted catalog, Luna, `executeTool`,
+committed revision, and the History/Restore destination.
 
 **Evidence**
 
@@ -268,36 +274,38 @@ catalog, Luna, `executeTool`, committed revision, and the History/Restore destin
 
 **Section:** `LIVE DEMO`.
 
-### Slide 5 — Role-scoped catalogs. Turn-scoped execution.
+### Slide 5 — Three bot archetypes. Dynamic access per assignment.
 
 **Visible copy**
 
-> WebMCP publishes one catalog for the selected role and run; the relay advances one
-> server-required function per turn.
+> Code, Data, and General describe expertise. Each run receives exactly one temporary
+> Metrics, Repository, or Editorial catalog.
 
 **Composition**
 
-Use a warm-paper mechanism slide. The first rail compares the published role/run catalog:
+Use a warm-paper mechanism slide with three connected layers:
 
-- Data = 5 shared document tools + `query_demo_metrics` = 6.
-- Code = 5 shared document tools + `search_demo_code` + `read_demo_file` = 7.
-- General = 5 shared document tools + `read_company_style_guide` +
-  `check_document_consistency` = 7.
+1. `WHO DOES THE WORK`: the `@Code`, `@Data`, and `@General` archetypes are descriptive;
+   they may suggest a default but never grant authority.
+2. `WHAT THIS RUN MAY USE`: the person's separate choice of exactly one temporary
+   Metrics, Repository, or Editorial catalog plus exact-selection document authority.
+3. `RATIFLOW CAPABILITY GRANT`: the seven tab-bound site tools including
+   `search_demo_code` and `read_demo_file`.
 
-Below it, show one Code run advancing through `read_assignment → search_demo_code →
-read_demo_file → submit_scoped_revision`. The rail must explicitly say that it is the
-same registered catalog: WebMCP does not republish a catalog every Luna/model turn. The
-relay exposes one required function per turn, Luna composes arguments, and the server
-enforces order. Show these labels verbatim:
+Below, show the two frozen invariants: `@Code + Metrics` and `@Data + Metrics` receive the
+same six logical tools, while `@Code + Metrics` and `@Code + Repository` keep the same bot
+but change catalogs and source sequence. Include `@General + Editorial` so all three
+archetypes and catalogs are named. Show these labels verbatim:
 
-- `WEBMCP · ROLE/RUN CATALOG`
-- `RELAY · ONE REQUIRED FUNCTION PER TURN`
-- `LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER`
+- `BOT EXPERTISE · DESCRIPTIVE`
+- `ASSIGNMENT ACCESS · EXPLICIT GRANT`
+- `WEBMCP · EXPOSES / INVOKES TOOLS`
+- `RATIFLOW SERVER · ENFORCES ACCESS`
 
 **Evidence**
 
-- `05-role-run-catalog.json` — frozen role/tool counts and specialist deltas.
-- `05-code-turn-rail.json` — sanitized required-function order for the Code golden.
+- `05-capability-grant.json` — frozen bot/access separation and exact profile catalogs.
+- `05-repository-task-sequence.json` — sanitized required-function order for the Repository golden.
 - Captured native evidence may upgrade the rendered contract only if one catalog
   registration remains active across the matching ordered calls.
 
@@ -338,10 +346,10 @@ action visible. The product visual—not added deck prose—carries the detailed
 
 **Composition**
 
-Use one vertical revision spine showing Human, Code, and General authorship. Beside it,
-open the General revision detail with its prompt, immutable source context, evidence,
-before/after change, model/runtime, and Restore action. Keep comments and revisions
-visually distinct but connected.
+Use one vertical revision spine showing Human and the same Code bot receiving Repository
+then Editorial grants. Beside it, open the second Code revision detail with its prompt,
+immutable source context, evidence, before/after change, model/runtime, and Restore action.
+Keep comments and revisions visually distinct but connected.
 
 **Evidence**
 
@@ -416,7 +424,7 @@ only if those facts remain exact in the final Product golden.
 
 Use a warm-paper single-line architecture flow:
 
-`@mention -> task + lease -> WebMCP catalog <-> Luna Responses -> executeTool -> revision ledger`
+`@mention -> task + lease -> WebMCP catalog <-> Luna Responses -> executeTool -> revision ledger -> assignment catalog withdrawn -> idle catalog restored`
 
 Keep nodes as simple live-text labels, not a dashboard. Under the flow, align the six
 required event labels. Add timestamps only when they come from one sanitized captured
@@ -476,14 +484,14 @@ questions, output schemas, identity/delegation, and receipts/replay.
 
 **Visible copy**
 
-> Choose Postmortem for `@Code` or Product for `@Data`, then inspect the tool trace,
+> Choose a bot and assignment access separately, then inspect the site-tool trace,
 > revision history, and Restore.
 
 **Composition**
 
 Use two concrete live-demo paths. Postmortem directs the viewer to select Root cause,
-assign `@Code`, and inspect r6. Product directs the viewer to select Success Measures,
-assign `@Data`, and inspect r7. Beneath them, show the four actions `Choose`, `Assign`,
+assign `@Code + Repository`, and inspect r6. Product directs the viewer to select Success
+Measures, assign `@Data + Metrics`, and inspect r7. Beneath them, show the four actions `Choose`, `Assign`,
 `Watch`, and `Inspect`, with catalog/required-call and History/Restore details. Close with
 the internal live-demo action:
 
@@ -512,7 +520,7 @@ observed. Do not end on a generic thank-you slide or a scorecard.
 | 2 | Seed document plus detached-context typography | Exact seed screenshot |
 | 3 | Checked mention → discovery → revision sequence | Same-lineage captured sequence |
 | 4 | Checked choose → assign → watch-execution journey | Fresh-session same-lineage screenshots |
-| 5 | Contract-accurate role/run catalogs and required-turn rail | Native catalog plus matching ordered calls |
+| 5 | Contract-accurate bot/access separation and capability grants | Native catalog plus matching ordered calls |
 | 6 | Golden Code diff and synthetic refs | Live Luna result and committed diff |
 | 7 | Golden history/provenance lineage | Captured matching lineage |
 | 8 | Contract WebMCP-on/off comparison | Controlled native ablation |

@@ -8,6 +8,10 @@ import type {
 } from "@/agent-relay/contracts";
 import type { RelayStepRequest } from "@/agent-relay/server/relay-stepper";
 import {
+  RELAY_CAPABILITY_CONTRACT_HEADER,
+  RELAY_CAPABILITY_CONTRACT_VALUE,
+} from "@/repository/contracts";
+import {
   handleRelayStepRequest,
   type RelayStepExecutor,
 } from "./handler";
@@ -22,6 +26,7 @@ function post(
     requestId?: string;
     origin?: string;
     rawBody?: string;
+    contract?: string | null;
   } = {},
 ): Request {
   return new Request(URL, {
@@ -31,6 +36,10 @@ function post(
       authorization: `Bearer ${options.grant ?? GRANT}`,
       "Idempotency-Key": options.requestId ?? randomUUID(),
       origin: options.origin ?? "https://demo.ratiflow.test",
+      ...(options.contract === null ? {} : {
+        [RELAY_CAPABILITY_CONTRACT_HEADER]: options.contract
+          ?? RELAY_CAPABILITY_CONTRACT_VALUE,
+      }),
     },
     body: options.rawBody ?? JSON.stringify(body),
   });
@@ -114,6 +123,7 @@ test("rejects malformed JSON, missing idempotency, invalid grants, and absent or
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${GRANT}`,
+      [RELAY_CAPABILITY_CONTRACT_HEADER]: RELAY_CAPABILITY_CONTRACT_VALUE,
       origin: "https://demo.ratiflow.test",
     },
     body: JSON.stringify({ action: "START", attemptId: "attempt-1", expectedStep: 0 }),
@@ -130,11 +140,33 @@ test("rejects malformed JSON, missing idempotency, invalid grants, and absent or
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${GRANT}`,
+      [RELAY_CAPABILITY_CONTRACT_HEADER]: RELAY_CAPABILITY_CONTRACT_VALUE,
       "Idempotency-Key": randomUUID(),
     },
     body: JSON.stringify({ action: "START", attemptId: "attempt-1", expectedStep: 0 }),
   });
   expect((await handleRelayStepRequest(missingOrigin, target)).status).toBe(401);
+  expect(target.step).not.toHaveBeenCalled();
+});
+
+test("rejects missing or stale Relay contracts before constructing a step request", async () => {
+  const target = executor({
+    ok: false,
+    code: "RELAY_UNAVAILABLE",
+    message: "Should not run.",
+    retryable: false,
+  });
+  for (const contract of [null, "persona-first-v42"] as const) {
+    const response = await handleRelayStepRequest(post({
+      action: "START", attemptId: "attempt-1", expectedStep: 0,
+    }, { contract }), target);
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      code: "PROTOCOL_MISMATCH",
+      retryable: false,
+    });
+  }
   expect(target.step).not.toHaveBeenCalled();
 });
 

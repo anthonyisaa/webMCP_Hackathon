@@ -288,12 +288,12 @@ export function RatiflowDeck() {
                 </div>
                 <div className={styles.sequenceConnector} aria-hidden="true"><i /></div>
                 <div className={styles.sequenceStep}>
-                  <PreviewLabel>ROLE TOOL SURFACE</PreviewLabel>
+                  <PreviewLabel>ASSIGNMENT ACCESS</PreviewLabel>
                   <span className={styles.stepIndex}>02</span>
                   <div className={styles.toolDiscovery}>
+                    <small>Repository scoped edit</small>
                     <code>search_demo_code</code>
                     <code>read_demo_file</code>
-                    <small>role-scoped catalog</small>
                   </div>
                   <strong>DISCOVER</strong>
                 </div>
@@ -315,7 +315,7 @@ export function RatiflowDeck() {
           <li>
             <Slide index={3} currentIndex={currentIndex} compositionClass={styles.onboardingSlide}>
               <p className={styles.lede}>{DECK_SLIDES[3].subtitle}</p>
-              <div className={styles.onboardingFlow} aria-label="Three-step live demo flow: choose a document, assign Code, and watch execution">
+              <div className={styles.onboardingFlow} aria-label="Three-step live demo flow: choose a document, assign Code with Repository access, and watch execution">
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>1</span>
                   <PreviewLabel>CHOOSE</PreviewLabel>
@@ -328,12 +328,13 @@ export function RatiflowDeck() {
                   <PreviewLabel>ASSIGN</PreviewLabel>
                   <div className={styles.assignmentExcerpt}><span>ROOT CAUSE · EXACT SELECTION</span>Retry middleware introduced in <mark>commit 7d3c9e1</mark> ignored <mark>Retry-After</mark>…</div>
                   <div className={styles.commentBubble}><b>@Code</b> Verify the trigger and amplifier, then replace only this section.</div>
+                  <div className={styles.accessChoice}><span>Website access for this run</span><b>Repository scoped edit</b></div>
                 </div>
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>3</span>
                   <PreviewLabel>WATCH EXECUTION</PreviewLabel>
                   <div className={styles.proofSteps}>
-                    <code>WEBMCP CATALOG · CODE · 7</code>
+                    <code>CAPABILITY GRANT · REPOSITORY · 7</code>
                     <code>LUNA · REQUIRED CALLS</code>
                     <code>EXECUTE_TOOL · SCOPED WRITE</code>
                     <code>REVISION COMMITTED · r6</code>
@@ -349,41 +350,40 @@ export function RatiflowDeck() {
             <Slide index={4} currentIndex={currentIndex} compositionClass={styles.capabilitySlide}>
               <p className={styles.lede}>{DECK_SLIDES[4].subtitle}</p>
               <div className={styles.capabilityComposition}>
-                <div className={styles.roleCatalogs} aria-label="One role and run catalog per mention: Data has six tools, Code has seven tools, and General has seven tools">
-                  <article className={styles.roleCatalog}>
-                    <span><EvidenceDot tone="data" /> DATA <b>6</b></span>
-                    <p>5 shared document tools</p>
-                    <code>+ query_demo_metrics</code>
+                <div className={styles.capabilitySeparation} aria-label="Bot identity and assignment access are independent inputs to a server-issued capability grant">
+                  <article className={styles.identityCard}>
+                    <span>WHO DOES THE WORK</span>
+                    <b><EvidenceDot tone="code" /> @Code</b>
+                    <p>Archetypes: Code · Data · General</p>
+                    <small>May suggest a default; never grants authority</small>
                   </article>
-                  <article className={`${styles.roleCatalog} ${styles.roleCatalogActive}`}>
-                    <span><EvidenceDot tone="code" /> CODE <b>7</b></span>
-                    <p>5 shared document tools</p>
-                    <code>+ search_demo_code</code>
-                    <code>+ read_demo_file</code>
+                  <div className={styles.capabilityArrow} aria-hidden="true">+</div>
+                  <article className={styles.accessCard}>
+                    <span>WHAT THIS RUN MAY USE</span>
+                    <b>Metrics · Repository · Editorial</b>
+                    <p>Exactly one temporary catalog per run</p>
+                    <small>Human-approved · exact-selection authority</small>
                   </article>
-                  <article className={styles.roleCatalog}>
-                    <span><EvidenceDot tone="general" /> GENERAL <b>7</b></span>
-                    <p>5 shared document tools</p>
-                    <code>+ read_company_style_guide</code>
-                    <code>+ check_document_consistency</code>
+                  <div className={styles.capabilityArrow} aria-hidden="true">→</div>
+                  <article className={styles.grantCard}>
+                    <span>RATIFLOW CAPABILITY GRANT</span>
+                    <b>7 tab-bound site tools</b>
+                    <code>search_demo_code</code>
+                    <code>read_demo_file</code>
                   </article>
                 </div>
-                <div className={styles.turnRail} aria-label="Code run advances through four server-enforced required functions without republishing the WebMCP catalog">
-                  <div className={styles.turnRailHeader}><span>CODE RUN · SAME REGISTERED CATALOG</span><small>relay advances the required function</small></div>
-                  <ol>
-                    {[
-                      "read_assignment",
-                      "search_demo_code",
-                      "read_demo_file",
-                      "submit_scoped_revision",
-                    ].map((tool, index) => <li key={tool}><span>{index + 1}</span><code>{tool}</code></li>)}
-                  </ol>
+                <div className={styles.orthogonalityProof} aria-label="Capability invariants: different bots with Metrics access receive the same tools, and one Code bot can receive different tools when assignment access changes">
+                  <div><span>@Code + Metrics</span><code>query_demo_metrics · 6 tools</code></div>
+                  <div><span>@Data + Metrics</span><code>same catalog · 6 tools</code></div>
+                  <div><span>@Code + Repository</span><code>code search + file read · 7 tools</code></div>
+                  <div><span>@General + Editorial</span><code>style + consistency · 7 tools</code></div>
                 </div>
               </div>
               <div className={styles.truthRowCenter}>
-                <TruthLabel tone="green">WEBMCP · ROLE/RUN CATALOG</TruthLabel>
-                <TruthLabel tone="violet">RELAY · ONE REQUIRED FUNCTION PER TURN</TruthLabel>
-                <TruthLabel tone="neutral">LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER</TruthLabel>
+                <TruthLabel tone="violet">BOT EXPERTISE · DESCRIPTIVE</TruthLabel>
+                <TruthLabel tone="green">ASSIGNMENT ACCESS · EXPLICIT GRANT</TruthLabel>
+                <TruthLabel tone="neutral">WEBMCP · EXPOSES / INVOKES TOOLS</TruthLabel>
+                <TruthLabel tone="neutral">RATIFLOW SERVER · ENFORCES ACCESS</TruthLabel>
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
               </div>
             </Slide>
@@ -413,15 +413,15 @@ export function RatiflowDeck() {
                 <ol className={styles.revisionSpine} aria-label="Revision authorship sequence">
                   <li><EvidenceDot tone="code" /><span><b>r5 · Builder</b><small>Seeded clarification · evidence preserved</small></span></li>
                   <li><EvidenceDot tone="code" /><span><b>r6 · Code</b><small>Verified retry behavior · exact-range revision</small></span></li>
-                  <li><EvidenceDot tone="general" /><span><b>r7 · General</b><small>Reworded section · facts preserved</small></span></li>
+                  <li><EvidenceDot tone="code" /><span><b>r7 · Code</b><small>Editorial access · facts preserved</small></span></li>
                 </ol>
                 <div className={`${styles.previewFrame} ${styles.historyDetail}`} role="img" aria-label="Revision detail with prompt, source context, model, evidence, diff, and Restore action.">
                   <PreviewLabel>IMMUTABLE REVISION DETAIL</PreviewLabel>
                   <span>REVISION DETAIL · r7</span>
-                  <h3>General reworded Root cause</h3>
+                  <h3>Code reworded Root cause</h3>
                   <dl>
                     <div><dt>Asked by</dt><dd>Ada</dd></div>
-                    <div><dt>Agent</dt><dd>@General</dd></div>
+                    <div><dt>Agent</dt><dd>@Code</dd></div>
                     <div><dt>Runtime</dt><dd>gpt-5.6-luna · WebMCP Relay</dd></div>
                     <div><dt>Evidence</dt><dd>Style guide · consistency rules</dd></div>
                   </dl>
@@ -442,8 +442,8 @@ export function RatiflowDeck() {
                   <div className={styles.ablationDocument}><i /><i /><i /><mark>@Code</mark></div>
                   <p><b>Document</b> editable</p>
                   <p><b>Comments</b> available</p>
-                  <p><b>Managed relay</b> discovers role tools</p>
-                  <TruthLabel tone="green">DYNAMIC ROLE CATALOG</TruthLabel>
+                  <p><b>Managed relay</b> discovers assignment tools</p>
+                  <TruthLabel tone="green">TAB-BOUND SITE TOOLS</TruthLabel>
                 </div>
                 <div className={styles.ablationDivider} aria-hidden="true">A/B</div>
                 <div className={styles.ablationOff}>
@@ -485,20 +485,21 @@ export function RatiflowDeck() {
           <li>
             <Slide index={9} currentIndex={currentIndex} compositionClass={styles.architectureSlide}>
               <p className={styles.lede}>{DECK_SLIDES[9].subtitle}</p>
-              <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: mention, task and lease, WebMCP catalog, Luna Responses, executeTool, and revision ledger.">
-                {["@mention", "task + lease", "WebMCP catalog", "Luna Responses", "executeTool", "revision ledger"].map((node, index) => (
+              <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: mention with access choice, server capability grant, WebMCP site tools, Luna Responses, executeTool, server-checked revision, then assignment catalog withdrawal and idle restoration.">
+                {["@mention + access", "server capability grant", "WebMCP site tools", "Luna Responses", "executeTool", "revision + cleanup"].map((node, index) => (
                   <div className={styles.architectureNode} key={node}>
                     <span>{String(index + 1).padStart(2, "0")}</span><b>{node}</b>
                   </div>
                 ))}
               </div>
               <ol className={styles.architectureTrace} aria-label="Required observed event sequence">
-                <li>tool_search_call</li><li>getTools()</li><li>tool_search_output</li><li>function call</li><li>executeTool()</li><li>revision committed</li>
+                <li>tool_search_call</li><li>getTools()</li><li>tool_search_output</li><li>function call</li><li>executeTool()</li><li>revision → catalog withdrawn → idle</li>
               </ol>
               <div className={styles.truthRowCenter}>
                 <TruthLabel tone="violet">APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS</TruthLabel>
                 <TruthLabel tone="green">LUNA TOOL SEARCH · LOCAL API OBSERVED</TruthLabel>
                 <TruthLabel tone="neutral">NATIVE PROOF IS DATED, OBSERVATIONAL EVIDENCE</TruthLabel>
+                <TruthLabel tone="neutral">RUN END · IDLE CATALOG RESTORED</TruthLabel>
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
               </div>
               <SourceLinks />
@@ -528,7 +529,7 @@ export function RatiflowDeck() {
                   <b>Durable + accountable</b>
                   <ul>
                     <li>Worker-backed sessions and cross-page routing</li>
-                    <li>Browser-attested delegated identity and scopes</li>
+                    <li>Browser-attested grants and delegated identity</li>
                     <li>Idempotent receipts with reviewable replay</li>
                   </ul>
                 </article>
@@ -544,24 +545,24 @@ export function RatiflowDeck() {
               <div className={styles.finalComposition}>
                 <div className={styles.finalPaths}>
                   <article className={`${styles.previewFrame} ${styles.finalPath}`}>
-                    <PreviewLabel>POSTMORTEM · @CODE</PreviewLabel>
+                    <PreviewLabel>POSTMORTEM · @CODE + REPOSITORY</PreviewLabel>
                     <span>PATH 01 · INC-482</span>
                     <b>Verify Root cause</b>
-                    <p>Select Root cause → assign <code>@Code</code> → open r6 in History.</p>
-                    <small>Watch the Code catalog, required calls, evidence-backed diff, and Restore.</small>
+                    <p>Select Root cause → assign <code>@Code</code> → choose Repository access → open r6.</p>
+                    <small>Watch the assignment catalog, required calls, evidence-backed diff, and Restore.</small>
                   </article>
                   <article className={`${styles.previewFrame} ${styles.finalPath}`}>
-                    <PreviewLabel>PRODUCT · @DATA</PreviewLabel>
+                    <PreviewLabel>PRODUCT · @DATA + METRICS</PreviewLabel>
                     <span>PATH 02 · NORTHSTAR</span>
                     <b>Check launch capacity</b>
-                    <p>Select Success Measures → assign <code>@Data</code> → open r7 in History.</p>
-                    <small>Watch the Data catalog, capacity arithmetic, scoped revision, and Restore.</small>
+                    <p>Select Success Measures → assign <code>@Data</code> → choose Metrics access → open r7.</p>
+                    <small>Watch the assignment catalog, capacity arithmetic, scoped revision, and Restore.</small>
                   </article>
                 </div>
                 <ol className={styles.finalChecklist} aria-label="What to inspect in the live Ratiflow demo">
                   <li><span>01</span><b>Choose</b><small>Postmortem or Product</small></li>
-                  <li><span>02</span><b>Assign</b><small>@Code or @Data</small></li>
-                  <li><span>03</span><b>Watch</b><small>Catalog and required calls</small></li>
+                  <li><span>02</span><b>Assign</b><small>Bot + website access</small></li>
+                  <li><span>03</span><b>Watch</b><small>Granted tools + required calls</small></li>
                   <li><span>04</span><b>Inspect</b><small>History, evidence, and Restore</small></li>
                 </ol>
               </div>

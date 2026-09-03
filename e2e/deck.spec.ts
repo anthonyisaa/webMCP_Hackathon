@@ -4,7 +4,7 @@ const DIRECT_SLIDES = [
   "slide-01", "slide-02", "slide-03", "slide-04", "slide-05", "slide-06",
   "slide-07", "slide-08", "slide-09", "slide-10", "slide-11", "slide-12",
 ] as const;
-const CRITICAL_STORY_SLIDES = ["slide-05", "slide-10", "slide-11", "slide-12"] as const;
+const CRITICAL_STORY_SLIDES = ["slide-05", "slide-07", "slide-10", "slide-11", "slide-12"] as const;
 
 test("deck preserves direct hashes and keyboard navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -56,15 +56,28 @@ test("critical WebMCP story slides remain contained and truthful on desktop", as
   }
 
   await page.goto("/deck#slide-05");
-  await expect(page.getByRole("heading", { name: "Role-scoped catalogs. Turn-scoped execution." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bot expertise and website access are independent." })).toBeVisible();
   await expect(page.locator("#slide-05")).toContainText("SCOPE & CONTROL");
-  await expect(page.locator("#slide-05")).toContainText("WEBMCP · ROLE/RUN CATALOG");
-  await expect(page.locator("#slide-05")).toContainText("RELAY · ONE REQUIRED FUNCTION PER TURN");
-  await expect(page.locator("#slide-05")).toContainText("CODE RUN · SAME REGISTERED CATALOG");
+  await expect(page.locator("#slide-05")).toContainText("BOT EXPERTISE · DESCRIPTIVE");
+  await expect(page.locator("#slide-05")).toContainText("ASSIGNMENT ACCESS · EXPLICIT GRANT");
+  await expect(page.locator("#slide-05")).toContainText("WEBMCP · EXPOSES / INVOKES TOOLS");
+  await expect(page.locator("#slide-05")).toContainText("RATIFLOW SERVER · ENFORCES ACCESS");
+  await expect(page.locator("#slide-05")).toContainText("@Code + Metrics");
+  await expect(page.locator("#slide-05")).toContainText("@Data + Metrics");
+  await expect(page.locator("#slide-05")).toContainText("same catalog · 6 tools");
+  await expect(page.locator("#slide-05")).toContainText("@Code + Repository");
+
+  await page.goto("/deck#slide-07");
+  await expect(page.locator("#slide-07")).toContainText("same @Code identity receiving Repository then Editorial grants");
+  await expect(page.locator("#slide-07")).toContainText("r6 · Code");
+  await expect(page.locator("#slide-07")).toContainText("r7 · Code");
+  await expect(page.locator("#slide-07")).toContainText("Editorial access · facts preserved");
 
   await page.goto("/deck#slide-10");
   await expect(page.locator("#slide-10")).toContainText("getTools()");
   await expect(page.locator("#slide-10")).toContainText("executeTool()");
+  await expect(page.locator("#slide-10")).toContainText("server capability grant");
+  await expect(page.locator("#slide-10")).toContainText("server-checked revision");
 
   await page.goto("/deck#slide-11");
   await expect(page.locator("#slide-11")).toContainText("PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP");
@@ -77,6 +90,10 @@ test("critical WebMCP story slides remain contained and truthful on desktop", as
   await expect(page.locator("#slide-12")).toContainText("POSTMORTEM · @CODE");
   await expect(page.locator("#slide-12")).toContainText("PRODUCT · @DATA");
   await expect(page.locator("#slide-12")).toContainText("History, evidence, and Restore");
+
+  const deckCopy = await page.locator("main").innerText();
+  expect(deckCopy).not.toMatch(/role[- /]scoped|role catalog|specialist catalog/iu);
+  expect(deckCopy).not.toMatch(/WebMCP (?:grants?|enforces?|authenticates?)/iu);
 });
 
 test("critical WebMCP story slides remain viewport-contained on mobile", async ({ page }) => {

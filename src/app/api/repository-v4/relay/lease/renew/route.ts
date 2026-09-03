@@ -1,12 +1,14 @@
 import { jsonObject } from "@/domain/http-session";
 import { getRuntimeRepositoryRelayService } from "@/domain/repository-runtime";
 import { hasExactRequestKeys, relayResponse } from "../../../_response";
-import { relayGrantFrom } from "../../_request";
+import { rejectIncompatibleRelayContract, relayGrantFrom } from "../../_request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
+  const incompatible = rejectIncompatibleRelayContract(request);
+  if (incompatible) return incompatible;
   const grant = relayGrantFrom(request);
   const body = await jsonObject(request);
   if (!grant) {

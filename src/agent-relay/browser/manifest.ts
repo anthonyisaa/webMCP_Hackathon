@@ -1,12 +1,15 @@
 import {
-  MANAGED_AGENT_TOOL_CATALOGS,
   MANAGED_AGENT_TOOL_DEFINITIONS,
-  type ManagedAgentDirectoryEntry,
   type ManagedAgentLogicalToolName,
   type RelayAttemptStateView,
+  type RelayCapabilityGrant,
   type RelayNormalizedToolManifest,
   type RelayNormalizedToolManifestEntry,
 } from "../contracts";
+import {
+  capabilityGrantMatchesPolicy,
+  relayAccessPolicy,
+} from "../access-policy";
 import type { WebMCPRegisteredToolLike } from "../../webmcp/types";
 import { canonicalJson, sha256CanonicalJson, utf8ByteLength } from "./canonical-json";
 import { RelayBrowserError } from "./errors";
@@ -134,22 +137,26 @@ function parseSchema(value: WebMCPRegisteredToolLike["inputSchema"]): Record<str
   }
 }
 
-function exactCatalog(agent: ManagedAgentDirectoryEntry): readonly ManagedAgentLogicalToolName[] {
-  const expected = MANAGED_AGENT_TOOL_CATALOGS[agent.specialty];
-  if (canonicalJson(agent.logicalToolNames) !== canonicalJson(expected)) {
-    throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The claimed agent catalog differs from its specialty.");
+function exactCatalog(
+  capabilityGrant: RelayCapabilityGrant,
+): readonly ManagedAgentLogicalToolName[] {
+  if (!capabilityGrantMatchesPolicy(capabilityGrant)) {
+    throw new RelayBrowserError(
+      "RELAY_MANIFEST_MISMATCH",
+      "The claimed website access grant differs from its access profile.",
+    );
   }
-  return expected;
+  return relayAccessPolicy(capabilityGrant.accessProfile).logicalToolNames;
 }
 
 export async function normalizeRelayManifest(input: {
   tools: readonly WebMCPRegisteredToolLike[];
-  agent: ManagedAgentDirectoryEntry;
+  capabilityGrant: RelayCapabilityGrant;
   attempt: Pick<RelayAttemptStateView, "registrationGeneration" | "registrationScope">;
   origin: string;
   topLevelWindow: Window;
 }): Promise<DiscoveredRelayCatalog> {
-  const expectedLogicalNames = exactCatalog(input.agent);
+  const expectedLogicalNames = exactCatalog(input.capabilityGrant);
   if (input.tools.length !== expectedLogicalNames.length) {
     throw new RelayBrowserError("RELAY_MANIFEST_MISMATCH", "The discovered Relay catalog has an unexpected size.");
   }
@@ -168,7 +175,7 @@ export async function normalizeRelayManifest(input: {
   const entries: RelayNormalizedToolManifestEntry[] = expectedLogicalNames.map((logicalName) => {
     const definition = MANAGED_AGENT_TOOL_DEFINITIONS[logicalName];
     const physicalName = makeRelayPhysicalToolName({
-      specialty: input.agent.specialty,
+      accessProfile: input.capabilityGrant.accessProfile,
       registrationScope: input.attempt.registrationScope,
       registrationGeneration: input.attempt.registrationGeneration,
       logicalName,

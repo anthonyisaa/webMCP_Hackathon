@@ -3,20 +3,24 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 
-import { REPOSITORY_PROTOCOL_VERSION, REPOSITORY_TOOL_NAMES } from "@/repository/contracts";
+import {
+  MANAGED_RELAY_ACCESS_PROFILES,
+  REPOSITORY_PROTOCOL_VERSION,
+  REPOSITORY_TOOL_NAMES,
+} from "@/repository/contracts";
 import { relayResponse } from "@/app/api/repository-v4/_response";
 
 import {
   AGENT_DIRECTORY_IDENTITY_SOURCES,
-  AGENT_DIRECTORY_SCOPES,
-  MANAGED_AGENT_COMMON_TOOL_NAMES,
+  AGENT_DIRECTORY_VISIBILITIES,
   MANAGED_AGENT_HANDLES,
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
-  MANAGED_AGENT_SPECIALIST_TOOL_NAMES,
-  MANAGED_AGENT_SPECIALTIES,
-  MANAGED_AGENT_TOOL_CATALOGS,
+  MANAGED_AGENT_EXPERTISES,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  RELAY_ACCESS_POLICIES,
+  RELAY_ACCESS_SOURCE_TOOL_NAMES,
+  RELAY_COMMON_TOOL_NAMES,
   RELAY_ATTEMPT_STATUSES,
   RELAY_BOUNDS,
   RELAY_ERROR_CODES,
@@ -37,9 +41,7 @@ type RelayGolden = {
   model: string;
   agents: Array<{
     handle: string;
-    specialty: keyof typeof MANAGED_AGENT_TOOL_CATALOGS;
     identitySource: string;
-    logicalTools: string[];
   }>;
   postmortem: {
     heroAgent: string;
@@ -102,34 +104,47 @@ test("keeps protocol 4 and the exact idle BYOA catalog", () => {
   ]);
 });
 
-test("freezes directory identities and role-scoped catalogs", () => {
-  assert.deepEqual(MANAGED_AGENT_SPECIALTIES, ["DATA", "CODE", "GENERAL"]);
+test("freezes descriptive bot identities separately from website access policies", () => {
+  assert.deepEqual(MANAGED_AGENT_EXPERTISES, ["DATA", "CODE", "GENERAL"]);
   assert.deepEqual(MANAGED_AGENT_HANDLES, ["data", "code", "general"]);
-  assert.deepEqual(AGENT_DIRECTORY_SCOPES, ["COMPANY", "TEAM", "PERSONAL"]);
+  assert.deepEqual(AGENT_DIRECTORY_VISIBILITIES, ["COMPANY", "TEAM", "PERSONAL"]);
   assert.deepEqual(AGENT_DIRECTORY_IDENTITY_SOURCES, [
     "DEMO_DIRECTORY",
     "SELF_DECLARED",
   ]);
-  assert.deepEqual(MANAGED_AGENT_COMMON_TOOL_NAMES, [
+  assert.deepEqual(MANAGED_RELAY_ACCESS_PROFILES, [
+    "METRICS_SCOPED_EDIT",
+    "REPOSITORY_SCOPED_EDIT",
+    "EDITORIAL_SCOPED_EDIT",
+  ]);
+  assert.deepEqual(RELAY_COMMON_TOOL_NAMES, [
     "read_assignment",
     "read_document_context",
     "read_collaboration_context",
     "comment_on_assignment",
     "submit_scoped_revision",
   ]);
-  assert.deepEqual(MANAGED_AGENT_SPECIALIST_TOOL_NAMES, {
-    DATA: ["query_demo_metrics"],
-    CODE: ["search_demo_code", "read_demo_file"],
-    GENERAL: ["read_company_style_guide", "check_document_consistency"],
+  assert.deepEqual(RELAY_ACCESS_SOURCE_TOOL_NAMES, {
+    METRICS_SCOPED_EDIT: ["query_demo_metrics"],
+    REPOSITORY_SCOPED_EDIT: ["search_demo_code", "read_demo_file"],
+    EDITORIAL_SCOPED_EDIT: ["read_company_style_guide", "check_document_consistency"],
   });
 
-  const catalogs = Object.values(MANAGED_AGENT_TOOL_CATALOGS);
-  for (const catalog of catalogs) {
-    assert.deepEqual(catalog.slice(0, MANAGED_AGENT_COMMON_TOOL_NAMES.length), [
-      ...MANAGED_AGENT_COMMON_TOOL_NAMES,
+  const policies = Object.values(RELAY_ACCESS_POLICIES);
+  for (const policy of policies) {
+    assert.equal(policy.documentAuthority, "DIRECT_SELECTION");
+    assert.deepEqual(policy.logicalToolNames.slice(0, RELAY_COMMON_TOOL_NAMES.length), [
+      ...RELAY_COMMON_TOOL_NAMES,
     ]);
   }
-  assert.notDeepEqual(MANAGED_AGENT_TOOL_CATALOGS.CODE, MANAGED_AGENT_TOOL_CATALOGS.GENERAL);
+  assert.equal(
+    RELAY_ACCESS_POLICIES.REPOSITORY_SCOPED_EDIT.logicalToolNames.length,
+    RELAY_ACCESS_POLICIES.EDITORIAL_SCOPED_EDIT.logicalToolNames.length,
+  );
+  assert.notDeepEqual(
+    RELAY_ACCESS_POLICIES.REPOSITORY_SCOPED_EDIT.logicalToolNames,
+    RELAY_ACCESS_POLICIES.EDITORIAL_SCOPED_EDIT.logicalToolNames,
+  );
 
   for (const [logicalName, definition] of Object.entries(MANAGED_AGENT_TOOL_DEFINITIONS)) {
     assert.equal(definition.logicalName, logicalName);
@@ -229,7 +244,6 @@ test("freezes the independent managed-relay oracle", () => {
   );
   for (const agent of golden.agents) {
     assert.equal(agent.identitySource, "DEMO_DIRECTORY");
-    assert.deepEqual(agent.logicalTools, [...MANAGED_AGENT_TOOL_CATALOGS[agent.specialty]]);
   }
 
   assert.equal(golden.postmortem.heroAgent, "code");

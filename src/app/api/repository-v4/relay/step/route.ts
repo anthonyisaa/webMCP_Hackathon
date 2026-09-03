@@ -6,11 +6,14 @@ import {
   handleRelayStepRequest,
   type RelayStepExecutor,
 } from "./handler";
+import { rejectIncompatibleRelayContract } from "../_request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
+  const incompatible = rejectIncompatibleRelayContract(request);
+  if (incompatible) return incompatible;
   const executor = await runtimeRelayStepExecutor();
   if (!executor) {
     return Response.json(relayFailure(
