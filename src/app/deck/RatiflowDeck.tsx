@@ -11,7 +11,6 @@ type SlideProps = {
   index: number;
   currentIndex: number;
   children: ReactNode;
-  dark?: boolean;
   compositionClass?: string;
 };
 
@@ -19,7 +18,6 @@ function Slide({
   index,
   currentIndex,
   children,
-  dark = false,
   compositionClass = "",
 }: SlideProps) {
   const slide = DECK_SLIDES[index];
@@ -30,7 +28,7 @@ function Slide({
   return (
     <section
       id={slide.id}
-      className={`${styles.slide} ${dark ? styles.darkSlide : ""} ${compositionClass}`}
+      className={`${styles.slide} ${compositionClass}`}
       aria-labelledby={headingId}
       aria-describedby={positionId}
       aria-roledescription="slide"
@@ -40,7 +38,7 @@ function Slide({
       <span id={positionId} className={styles.srOnly}>Slide {index + 1} of {DECK_SLIDE_COUNT}</span>
       <div className={styles.slideHeader}>
         <span className={styles.wordmark}><i aria-hidden="true" /> Ratiflow</span>
-        <span className={styles.criterion}>{slide.criterion}</span>
+        <span className={styles.sectionLabel}>{slide.section}</span>
       </div>
       {index === 0 ? (
         <h1 id={headingId} className={headingClass} tabIndex={-1}>
@@ -55,7 +53,7 @@ function Slide({
       <div className={styles.slideFooter} aria-hidden="true">
         <span>{String(index + 1).padStart(2, "0")}</span>
         <i />
-        <span>WEBMCP CHALLENGE</span>
+        <span>RATIFLOW · WEBMCP DEMO</span>
       </div>
     </section>
   );
@@ -117,9 +115,9 @@ function SyntheticCapacityChart() {
   );
 }
 
-function SourceLinks({ dark = false }: { dark?: boolean }) {
+function SourceLinks() {
   return (
-    <p className={`${styles.sourceLinks} ${dark ? styles.sourceLinksDark : ""}`}>
+    <p className={styles.sourceLinks}>
       Sources: <a href="https://learn.chatgpt.com/docs/webmcp" target="_blank" rel="noreferrer noopener">OpenAI Site Tools</a>
       <span aria-hidden="true"> · </span>
       <a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noreferrer noopener">WebMCP draft</a>
@@ -213,7 +211,7 @@ export function RatiflowDeck() {
   return (
     <main className={styles.deckRoot} data-deck-slide-count={DECK_SLIDE_COUNT}>
       <div className={styles.stage}>
-        <ol className={styles.slideList} aria-label="Ratiflow WebMCP Challenge presentation">
+        <ol className={styles.slideList} aria-label="Ratiflow WebMCP product demo">
           <li>
             <Slide
               index={0}
@@ -221,8 +219,7 @@ export function RatiflowDeck() {
               compositionClass={styles.coverSlide}
             >
               <div className={styles.coverCopy}>
-                <p className={styles.coverClaim}>The document is the agent runtime.</p>
-                <p className={styles.coverLine}>Mention the expert. The page supplies the tools. The document keeps the proof.</p>
+                <p className={styles.coverClaim}>{DECK_SLIDES[0].subtitle}</p>
                 <div className={styles.truthRow}>
                   <TruthLabel tone="green">APPLICATION-OWNED LUNA WEBMCP RELAY</TruthLabel>
                   <TruthLabel tone="violet">SYNTHETIC DEMO CODE</TruthLabel>
@@ -255,7 +252,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={1} currentIndex={currentIndex} compositionClass={styles.scatterSlide}>
-              <p className={styles.lede}>Prompts, sources, scope, and authorship scatter across chats and tabs. The next teammate inherits the answer—not the evidence.</p>
+              <p className={styles.lede}>{DECK_SLIDES[1].subtitle}</p>
               <div className={styles.scatterComposition}>
                 <div className={`${styles.previewFrame} ${styles.cleanDocument}`} role="img" aria-label="Conceptual clean postmortem document without its detached agent context.">
                   <PreviewLabel>BEFORE · DETACHED AGENT CONTEXT</PreviewLabel>
@@ -280,7 +277,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={2} currentIndex={currentIndex} compositionClass={styles.sequenceSlide}>
-              <p className={styles.lede}>Mention the expert → assemble the tools → commit a scoped revision.</p>
+              <p className={styles.lede}>{DECK_SLIDES[2].subtitle}</p>
               <div className={styles.sequence} aria-label="Conceptual three-step transaction sequence">
                 <div className={styles.sequenceStep}>
                   <PreviewLabel>SCOPED COMMENT</PreviewLabel>
@@ -317,8 +314,8 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={3} currentIndex={currentIndex} compositionClass={styles.onboardingSlide}>
-              <p className={styles.lede}>Choose Postmortem. Assign <code>@Code</code> to Root cause. Watch the role catalog, required calls, and scoped revision land.</p>
-              <div className={styles.onboardingFlow} aria-label="Three-step judge flow: choose a document, assign Code, and watch the execution proof">
+              <p className={styles.lede}>{DECK_SLIDES[3].subtitle}</p>
+              <div className={styles.onboardingFlow} aria-label="Three-step live demo flow: choose a document, assign Code, and watch execution">
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>1</span>
                   <PreviewLabel>CHOOSE</PreviewLabel>
@@ -334,7 +331,7 @@ export function RatiflowDeck() {
                 </div>
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>3</span>
-                  <PreviewLabel>WATCH PROOF</PreviewLabel>
+                  <PreviewLabel>WATCH EXECUTION</PreviewLabel>
                   <div className={styles.proofSteps}>
                     <code>WEBMCP CATALOG · CODE · 7</code>
                     <code>LUNA · REQUIRED CALLS</code>
@@ -344,13 +341,13 @@ export function RatiflowDeck() {
                   <div className={styles.proofResult}><EvidenceDot tone="code" /><span><b>Root cause revised</b><small>Evidence + diff + Restore in History</small></span></div>
                 </div>
               </div>
-              <div className={styles.truthRowCenter}><TruthLabel tone="green">CHOOSE → ASSIGN → WATCH PROOF</TruthLabel></div>
+              <div className={styles.truthRowCenter}><TruthLabel tone="green">CHOOSE → ASSIGN → WATCH EXECUTION</TruthLabel></div>
             </Slide>
           </li>
 
           <li>
-            <Slide index={4} currentIndex={currentIndex} dark compositionClass={styles.capabilitySlide}>
-              <p className={styles.lede}>One <code>@mention</code> publishes one WebMCP role/run catalog. The catalog stays registered while the relay advances the run one required function at a time.</p>
+            <Slide index={4} currentIndex={currentIndex} compositionClass={styles.capabilitySlide}>
+              <p className={styles.lede}>{DECK_SLIDES[4].subtitle}</p>
               <div className={styles.capabilityComposition}>
                 <div className={styles.roleCatalogs} aria-label="One role and run catalog per mention: Data has six tools, Code has seven tools, and General has seven tools">
                   <article className={styles.roleCatalog}>
@@ -394,7 +391,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={5} currentIndex={currentIndex} compositionClass={styles.diffSlide}>
-              <p className={styles.lede}>Provider throttling triggered the incident. Retry code sustained it.</p>
+              <p className={styles.lede}>{DECK_SLIDES[5].subtitle}</p>
               <div className={`${styles.previewFrame} ${styles.diffPreview}`} role="img" aria-label="Code revision diff with exact synthetic findings and evidence references from the Postmortem demo path.">
                 <PreviewLabel>SCOPED REVISION · SYNTHETIC SOURCES</PreviewLabel>
                 <div className={styles.diffMeta}><span>ROOT CAUSE</span><b>r6 · Code</b><span>Restore</span></div>
@@ -411,7 +408,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={6} currentIndex={currentIndex} compositionClass={styles.historySlide}>
-              <p className={styles.lede}>A new person—or agent—can reconstruct who asked, which tools ran, what changed, and why.</p>
+              <p className={styles.lede}>{DECK_SLIDES[6].subtitle}</p>
               <div className={styles.historyComposition}>
                 <ol className={styles.revisionSpine} aria-label="Revision authorship sequence">
                   <li><EvidenceDot tone="code" /><span><b>r5 · Builder</b><small>Seeded clarification · evidence preserved</small></span></li>
@@ -423,7 +420,7 @@ export function RatiflowDeck() {
                   <span>REVISION DETAIL · r7</span>
                   <h3>General reworded Root cause</h3>
                   <dl>
-                    <div><dt>Asked by</dt><dd>Judge</dd></div>
+                    <div><dt>Asked by</dt><dd>Ada</dd></div>
                     <div><dt>Agent</dt><dd>@General</dd></div>
                     <div><dt>Runtime</dt><dd>gpt-5.6-luna · WebMCP Relay</dd></div>
                     <div><dt>Evidence</dt><dd>Style guide · consistency rules</dd></div>
@@ -437,7 +434,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={7} currentIndex={currentIndex} compositionClass={styles.ablationSlide}>
-              <p className={styles.lede}>Human editing and comments remain. Dynamic discovery and managed execution fail closed.</p>
+              <p className={styles.lede}>{DECK_SLIDES[7].subtitle}</p>
               <div className={styles.ablationCompare}>
                 <div className={styles.ablationOn}>
                   <PreviewLabel>WEBMCP ON CONTRACT</PreviewLabel>
@@ -465,7 +462,7 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={8} currentIndex={currentIndex} compositionClass={styles.dataSlide}>
-              <p className={styles.lede}><code>@Data</code> shows that 10 + 4 = 14 fits; 10 + 8 = 18 does not—then revises Success Measures.</p>
+              <p className={styles.lede}>{DECK_SLIDES[8].subtitle}</p>
               <div className={styles.dataComposition}>
                 <div className={`${styles.previewFrame} ${styles.successMeasures}`} role="img" aria-label="Design preview of revised Northstar Success Measures based on synthetic capacity data.">
                   <PreviewLabel>GUIDED DEMO PATH · PRODUCT DOC</PreviewLabel>
@@ -486,8 +483,8 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={9} currentIndex={currentIndex} dark compositionClass={styles.architectureSlide}>
-              <p className={styles.lede}>Ratiflow maps Luna’s client-executed tool search to <code>document.modelContext.getTools()</code> and <code>executeTool()</code>.</p>
+            <Slide index={9} currentIndex={currentIndex} compositionClass={styles.architectureSlide}>
+              <p className={styles.lede}>{DECK_SLIDES[9].subtitle}</p>
               <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: mention, task and lease, WebMCP catalog, Luna Responses, executeTool, and revision ledger.">
                 {["@mention", "task + lease", "WebMCP catalog", "Luna Responses", "executeTool", "revision ledger"].map((node, index) => (
                   <div className={styles.architectureNode} key={node}>
@@ -504,13 +501,13 @@ export function RatiflowDeck() {
                 <TruthLabel tone="neutral">NATIVE PROOF IS DATED, OBSERVATIONAL EVIDENCE</TruthLabel>
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
               </div>
-              <SourceLinks dark />
+              <SourceLinks />
             </Slide>
           </li>
 
           <li>
             <Slide index={10} currentIndex={currentIndex} compositionClass={styles.futureSlide}>
-              <p className={styles.lede}>The next orders of magnitude need typed reactivity first, then continuity and accountability beyond one open page.</p>
+              <p className={styles.lede}>{DECK_SLIDES[10].subtitle}</p>
               <div className={styles.futureScale} aria-label="Proposed WebMCP direction from today's page-scoped RPC to reactive capabilities and durable accountable sessions">
                 <article>
                   <span>TODAY</span>
@@ -543,14 +540,30 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={11} currentIndex={currentIndex} compositionClass={styles.finalSlide}>
+              <p className={styles.lede}>{DECK_SLIDES[11].subtitle}</p>
               <div className={styles.finalComposition}>
-                <div className={`${styles.previewFrame} ${styles.finalDocument} ${styles.finalPostmortem}`}><PreviewLabel>POSTMORTEM · TWO PAGES</PreviewLabel><span>INC-482</span><b>Root cause verified</b><small>Code · General · History</small></div>
-                <div className={styles.finalAt} aria-hidden="true">@</div>
-                <div className={`${styles.previewFrame} ${styles.finalDocument} ${styles.finalProduct}`}><PreviewLabel>PRODUCT DOC · TWO PAGES</PreviewLabel><span>NORTHSTAR</span><b>Launch scope measured</b><small>Data · Capacity · Revision</small></div>
-                <div className={`${styles.finalCriterion} ${styles.finalCriterionOne}`}><b>WebMCP Leverage</b><span>the page changes the tools.</span></div>
-                <div className={`${styles.finalCriterion} ${styles.finalCriterionTwo}`}><b>Execution</b><span>the result is scoped, bounded, and reversible.</span></div>
-                <div className={`${styles.finalCriterion} ${styles.finalCriterionThree}`}><b>Potential Impact</b><span>people and agents share one decision trail.</span></div>
-                <div className={`${styles.finalCriterion} ${styles.finalCriterionFour}`}><b>Creativity & Ambition</b><span>the document becomes the runtime.</span></div>
+                <div className={styles.finalPaths}>
+                  <article className={`${styles.previewFrame} ${styles.finalPath}`}>
+                    <PreviewLabel>POSTMORTEM · @CODE</PreviewLabel>
+                    <span>PATH 01 · INC-482</span>
+                    <b>Verify Root cause</b>
+                    <p>Select Root cause → assign <code>@Code</code> → open r6 in History.</p>
+                    <small>Watch the Code catalog, required calls, evidence-backed diff, and Restore.</small>
+                  </article>
+                  <article className={`${styles.previewFrame} ${styles.finalPath}`}>
+                    <PreviewLabel>PRODUCT · @DATA</PreviewLabel>
+                    <span>PATH 02 · NORTHSTAR</span>
+                    <b>Check launch capacity</b>
+                    <p>Select Success Measures → assign <code>@Data</code> → open r7 in History.</p>
+                    <small>Watch the Data catalog, capacity arithmetic, scoped revision, and Restore.</small>
+                  </article>
+                </div>
+                <ol className={styles.finalChecklist} aria-label="What to inspect in the live Ratiflow demo">
+                  <li><span>01</span><b>Choose</b><small>Postmortem or Product</small></li>
+                  <li><span>02</span><b>Assign</b><small>@Code or @Data</small></li>
+                  <li><span>03</span><b>Watch</b><small>Catalog and required calls</small></li>
+                  <li><span>04</span><b>Inspect</b><small>History, evidence, and Restore</small></li>
+                </ol>
               </div>
               <Link className={styles.finalAction} href="/">Open the live demo picker →</Link>
             </Slide>

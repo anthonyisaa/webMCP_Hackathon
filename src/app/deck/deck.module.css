@@ -63,19 +63,6 @@
   display: none;
 }
 
-.darkSlide {
-  --line: rgba(243, 245, 241, 0.2);
-  background:
-    radial-gradient(circle at 82% 12%, rgba(115, 86, 161, 0.2), transparent 30%),
-    #20221f;
-  color: #f5f6f2;
-}
-
-.darkSlide::after {
-  opacity: 0.09;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.42) 0.55px, transparent 0.55px);
-}
-
 .slideHeader {
   display: flex;
   align-items: center;
@@ -102,21 +89,13 @@
   box-shadow: inset 0 0 0 2px var(--paper);
 }
 
-.darkSlide .wordmark i {
-  box-shadow: inset 0 0 0 2px #20221f;
-}
-
-.criterion {
+.sectionLabel {
   color: #646761;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 13px;
   font-weight: 630;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.darkSlide .criterion {
-  color: #aeb5ad;
 }
 
 .slideTitle,
@@ -133,7 +112,7 @@
 .slideTitle {
   z-index: 2;
   font-size: clamp(2.15rem, 2.45vw, 2.95rem);
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .coverTitle {
@@ -157,10 +136,6 @@
   background: currentColor;
 }
 
-.darkSlide .slideFooter {
-  color: #9aa19a;
-}
-
 .lede {
   z-index: 2;
   max-width: 1180px;
@@ -173,14 +148,6 @@
 .lede code {
   color: var(--green);
   font-size: 0.92em;
-}
-
-.darkSlide .lede {
-  color: #c6cbc5;
-}
-
-.darkSlide .lede code {
-  color: #b4dbcF;
 }
 
 .previewFrame {
@@ -248,25 +215,6 @@
   color: #8c531a;
 }
 
-.darkSlide .truthneutral,
-.darkSlide .truthgreen,
-.darkSlide .truthviolet,
-.darkSlide .truthamber {
-  color: #cbd3cc;
-}
-
-.darkSlide .truthgreen::before {
-  background: #85c8b4;
-}
-
-.darkSlide .truthviolet::before {
-  background: #b7a3d5;
-}
-
-.darkSlide .truthamber::before {
-  background: #d8ae78;
-}
-
 .evidenceDot {
   display: inline-block;
   width: 10px;
@@ -309,14 +257,6 @@
   color: var(--green);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-}
-
-.sourceLinksDark {
-  color: #939b94;
-}
-
-.sourceLinksDark a {
-  color: #a8d2c5;
 }
 
 .srOnly {
@@ -1072,20 +1012,20 @@
   align-content: center;
   gap: 10px;
   padding: 25px 24px;
-  border: 1px solid rgba(230, 236, 230, 0.2);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(32, 34, 31, 0.18);
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .roleCatalogActive {
-  border-color: rgba(183, 163, 213, 0.72);
-  background: rgba(115, 86, 161, 0.16);
+  border-color: rgba(115, 86, 161, 0.5);
+  background: var(--violet-soft);
 }
 
 .roleCatalog > span {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #e2e7e2;
+  color: #343934;
   font-size: 18px;
   font-weight: 680;
   letter-spacing: 0.06em;
@@ -1093,7 +1033,7 @@
 
 .roleCatalog > span b {
   margin-left: auto;
-  color: #aeb7af;
+  color: #70766f;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 14px;
 }
@@ -1101,32 +1041,32 @@
 .roleCatalog p {
   margin: 2px 0 4px;
   padding: 10px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: #979f98;
+  border-top: 1px solid rgba(32, 34, 31, 0.12);
+  border-bottom: 1px solid rgba(32, 34, 31, 0.12);
+  color: #60665f;
   font-size: 13px;
 }
 
 .roleCatalog code {
   overflow-wrap: anywhere;
-  color: #c6b4df;
+  color: #684b92;
   font-size: 13px;
 }
 
 .roleCatalog:first-child code {
-  color: #d8ae78;
+  color: #8c531a;
 }
 
 .roleCatalog:last-child code {
-  color: #9fd0c0;
+  color: #246456;
 }
 
 .turnRail {
   display: grid;
   grid-template-columns: 250px 1fr;
   align-items: center;
-  border: 1px solid rgba(230, 236, 230, 0.18);
-  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(32, 34, 31, 0.18);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .turnRailHeader {
@@ -1136,7 +1076,7 @@
 }
 
 .turnRailHeader span {
-  color: #dce3dd;
+  color: #343934;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 11px;
   font-weight: 680;
@@ -1144,7 +1084,7 @@
 }
 
 .turnRailHeader small {
-  color: #929a93;
+  color: #687069;
   font-size: 12px;
 }
 
@@ -1163,7 +1103,7 @@
   align-items: center;
   gap: 9px;
   padding: 20px 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 1px solid rgba(32, 34, 31, 0.12);
 }
 
 .turnRail li:not(:last-child)::after {
@@ -1171,7 +1111,7 @@
   top: 50%;
   right: -5px;
   z-index: 2;
-  color: #8f9990;
+  color: #737b74;
   content: "→";
   transform: translateY(-50%);
 }
@@ -1182,16 +1122,16 @@
   height: 22px;
   flex: none;
   place-items: center;
-  border: 1px solid #879189;
+  border: 1px solid #818981;
   border-radius: 50%;
-  color: #c6cec7;
+  color: #545b55;
   font-size: 10px;
 }
 
 .turnRail code {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: #d6ded7;
+  color: #343a34;
   font-size: 11px;
 }
 
@@ -1589,8 +1529,8 @@
   align-content: center;
   gap: 10px;
   padding: 20px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-top: 1px solid rgba(32, 34, 31, 0.2);
+  border-bottom: 1px solid rgba(32, 34, 31, 0.2);
 }
 
 .architectureNode:not(:last-child)::after {
@@ -1598,30 +1538,30 @@
   top: 50%;
   right: -6px;
   z-index: 3;
-  color: #89928a;
+  color: #747c75;
   content: "→";
   transform: translate(50%, -50%);
 }
 
 .architectureNode span {
-  color: #818c83;
+  color: #6b736c;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 11px;
 }
 
 .architectureNode b {
-  color: #e2e7e2;
+  color: #343934;
   font-size: 17px;
   font-weight: 620;
 }
 
 .architectureNode:nth-child(3),
 .architectureNode:nth-child(5) {
-  background: rgba(77, 130, 111, 0.16);
+  background: rgba(219, 234, 228, 0.75);
 }
 
 .architectureNode:nth-child(4) {
-  background: rgba(115, 86, 161, 0.2);
+  background: rgba(233, 225, 243, 0.82);
 }
 
 .architectureTrace {
@@ -1631,14 +1571,14 @@
   margin: 0 0 20px;
   padding: 0;
   list-style: none;
-  color: #9ca69e;
+  color: #5f675f;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 11px;
 }
 
 .architectureTrace li {
   padding: 14px 9px;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(32, 34, 31, 0.12);
   text-align: center;
 }
 
@@ -1745,84 +1685,99 @@
 }
 
 .finalComposition {
-  position: relative;
-  min-height: 0;
-  margin: 2% 0 0;
-}
-
-.finalAt {
-  position: absolute;
-  top: 48%;
-  left: 50%;
-  z-index: 4;
-  color: var(--green);
-  font-size: clamp(7rem, 11vw, 13rem);
-  font-weight: 620;
-  letter-spacing: -0.1em;
-  line-height: 1;
-  transform: translate(-50%, -50%);
-}
-
-.finalDocument {
-  position: absolute;
-  top: 25%;
   display: grid;
-  width: 30%;
-  min-height: 44%;
+  min-height: 0;
+  grid-template-rows: 1fr auto;
+  gap: 18px;
+  margin: 2.4% 0 2%;
+}
+
+.finalPaths {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.finalPath {
+  position: relative;
+  display: grid;
   align-content: center;
-  gap: 12px;
-  padding: 5%;
+  gap: 13px;
+  padding: 54px 42px 34px;
   border-radius: 8px;
 }
 
-.finalPostmortem {
-  left: 5%;
-  transform: rotate(-2deg);
-}
-
-.finalProduct {
-  right: 5%;
-  transform: rotate(2deg);
-}
-
-.finalDocument > span {
+.finalPath > span {
   color: #777d76;
   font-size: 11px;
   letter-spacing: 0.1em;
 }
 
-.finalDocument > b {
-  font-size: clamp(1.4rem, 1.9vw, 2.3rem);
+.finalPath > b {
+  font-size: clamp(1.35rem, 1.8vw, 2.15rem);
   font-weight: 590;
   letter-spacing: -0.04em;
 }
 
-.finalDocument > small {
-  color: #656b64;
-  font-size: 14px;
+.finalPath p {
+  margin: 0;
+  color: #4f564f;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
-.finalCriterion {
-  position: absolute;
+.finalPath code {
+  color: var(--violet);
+}
+
+.finalPath:last-child code {
+  color: var(--amber);
+}
+
+.finalPath > small {
+  padding-top: 13px;
+  border-top: 1px solid #e0e4de;
+  color: #656b64;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.finalChecklist {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #cdd2cc;
+  border-bottom: 1px solid #cdd2cc;
+  list-style: none;
+}
+
+.finalChecklist li {
   display: grid;
   gap: 4px;
-  max-width: 320px;
+  padding: 14px 18px;
 }
 
-.finalCriterion b {
-  color: #3d433d;
-  font-size: 16px;
+.finalChecklist li + li {
+  border-left: 1px solid #d7dbd6;
 }
 
-.finalCriterion span {
-  color: #626861;
+.finalChecklist span {
+  color: #80867f;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+}
+
+.finalChecklist b {
+  color: #343a34;
   font-size: 14px;
 }
 
-.finalCriterionOne { top: 2%; left: 6%; }
-.finalCriterionTwo { right: 4%; top: 3%; text-align: right; }
-.finalCriterionThree { bottom: 4%; left: 6%; }
-.finalCriterionFour { right: 4%; bottom: 4%; text-align: right; }
+.finalChecklist small {
+  color: #676e67;
+  font-size: 11px;
+}
 
 .finalAction {
   position: absolute;
@@ -1838,10 +1793,6 @@
   font-size: 17px;
   font-weight: 670;
   text-decoration: none;
-}
-
-.finalAction code {
-  color: var(--green);
 }
 
 /* Navigation */
@@ -1999,7 +1950,7 @@
     margin-bottom: 28px;
   }
 
-  .criterion {
+  .sectionLabel {
     max-width: 46%;
     font-size: 10px;
     text-align: right;
@@ -2117,7 +2068,7 @@
 
   .turnRail li {
     padding: 18px 22px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(32, 34, 31, 0.12);
     border-left: 0;
   }
 
@@ -2193,33 +2144,25 @@
     margin-top: 28px;
   }
 
-  .finalAt,
-  .finalDocument,
-  .finalCriterion {
-    position: static;
-    width: auto;
-    max-width: none;
-    min-height: 0;
-    transform: none;
-    text-align: left;
+  .finalPaths {
+    grid-template-columns: 1fr;
   }
 
-  .finalDocument {
-    position: relative;
-  }
-
-  .finalAt {
-    order: -1;
-    font-size: 6rem;
-  }
-
-  .finalDocument {
+  .finalPath {
+    min-height: 310px;
     padding: 70px 28px 34px;
   }
 
-  .finalCriterion {
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
+  .finalChecklist {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .finalChecklist li {
+    min-height: 92px;
+  }
+
+  .finalChecklist li:nth-child(odd) {
+    border-left: 0;
   }
 
   .finalAction,
@@ -2233,6 +2176,14 @@
   .sourceLinks {
     flex-wrap: wrap;
     font-size: 12px;
+  }
+
+  .sourceLinks a,
+  .futureSourceLinks a {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding-inline: 4px;
   }
 
   .deckControls {
@@ -2250,9 +2201,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .coverPreview,
-  .cleanDocument,
-  .finalPostmortem,
-  .finalProduct {
+  .cleanDocument {
     transform: none;
   }
 

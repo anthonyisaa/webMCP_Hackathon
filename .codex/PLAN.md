@@ -1,13 +1,14 @@
 # Plan — Harden the flagship and make its proof teachable
-_Updated: 2026-09-03T09:53:46+08:00_
+_Updated: 2026-09-03T11:41:58+08:00_
 
 ## Goal and ambition mode
 
-Finish Ratiflow as a brownfield, judge-ready v4.2 release: remove the two failure states
+Finish Ratiflow as a brownfield, demo-ready v4.2 release: remove the two failure states
 observed in fresh production rehearsals, make the 12-slide deck explain the actual
 role/run and per-turn capability boundaries, add a sourced WebMCP 10×/100× future slide,
-and leave a sanitized screenshot pack plus an exact live-recording runbook. The user will
-record and narrate the final video; producing or editing video is explicitly out of scope.
+frame the shared deck as a guided product demo plus concrete next steps, and leave a
+sanitized screenshot pack plus an exact live-recording runbook. The user will record and
+narrate the final video; producing or editing video is explicitly out of scope.
 Do not change the database schema, protocol version, managed-agent authority model, or
 claim autonomous tool choice.
 
@@ -43,10 +44,18 @@ Freeze one shared judge-story and release contract before implementation:
    unrestricted transcript, or private identifier. Product, native WebMCP, live Luna,
    local rehearsal, and proposed-spec visuals remain separately labeled. A screenshot
    guide helps the user record; it is not a substitute for the final live demo.
+6. **Demo-deck framing and theme.** The visible deck speaks to an audience watching the
+   product, not to judges grading an entry: remove judging-criteria chapter labels,
+   judge-facing titles, and the final four-criteria scorecard. Preserve exactly 12 slides
+   in this arc: Cover -> problem -> product transaction -> three-step demo -> role/run
+   versus turn boundary -> Code result -> History -> WebMCP-off ablation -> Data transfer
+   -> relay architecture -> WebMCP next steps -> Ratiflow next steps. Rename slide metadata from
+   `criterion` to `section`. Every slide uses the same light paper canvas; dark panels may
+   exist inside diagrams, but no slide switches into a separate dark theme.
 
 ## Streams
 
-### S1 — hosted Luna reliability — active
+### S1 — hosted Luna reliability — locally completed
 - Owner / worktree: reliability worker in an isolated `/private/tmp` clone; return one
   reviewed patch for explicit integration.
 - Scope and key files: `RepositoryWorkspace.tsx`, `RelayFlightRecorder.tsx`, focused UI
@@ -66,19 +75,23 @@ Freeze one shared judge-story and release contract before implementation:
   an opt-in `RATIFLOW_REQUIRE_FIRST_ATTEMPT=1` live-test mode that fails immediately if
   Retry appears rather than auto-clicking it.
 
-### S2 — judge deck and future thesis — active
+### S2 — demo deck, unified theme, and future thesis — completed and independently reviewed
 - Owner / worktree: deck worker in a separate isolated `/private/tmp` clone; return one
   reviewed patch for explicit integration.
 - Scope and key files: `docs/contracts/html-deck-storyboard.md`, `src/app/deck/**`, and
   `e2e/deck.spec.ts`.
 - Must not touch: repository workspace/runtime, relay/provider code, migrations, or legacy
   video assets.
-- Inputs / frozen contracts: exact two-gate wording and sourced 10×/100× thesis above.
+- Inputs / frozen contracts: exact two-gate wording, sourced 10×/100× thesis, and the
+  demo-deck framing/theme contract above. Slide 04 describes the three-step demo rather
+  than what a judge sees; Slide 12 closes on implemented proof and product next steps
+  rather than judging criteria.
 - Verification: deck unit/e2e tests; all 12 direct hashes and keyboard controls; key
-  desktop/mobile captures with no clipping; current-vs-proposed labels and official
-  source links; fresh `$dev-visual-review` after integration.
+  desktop/mobile captures with no clipping; a computed-style assertion that all 12 slides
+  use the same light canvas and none render `darkSlide`; current-vs-proposed labels and
+  official source links; fresh `$dev-visual-review` after integration.
 
-### S3 — screenshot-led recording kit — pending on verified I1 candidate
+### S3 — screenshot-led recording kit — runbook and deck previews complete; product captures pending deployment
 - Owner / worktree: coordinating task.
 - Scope and key files: new `demo/v4.2-relay/recording-runbook.md`, sanitized screenshots
   under `demo/v4.2-relay/screenshots/`, and a narrow capture README/manifest.
@@ -89,19 +102,27 @@ Freeze one shared judge-story and release contract before implementation:
   maps to a numbered runbook beat, and has an explicit evidence class. The runbook covers
   setup, `@Code`, catalog/turn proof, r6 History/Restore, and the shorter `@Data` transfer.
 
-### I1 — integration, deployment, and rehearsal — pending
+### I1 — integration, production deployment, and rehearsal — local gates complete; production staging next
 - Owner / worktree: coordinating task.
 - Scope: integrate only the S1/S2 allowlists, run the repository gate and production
-  build, drive the real UI, deploy the exact reviewed runtime/deck when local gates pass,
+  build, drive the real UI, create a clean exact-SHA candidate containing only the
+  reviewed allowlist, deploy it with `--prod --skip-domain` when local gates pass,
+  confirm READY and metadata identity, then promote that exact deployment,
   run the native lifecycle and Luna judge trajectory, reconcile stale `README.md`,
   `demo/devpost-submission-v4.md`, and the release manifest only to observed evidence,
-  then hand the verified exact-SHA candidate to S3.
+  then hand the verified exact-SHA candidate to S3. The user explicitly authorized a
+  production push on 2026-09-03; deploy only after the revised deck passes the same local
+  and independent visual gates, and retain the current production deployment as the
+  rollback bearing.
 - Verification: `.codex/verify.sh`; `pnpm build`; production UI/deck E2E; native
-  idle→role→idle; `RATIFLOW_REQUIRE_FIRST_ATTEMPT=1 ... playwright test
+  idle→role→idle; `env RATIFLOW_BASE_URL=https://ratiflow-webmcp.vercel.app
+  RATIFLOW_LIVE_LUNA_JUDGE=1 RATIFLOW_REQUIRE_FIRST_ATTEMPT=1
+  RATIFLOW_NATIVE_WEBMCP_TESTING=1 pnpm exec playwright test
   e2e/live-luna-judge-flow.spec.ts --repeat-each=5 --workers=1 --reporter=line`, which
   fails immediately on Retry; fifteen total runs and attempts, all first-attempt
   successes; zero page errors or API 5xx; aggregate post-run state with no failed
-  attempts, active leases, permits, reservations, exhausted runs, or cancellations. If
+  attempts, active leases, permits, reservations, exhausted runs, or cancellations;
+  `pnpm eval:agent:v4`; and `pnpm eval:release:v4`. If
   external credentials or a privileged aggregate surface are unavailable, report that
   gate as pending rather than infer success.
 
@@ -113,9 +134,18 @@ Freeze one shared judge-story and release contract before implementation:
   in a clean rehearsal -> block recording and production-confidence claims.
 - A future slide presents a proposal as adopted spec behavior, or arbitrary pushed prose
   as safe pub/sub -> block the slide.
+- Any visible deck header addresses “judges,” presents scoring criteria as chapters, or
+  any whole slide switches to a dark canvas -> block the deck.
 - Any capture contains a share token, session material, private identifier, or raw model
   transcript -> discard it and recapture from a fresh sanitized flow.
 - Local gate or build fails -> do not deploy.
+- A staged production build is not READY, its metadata does not match the clean candidate
+  SHA, or `/` and `/deck` do not return HTTP 200 -> do not promote.
+- Any post-promotion native/Luna gate failure, first-attempt Retry, uncaught page error,
+  or new application 5xx -> rollback immediately to
+  `dpl_AT4uKsok7vBhVzVcBQ1CtJEc2xKj`, confirm the canonical URL is restored, and report
+  the failing evidence. This previous deployment has known presence 500s, so rollback is
+  application recovery rather than a clean-health claim.
 - Fewer than five repair-free production rehearsals -> the runbook may ship, but the
   release remains explicitly below the internal recording-confidence bar.
 
@@ -123,7 +153,8 @@ Freeze one shared judge-story and release contract before implementation:
 
 `freeze this plan and adversarially review it -> (S1 isolated reliability || S2 isolated
 deck) -> reviewed patch integration -> focused tests -> shared integration gate/build ->
-driven local browser + visual review -> exact candidate deployment -> native and Luna
+driven local browser + visual review -> clean exact-SHA `--prod --skip-domain` staging ->
+READY/identity/reachability check -> promote exact deployment -> native and Luna
 rehearsals -> S3 sanitized exact-SHA screenshots/runbook -> final evidence audit ->
 dev-handoff`.
 

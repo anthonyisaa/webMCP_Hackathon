@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { RatiflowDeck } from "./RatiflowDeck";
 
 export const metadata: Metadata = {
-  title: "Ratiflow · The document is the agent runtime",
+  title: "Ratiflow · WebMCP product demo",
   description:
-    "A 12-slide WebMCP Challenge deck showing how Ratiflow turns an @mention into a scoped, reversible agent transaction.",
+    "A 12-slide product demo showing how Ratiflow turns an @mention into scoped, reversible agent work.",
 };
 
 export default function RatiflowDeckPage() {

@@ -3,29 +3,22 @@ _Frozen audience, narrative, copy, composition, and evidence contract · 2026-09
 
 ## 1. Purpose
 
-This contract defines the 12-slide HTML deck that accompanies the Ratiflow WebMCP
-Challenge entry. The deck must persuade a technical judging panel that Ratiflow is a
-complete collaboration product whose defining interaction depends materially on WebMCP,
-not an AI editor with a decorative tool wrapper.
+This contract defines the 12-slide Ratiflow WebMCP product demo. The deck walks a
+technical audience through the product, the live demonstration paths, the WebMCP
+dependency, and concrete next steps.
 
 The communication job is:
 
-> By the end, WebMCP Challenge judges should believe Ratiflow is a novel, credible, and
-> working product because a live document dynamically supplies role-scoped WebMCP tools
-> to Luna and preserves every resulting action as bounded, reversible provenance.
+> By the end, the audience should understand how a live document supplies role-scoped
+> WebMCP tools to Luna and preserves each resulting action as bounded, reversible
+> provenance—and know exactly what to try in the live product.
 
-The narrative is `lost agent context -> one new document primitive -> merged judge flow ->
+The narrative is `lost agent context -> one new document primitive -> three-step demo ->
 role catalog versus relay turn -> Postmortem proof -> durable memory -> ablation ->
-Product/Data transfer -> truthful architecture -> WebMCP future -> judging synthesis`.
-
-The official criteria are equally weighted: WebMCP Leverage, Execution, Potential Impact,
-and Creativity & Ambition. WebMCP Leverage is the first tie-break criterion, so native
-discovery, invocation, dynamic catalog changes, and the WebMCP-off ablation receive the
-strongest evidence treatment.
+Product/Data transfer -> truthful architecture -> WebMCP next steps -> Ratiflow next steps`.
 
 Sources:
 
-- [WebMCP Challenge official rules](https://webmcp.devpost.com/rules)
 - [WebMCP specification](https://webmachinelearning.github.io/webmcp/)
 - [OpenAI Site Tools documentation](https://learn.chatgpt.com/docs/webmcp)
 - [OpenAI tool search guide](https://developers.openai.com/api/docs/guides/tools-tool-search)
@@ -57,8 +50,9 @@ inform Ratiflow's proposal; they do not establish that any proposed capability i
   explanatory copy to one short statement unless exact evidence labels require more.
 - Use at least 54 px for the cover title, 38 px for slide titles, 25 px for major callouts,
   and 18 px for supporting copy at the 1920 x 1080 canvas.
-- Slides 5 and 10 use an ink-dark proof surface to vary the visual rhythm. All other slides
-  use the warm paper surface. Adjacent slides must not repeat the same silhouette.
+- Every slide uses the same warm paper canvas. Dark accents may appear inside product or
+  architecture visuals, but no slide switches to a separate dark theme. Adjacent slides
+  must not repeat the same silhouette.
 - Avoid grids of decorative cards, fake controls, excessive pills, or dashboard density.
   Prefer one dominant composition per slide: full-bleed crop, editorial split, sequence,
   diff, timeline, ablation, chart, or one simple architecture flow.
@@ -187,9 +181,7 @@ blocks governs that evidence label, not inclusion of a clearly labeled rendered 
 
 **Visible copy**
 
-> The document is the agent runtime.
-
-> Mention the expert. The page supplies the tools. The document keeps the proof.
+> Turn @mentions into scoped, reversible agent work—inside the document.
 
 **Composition**
 
@@ -206,14 +198,13 @@ revision and enough of the Flight Recorder to signal the product's distinguishin
   and the capture-provenance label.
 - Gate: live Luna run, linked revision, and recorder sequence all verified on the final SHA.
 
-**Primary criterion:** Creativity & Ambition.
+**Section:** `PRODUCT DEMO`.
 
-### Slide 2 — The prose survives. The agent work disappears.
+### Slide 2 — Agent context should not disappear into chat.
 
 **Visible copy**
 
-> Prompts, sources, scope, and authorship scatter across chats and tabs. The next teammate
-> inherits the answer—not the evidence.
+> Ratiflow keeps prompts, sources, scope, authorship, and outcomes attached to the document.
 
 **Composition**
 
@@ -227,13 +218,14 @@ They are conceptual typography, not product controls or a competitor imitation.
 - `02-untouched-postmortem.png` — approved crop.
 - Manifest status: `CONCEPTUAL_ONLY`. Do not attach a native or live-runtime label.
 
-**Primary criterion:** Potential Impact.
+**Section:** `WHY IT EXISTS`.
 
-### Slide 3 — One comment becomes a governed agent transaction.
+### Slide 3 — From @mention to revision in one governed flow.
 
 **Visible copy**
 
-> Mention the expert → assemble the tools → commit a scoped revision.
+> Mention the expert → publish its role-scoped WebMCP tools → commit a bounded,
+> restorable change.
 
 **Composition**
 
@@ -250,19 +242,19 @@ under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
 - Captured-evidence labels on discovery/revision frames: `LIVE LUNA · APPLICATION-OWNED WEBMCP
   RELAY` and `SYNTHETIC DEMO CODE`.
 
-**Primary criterion:** WebMCP Leverage.
+**Section:** `CORE INTERACTION`.
 
-### Slide 4 — A judge sees the whole transaction in three moves.
+### Slide 4 — Demo flow: choose, assign, watch.
 
 **Visible copy**
 
-> Choose Postmortem. Assign `@Code` to Root cause. Watch the role catalog, required calls,
-> and scoped revision land.
+> Open Postmortem. Assign `@Code` to Root cause. Follow tool discovery, required calls,
+> and the committed revision.
 
 **Composition**
 
 Use three vertical product-flow frames with oversized live-text numerals `1`, `2`, and
-`3`: `CHOOSE`, `ASSIGN`, and `WATCH PROOF`. The first combines nickname and document
+`3`: `CHOOSE`, `ASSIGN`, and `WATCH EXECUTION`. The first combines nickname and document
 selection; the second shows the exact Root cause range and Code request; the third shows
 catalog, Luna, `executeTool`, committed revision, and the History/Restore destination.
 
@@ -270,22 +262,22 @@ catalog, Luna, `executeTool`, committed revision, and the History/Restore destin
 
 - `04a-choose-source.png` and `04a-choose.png`.
 - `04b-assign-source.png` and `04b-assign.png`.
-- `04c-watch-proof-source.png` and `04c-watch-proof.png`.
+- `04c-watch-execution-source.png` and `04c-watch-execution.png`.
 - Frames must follow one fresh-session lineage. Do not imply elapsed time or a clean live
   run unless the matching rehearsal artifact passes.
 
-**Primary criterion:** Execution.
+**Section:** `LIVE DEMO`.
 
-### Slide 5 — The page scopes the role. The relay scopes the turn.
+### Slide 5 — Role-scoped catalogs. Turn-scoped execution.
 
 **Visible copy**
 
-> One `@mention` publishes one WebMCP role/run catalog. The catalog stays registered while
-> the relay advances the run one required function at a time.
+> WebMCP publishes one catalog for the selected role and run; the relay advances one
+> server-required function per turn.
 
 **Composition**
 
-Use an ink-dark mechanism slide. The first rail compares the published role/run catalog:
+Use a warm-paper mechanism slide. The first rail compares the published role/run catalog:
 
 - Data = 5 shared document tools + `query_demo_metrics` = 6.
 - Code = 5 shared document tools + `search_demo_code` + `read_demo_file` = 7.
@@ -309,13 +301,14 @@ enforces order. Show these labels verbatim:
 - Captured native evidence may upgrade the rendered contract only if one catalog
   registration remains active across the matching ordered calls.
 
-**Primary criterion:** WebMCP Leverage.
+**Section:** `SCOPE & CONTROL`.
 
-### Slide 6 — Code separates the trigger from the root cause.
+### Slide 6 — Code verifies the incident and rewrites only the selected section.
 
 **Visible copy**
 
-> Provider throttling triggered the incident. Retry code sustained it.
+> Repository evidence separates the external trigger from the retry amplifier in a
+> restorable revision.
 
 **Composition**
 
@@ -334,13 +327,14 @@ action visible. The product visual—not added deck prose—carries the detailed
 - Gate: exact-range revision, evidence refs, rationale, model/runtime, and Restore target
   agree across the screenshot, trace, history, and golden.
 
-**Primary criterion:** Execution.
+**Section:** `CODE RESULT`.
 
-### Slide 7 — History turns agent work into organizational memory.
+### Slide 7 — Every agent change keeps its decision trail.
 
 **Visible copy**
 
-> A new person—or agent—can reconstruct who asked, which tools ran, what changed, and why.
+> History preserves who asked, which tools ran, what changed, why it changed, and how to
+> restore it.
 
 **Composition**
 
@@ -359,13 +353,13 @@ visually distinct but connected.
   Restore destination are mutually consistent; no self-declared identity is presented as
   vendor verified.
 
-**Primary criterion:** Potential Impact.
+**Section:** `HISTORY & RESTORE`.
 
-### Slide 8 — Without WebMCP, the document survives; the agent loop does not.
+### Slide 8 — Without WebMCP, managed execution stops safely.
 
 **Visible copy**
 
-> Human editing and comments remain. Dynamic discovery and managed execution fail closed.
+> The document and comments still work; dynamic discovery and the managed relay fail closed.
 
 **Composition**
 
@@ -384,13 +378,13 @@ ON` and `WEBMCP OFF`; do not simulate a broken page.
 - Gate: controlled ablation proves human read/edit/comment behavior still works and both
   managed discovery and execution cannot proceed without `document.modelContext`.
 
-**Primary criterion:** WebMCP Leverage.
+**Section:** `WEBMCP DEPENDENCY`.
 
-### Slide 9 — Data turns a launch debate into inspectable arithmetic.
+### Slide 9 — The same governed flow works for Data.
 
 **Visible copy**
 
-> `@Data` shows that 10 + 4 = 14 fits; 10 + 8 = 18 does not—then revises Success Measures.
+> `@Data` checks capacity, updates Success Measures, and leaves inspectable arithmetic behind.
 
 **Composition**
 
@@ -409,18 +403,18 @@ only if those facts remain exact in the final Product golden.
 - Gate: chart data, accessible data table, comment, trace, evidence refs, exact diff, and
   resulting revision all agree with the independent Product golden.
 
-**Primary criterion:** Potential Impact.
+**Section:** `DATA RESULT`.
 
-### Slide 10 — Luna composes the action; the browser executes it.
+### Slide 10 — How a mention becomes a committed revision.
 
 **Visible copy**
 
-> Ratiflow maps Luna's client-executed tool search to
-> `document.modelContext.getTools()` and `executeTool()`.
+> Luna composes each required call; the browser discovers and executes WebMCP tools;
+> Ratiflow records the result.
 
 **Composition**
 
-Use an ink-dark single-line architecture flow:
+Use a warm-paper single-line architecture flow:
 
 `@mention -> task + lease -> WebMCP catalog <-> Luna Responses -> executeTool -> revision ledger`
 
@@ -443,14 +437,14 @@ run; otherwise label the architecture `PRODUCT FLOW VISUAL`.
   rendered architecture is labeled `PRODUCT FLOW VISUAL` and depicts only the required
   sequence. The API key remains server-only and absent from every artifact.
 
-**Primary criterion:** Creativity & Ambition.
+**Section:** `HOW IT WORKS`.
 
-### Slide 11 — Today: page-scoped RPC. 10×: reactive. 100×: durable and accountable.
+### Slide 11 — Where WebMCP goes next: reactive, durable, accountable.
 
 **Visible copy**
 
-> The next orders of magnitude need typed reactivity first, then continuity and
-> accountability beyond one open page.
+> Our proposal: typed, opt-in pub/sub first; then durable workers, attested scopes, and
+> reviewable replay.
 
 **Composition**
 
@@ -476,30 +470,27 @@ questions, output schemas, identity/delegation, and receipts/replay.
   discussions. It is not an assertion of adopted, implemented, or browser-shipped behavior.
 - Do not add release evidence, `LIVE LUNA`, or `NATIVE WEBMCP` labels to this slide.
 
-**Primary criterion:** Creativity & Ambition.
+**Section:** `NEXT FOR WEBMCP`.
 
-### Slide 12 — One primitive carries all four judging criteria.
+### Slide 12 — Try Ratiflow live.
 
 **Visible copy**
 
-> **WebMCP Leverage** — the page changes the tools.
-
-> **Execution** — the result is scoped, bounded, and reversible.
-
-> **Potential Impact** — people and agents share one decision trail.
-
-> **Creativity & Ambition** — the document becomes the runtime.
+> Choose Postmortem for `@Code` or Product for `@Data`, then inspect the tool trace,
+> revision history, and Restore.
 
 **Composition**
 
-Center one oversized `@` between a Postmortem visual and a Product visual. Place the four
-judging lines around it as flat editorial text, not four cards. Close with the internal
-live-demo action. Add a verified live URL, public repository URL, and exact release SHA
-only after each is observed:
+Use two concrete live-demo paths. Postmortem directs the viewer to select Root cause,
+assign `@Code`, and inspect r6. Product directs the viewer to select Success Measures,
+assign `@Data`, and inspect r7. Beneath them, show the four actions `Choose`, `Assign`,
+`Watch`, and `Inspect`, with catalog/required-call and History/Restore details. Close with
+the internal live-demo action:
 
-> Try Postmortem → `@Code`
+> Open the live demo picker →
 
-Do not end on a generic thank-you slide.
+Add a verified live URL, public repository URL, and exact release SHA only after each is
+observed. Do not end on a generic thank-you slide or a scorecard.
 
 **Evidence**
 
@@ -511,7 +502,7 @@ Do not end on a generic thank-you slide.
   the displayed SHA matches every core capture. Until then, omit the corresponding line;
   never render a placeholder.
 
-**Primary criterion:** all four criteria.
+**Section:** `TRY IT LIVE`.
 
 ## 7. Slide-to-evidence gate
 
@@ -520,7 +511,7 @@ Do not end on a generic thank-you slide.
 | 1 | Checked Postmortem result and recorder composition | Final Postmortem live-run state |
 | 2 | Seed document plus detached-context typography | Exact seed screenshot |
 | 3 | Checked mention → discovery → revision sequence | Same-lineage captured sequence |
-| 4 | Checked choose → assign → watch-proof journey | Fresh-session same-lineage screenshots |
+| 4 | Checked choose → assign → watch-execution journey | Fresh-session same-lineage screenshots |
 | 5 | Contract-accurate role/run catalogs and required-turn rail | Native catalog plus matching ordered calls |
 | 6 | Golden Code diff and synthetic refs | Live Luna result and committed diff |
 | 7 | Golden history/provenance lineage | Captured matching lineage |
