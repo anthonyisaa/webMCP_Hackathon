@@ -14,6 +14,19 @@ describe("Ratiflow HTML deck", () => {
       DECK_SLIDES.map(({ id }) => id),
       Array.from({ length: 12 }, (_, index) => `slide-${String(index + 1).padStart(2, "0")}`),
     );
+    assert.deepEqual(
+      DECK_SLIDES.slice(3, 11).map(({ title }) => title),
+      [
+        "A judge sees the whole transaction in three moves.",
+        "The page scopes the role. The relay scopes the turn.",
+        "Code separates the trigger from the root cause.",
+        "History turns agent work into organizational memory.",
+        "Without WebMCP, the document survives; the agent loop does not.",
+        "Data turns a launch debate into inspectable arithmetic.",
+        "Luna composes the action; the browser executes it.",
+        "Today: page-scoped RPC. 10×: reactive. 100×: durable and accountable.",
+      ],
+    );
     assert.equal(new Set(DECK_SLIDES.map(({ title }) => title)).size, 12);
   });
 
@@ -52,8 +65,25 @@ describe("Ratiflow HTML deck", () => {
     assert.match(markup, /SYNTHETIC DEMO DATA/u);
     assert.match(markup, /PRODUCT FLOW VISUAL/u);
     assert.match(markup, /LUNA TOOL SEARCH · LOCAL API OBSERVED/u);
-    assert.match(markup, /toolchange → tool_search_call → getTools\(\) → tool_search_output → Luna function call → executeTool\(\)/u);
     assert.match(markup, /NATIVE PROOF IS DATED, OBSERVATIONAL EVIDENCE/u);
+    assert.match(markup, /publishes one WebMCP role\/run catalog/u);
+    assert.match(markup, /DATA <b>6<\/b>/u);
+    assert.match(markup, /CODE <b>7<\/b>/u);
+    assert.match(markup, /GENERAL <b>7<\/b>/u);
+    assert.match(markup, /read_assignment/u);
+    assert.match(markup, /search_demo_code/u);
+    assert.match(markup, /read_demo_file/u);
+    assert.match(markup, /submit_scoped_revision/u);
+    assert.match(markup, /WEBMCP · ROLE\/RUN CATALOG/u);
+    assert.match(markup, /RELAY · ONE REQUIRED FUNCTION PER TURN/u);
+    assert.match(markup, /LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER/u);
+    assert.match(markup, /PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP/u);
+    assert.match(markup, /Typed, opt-in resource invalidation and pub\/sub/u);
+    assert.match(markup, /Idempotent receipts with reviewable replay/u);
+    assert.match(markup, /href="https:\/\/webmachinelearning\.github\.io\/webmcp\/"/u);
+    assert.match(markup, /href="https:\/\/github\.com\/webmachinelearning\/webmcp\/issues\/151"/u);
+    assert.match(markup, /href="https:\/\/github\.com\/webmachinelearning\/webmcp\/issues\/196"/u);
+    assert.match(markup, /href="https:\/\/github\.com\/webmachinelearning\/webmcp\/blob\/main\/docs\/service-workers\.md"/u);
     assert.match(markup, /target="_blank" rel="noreferrer noopener"/u);
     assert.doesNotMatch(markup, /PENDING|CAPTURE SLOT|CAPTURE REQUIRED|DESIGN PREVIEW/u);
     assert.doesNotMatch(markup, /LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY/u);

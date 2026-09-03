@@ -123,6 +123,15 @@ function mockProvider(responses: Response[]) {
 }
 
 describe("OpenAILunaResponsesProvider", () => {
+  test("explicitly requires a materially changed scoped replacement", () => {
+    expect(FIXED_RELAY_DEVELOPER_INSTRUCTIONS).toContain(
+      "replacementText must materially differ from the currently selected text",
+    );
+    expect(MANAGED_AGENT_TOOL_DEFINITIONS.submit_scoped_revision.description).toContain(
+      "replacementText must materially differ from the active selected text",
+    );
+  });
+
   test("uses the exact observed client tool-search request and continuation shapes", async () => {
     const assignment = providerTool("read_assignment");
     const metrics = providerTool("query_demo_metrics");

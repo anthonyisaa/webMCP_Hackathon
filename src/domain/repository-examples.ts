@@ -208,7 +208,7 @@ export const MANAGED_RELAY_EXAMPLE_OVERLAYS = {
       sectionHeading: "## Root cause",
       selectionText: POSTMORTEM_EXAMPLE.tasks.clarification.replacement,
       prompt:
-        "@Code Check this root-cause section against the synthetic repository and checkout log. Separate the external trigger from the internal amplifier, quantify the retry behavior and queue growth, then replace only this section.",
+        "@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.",
       evidenceRefs: ["checkout.log", "commit:7d3c9e1"],
       syntheticSourceLabels: [
         "Synthetic demo data · checkout.log",

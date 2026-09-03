@@ -13,6 +13,7 @@ import {
 } from "../src/repository/contracts";
 
 const LIVE_LUNA_ENABLED = process.env.RATIFLOW_LIVE_LUNA_JUDGE === "1";
+const REQUIRE_FIRST_ATTEMPT = process.env.RATIFLOW_REQUIRE_FIRST_ATTEMPT === "1";
 const JUDGE_NAME = "WebMCP Judge";
 const ATTEMPT_UI_TIMEOUT_MS = RELAY_BOUNDS.attemptDeadlineMs + 30_000;
 
@@ -286,6 +287,11 @@ async function assignGuidedAgent(
     if (outcome === "EXHAUSTED") {
       throw new Error(`The @${agentName} run exhausted both bounded attempts.`);
     }
+    if (REQUIRE_FIRST_ATTEMPT) {
+      throw new Error(
+        `The @${agentName} run offered Retry once; RATIFLOW_REQUIRE_FIRST_ATTEMPT=1 requires the first attempt to succeed.`,
+      );
+    }
     expect(attempt, "A second failed attempt exhausts the managed run.").toBeLessThan(
       RELAY_BOUNDS.maxAttemptsPerRun,
     );
@@ -349,6 +355,19 @@ async function expectPostmortemFacts(page: Page): Promise<void> {
   await expect(document).toContainText(/internal amplifier/iu);
 }
 
+async function expectPostmortemCodeStructure(page: Page): Promise<void> {
+  const rootCause = page.getByTestId("rendered-document-body").getByRole("heading", {
+    name: "Root cause",
+    exact: true,
+  });
+  const rootCauseList = rootCause.locator("xpath=following-sibling::ul[1]");
+  const bullets = rootCauseList.locator(":scope > li");
+  await expect(bullets).toHaveCount(3);
+  await expect(bullets.nth(0)).toContainText(/^Trigger\b/u);
+  await expect(bullets.nth(1)).toContainText(/^Amplifier\b/u);
+  await expect(bullets.nth(2)).toContainText(/^Why it persisted\b/u);
+}
+
 async function expectProductFacts(page: Page): Promise<void> {
   const document = page.getByTestId("rendered-document-body");
   await expect(document).toContainText(/14 engineering days/iu);
@@ -382,6 +401,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
 
     await assignGuidedAgent(page, "CODE", 6);
     await expectPostmortemFacts(page);
+    await expectPostmortemCodeStructure(page);
     await inspectManagedRevision(page, {
       revision: 6,
       sourceRevision: 5,

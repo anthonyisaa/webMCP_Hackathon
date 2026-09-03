@@ -131,6 +131,20 @@ function SourceLinks({ dark = false }: { dark?: boolean }) {
   );
 }
 
+function FutureSourceLinks() {
+  return (
+    <p className={styles.futureSourceLinks}>
+      Official discussion: <a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noreferrer noopener">current draft</a>
+      <span aria-hidden="true"> · </span>
+      <a href="https://github.com/webmachinelearning/webmcp/issues/151" target="_blank" rel="noreferrer noopener">resources #151</a>
+      <span aria-hidden="true"> · </span>
+      <a href="https://github.com/webmachinelearning/webmcp/issues/196" target="_blank" rel="noreferrer noopener">progress #196</a>
+      <span aria-hidden="true"> · </span>
+      <a href="https://github.com/webmachinelearning/webmcp/blob/main/docs/service-workers.md" target="_blank" rel="noreferrer noopener">service workers</a>
+    </p>
+  );
+}
+
 const DECK_NAVIGATION_EVENT = "ratiflow-deck-navigation";
 
 function subscribeToDeckHash(onStoreChange: () => void): () => void {
@@ -176,6 +190,7 @@ export function RatiflowDeck() {
     if (window.location.hash !== expectedHash) {
       window.history.replaceState(null, "", expectedHash);
     }
+    window.scrollTo(0, 0);
     window.requestAnimationFrame(() => {
       document.getElementById(`${DECK_SLIDES[currentIndex].id}-heading`)?.focus({
         preventScroll: true,
@@ -302,84 +317,83 @@ export function RatiflowDeck() {
 
           <li>
             <Slide index={3} currentIndex={currentIndex} compositionClass={styles.onboardingSlide}>
-              <p className={styles.lede}>Choose a nickname. Open Postmortem. Load the guided <code>@Code</code> assignment.</p>
-              <div className={styles.onboardingFlow} aria-label="Three-step first-run experience preview">
+              <p className={styles.lede}>Choose Postmortem. Assign <code>@Code</code> to Root cause. Watch the role catalog, required calls, and scoped revision land.</p>
+              <div className={styles.onboardingFlow} aria-label="Three-step judge flow: choose a document, assign Code, and watch the execution proof">
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>1</span>
-                  <PreviewLabel>NICKNAME</PreviewLabel>
-                  <label>What should collaborators call you?</label>
+                  <PreviewLabel>CHOOSE</PreviewLabel>
+                  <label>Enter a nickname and open the guided document.</label>
                   <div className={styles.fakeInput}>Ada</div>
+                  <div className={styles.templateChoice}><b>Postmortem</b><span>Incident learning · revision history</span></div>
                 </div>
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>2</span>
-                  <PreviewLabel>DOCUMENT PICKER</PreviewLabel>
-                  <div className={styles.templateChoice}><b>Postmortem</b><span>Incident learning · revision history</span></div>
-                  <div className={styles.templateChoiceQuiet}><b>Product doc</b><span>Decision · capacity · scope</span></div>
+                  <PreviewLabel>ASSIGN</PreviewLabel>
+                  <div className={styles.assignmentExcerpt}><span>ROOT CAUSE · EXACT SELECTION</span>Retry middleware introduced in <mark>commit 7d3c9e1</mark> ignored <mark>Retry-After</mark>…</div>
+                  <div className={styles.commentBubble}><b>@Code</b> Verify the trigger and amplifier, then replace only this section.</div>
                 </div>
                 <div className={styles.onboardingStep}>
                   <span className={styles.giantNumber}>3</span>
-                  <PreviewLabel>IN-PRODUCT COACH</PreviewLabel>
-                  <div className={styles.coachmark}>One click selects the exact section and loads the full <b>@Code</b> prompt.</div>
-                  <div className={styles.directoryList}><span>AGENTS</span><b><EvidenceDot tone="code" /> @Code</b><b><EvidenceDot tone="data" /> @Data</b><b><EvidenceDot tone="general" /> @General</b></div>
+                  <PreviewLabel>WATCH PROOF</PreviewLabel>
+                  <div className={styles.proofSteps}>
+                    <code>WEBMCP CATALOG · CODE · 7</code>
+                    <code>LUNA · REQUIRED CALLS</code>
+                    <code>EXECUTE_TOOL · SCOPED WRITE</code>
+                    <code>REVISION COMMITTED · r6</code>
+                  </div>
+                  <div className={styles.proofResult}><EvidenceDot tone="code" /><span><b>Root cause revised</b><small>Evidence + diff + Restore in History</small></span></div>
                 </div>
               </div>
+              <div className={styles.truthRowCenter}><TruthLabel tone="green">CHOOSE → ASSIGN → WATCH PROOF</TruthLabel></div>
             </Slide>
           </li>
 
           <li>
-            <Slide index={4} currentIndex={currentIndex} compositionClass={styles.assignmentSlide}>
-              <p className={styles.lede}>Select Root cause and ask <code>@Code</code> to check the retry behavior against the synthetic repository and checkout log.</p>
-              <div className={`${styles.previewFrame} ${styles.assignmentPreview}`} role="img" aria-label="Product-flow visual of the exact Code assignment on the selected Root cause passage in the guided demo flow.">
-                <PreviewLabel>GUIDED DEMO PATH · POSTMORTEM</PreviewLabel>
-                <article className={styles.assignmentDocument}>
-                  <span>INC-482 · POSTMORTEM</span>
-                  <h3>Root cause</h3>
-                  <p>Provider 429 throttling at 09:43 UTC was the external trigger. Retry middleware introduced in <mark>commit 7d3c9e1</mark> ignored <mark>Retry-After</mark> and made up to five zero-delay retries…</p>
-                  <small>Selected range · Root cause only</small>
-                </article>
-                <aside className={styles.assignmentComment}>
-                  <div className={styles.agentIdentity}><EvidenceDot tone="code" /><span><b>@Code</b><small>Team · Coding expert</small></span></div>
-                  <p>@Code Check this root-cause section against the synthetic repository and checkout log. Separate the external trigger from the internal amplifier, quantify the retry behavior and queue growth, then replace only this section.</p>
-                  <div className={styles.scopeLine}><span>BODY</span><b>Exact selection</b><code>r5</code></div>
-                </aside>
-              </div>
-              <div className={styles.truthRowCenter}><TruthLabel tone="violet">SYNTHETIC DEMO CODE</TruthLabel></div>
-            </Slide>
-          </li>
-
-          <li>
-            <Slide index={5} currentIndex={currentIndex} dark compositionClass={styles.catalogSlide}>
-              <p className={styles.lede}><code>toolchange → tool_search_call → getTools() → tool_search_output → Luna function call → executeTool()</code></p>
-              <div className={styles.catalogCompare} aria-label="Contract preview of Code and General WebMCP catalog differences">
-                <div className={styles.catalogPane}>
-                  <PreviewLabel>CODE CATALOG · 7 TOOLS</PreviewLabel>
-                  <span className={styles.catalogRole}><EvidenceDot tone="code" /> CODE</span>
-                  <div className={styles.commonTools}>5 common document tools</div>
-                  <code className={styles.specialTool}>+ search_demo_code</code>
-                  <code className={styles.specialTool}>+ read_demo_file</code>
+            <Slide index={4} currentIndex={currentIndex} dark compositionClass={styles.capabilitySlide}>
+              <p className={styles.lede}>One <code>@mention</code> publishes one WebMCP role/run catalog. The catalog stays registered while the relay advances the run one required function at a time.</p>
+              <div className={styles.capabilityComposition}>
+                <div className={styles.roleCatalogs} aria-label="One role and run catalog per mention: Data has six tools, Code has seven tools, and General has seven tools">
+                  <article className={styles.roleCatalog}>
+                    <span><EvidenceDot tone="data" /> DATA <b>6</b></span>
+                    <p>5 shared document tools</p>
+                    <code>+ query_demo_metrics</code>
+                  </article>
+                  <article className={`${styles.roleCatalog} ${styles.roleCatalogActive}`}>
+                    <span><EvidenceDot tone="code" /> CODE <b>7</b></span>
+                    <p>5 shared document tools</p>
+                    <code>+ search_demo_code</code>
+                    <code>+ read_demo_file</code>
+                  </article>
+                  <article className={styles.roleCatalog}>
+                    <span><EvidenceDot tone="general" /> GENERAL <b>7</b></span>
+                    <p>5 shared document tools</p>
+                    <code>+ read_company_style_guide</code>
+                    <code>+ check_document_consistency</code>
+                  </article>
                 </div>
-                <div className={styles.toolchange} aria-label="toolchange transition"><span>toolchange</span><i aria-hidden="true">→</i></div>
-                <div className={styles.catalogPane}>
-                  <PreviewLabel>GENERAL CATALOG · 7 TOOLS</PreviewLabel>
-                  <span className={styles.catalogRole}><EvidenceDot tone="general" /> GENERAL</span>
-                  <div className={styles.commonTools}>5 common document tools</div>
-                  <code className={styles.specialTool}>+ read_company_style_guide</code>
-                  <code className={styles.specialTool}>+ check_document_consistency</code>
+                <div className={styles.turnRail} aria-label="Code run advances through four server-enforced required functions without republishing the WebMCP catalog">
+                  <div className={styles.turnRailHeader}><span>CODE RUN · SAME REGISTERED CATALOG</span><small>relay advances the required function</small></div>
+                  <ol>
+                    {[
+                      "read_assignment",
+                      "search_demo_code",
+                      "read_demo_file",
+                      "submit_scoped_revision",
+                    ].map((tool, index) => <li key={tool}><span>{index + 1}</span><code>{tool}</code></li>)}
+                  </ol>
                 </div>
-              </div>
-              <div className={styles.traceStrip}>
-                <span>gpt-5.6-luna</span><span>origin · WEBMCP</span><span>generation · changes per run</span><span>old descriptor · rejected</span>
               </div>
               <div className={styles.truthRowCenter}>
-                <TruthLabel tone="green">APPLICATION-OWNED LUNA WEBMCP RELAY</TruthLabel>
-                <TruthLabel tone="neutral">STANDARD PATH · document.modelContext</TruthLabel>
+                <TruthLabel tone="green">WEBMCP · ROLE/RUN CATALOG</TruthLabel>
+                <TruthLabel tone="violet">RELAY · ONE REQUIRED FUNCTION PER TURN</TruthLabel>
+                <TruthLabel tone="neutral">LUNA COMPOSES ARGUMENTS · SERVER ENFORCES ORDER</TruthLabel>
+                <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
               </div>
-              <SourceLinks dark />
             </Slide>
           </li>
 
           <li>
-            <Slide index={6} currentIndex={currentIndex} compositionClass={styles.diffSlide}>
+            <Slide index={5} currentIndex={currentIndex} compositionClass={styles.diffSlide}>
               <p className={styles.lede}>Provider throttling triggered the incident. Retry code sustained it.</p>
               <div className={`${styles.previewFrame} ${styles.diffPreview}`} role="img" aria-label="Code revision diff with exact synthetic findings and evidence references from the Postmortem demo path.">
                 <PreviewLabel>SCOPED REVISION · SYNTHETIC SOURCES</PreviewLabel>
@@ -396,7 +410,7 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={7} currentIndex={currentIndex} compositionClass={styles.historySlide}>
+            <Slide index={6} currentIndex={currentIndex} compositionClass={styles.historySlide}>
               <p className={styles.lede}>A new person—or agent—can reconstruct who asked, which tools ran, what changed, and why.</p>
               <div className={styles.historyComposition}>
                 <ol className={styles.revisionSpine} aria-label="Revision authorship sequence">
@@ -422,7 +436,7 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={8} currentIndex={currentIndex} compositionClass={styles.ablationSlide}>
+            <Slide index={7} currentIndex={currentIndex} compositionClass={styles.ablationSlide}>
               <p className={styles.lede}>Human editing and comments remain. Dynamic discovery and managed execution fail closed.</p>
               <div className={styles.ablationCompare}>
                 <div className={styles.ablationOn}>
@@ -450,7 +464,7 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={9} currentIndex={currentIndex} compositionClass={styles.dataSlide}>
+            <Slide index={8} currentIndex={currentIndex} compositionClass={styles.dataSlide}>
               <p className={styles.lede}><code>@Data</code> shows that 10 + 4 = 14 fits; 10 + 8 = 18 does not—then revises Success Measures.</p>
               <div className={styles.dataComposition}>
                 <div className={`${styles.previewFrame} ${styles.successMeasures}`} role="img" aria-label="Design preview of revised Northstar Success Measures based on synthetic capacity data.">
@@ -472,7 +486,7 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={10} currentIndex={currentIndex} dark compositionClass={styles.architectureSlide}>
+            <Slide index={9} currentIndex={currentIndex} dark compositionClass={styles.architectureSlide}>
               <p className={styles.lede}>Ratiflow maps Luna’s client-executed tool search to <code>document.modelContext.getTools()</code> and <code>executeTool()</code>.</p>
               <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: mention, task and lease, WebMCP catalog, Luna Responses, executeTool, and revision ledger.">
                 {["@mention", "task + lease", "WebMCP catalog", "Luna Responses", "executeTool", "revision ledger"].map((node, index) => (
@@ -491,6 +505,39 @@ export function RatiflowDeck() {
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
               </div>
               <SourceLinks dark />
+            </Slide>
+          </li>
+
+          <li>
+            <Slide index={10} currentIndex={currentIndex} compositionClass={styles.futureSlide}>
+              <p className={styles.lede}>The next orders of magnitude need typed reactivity first, then continuity and accountability beyond one open page.</p>
+              <div className={styles.futureScale} aria-label="Proposed WebMCP direction from today's page-scoped RPC to reactive capabilities and durable accountable sessions">
+                <article>
+                  <span>TODAY</span>
+                  <b>Page-scoped RPC</b>
+                  <p>Register a tool. Invoke it while the page and its context are live.</p>
+                </article>
+                <article className={styles.futureReactive}>
+                  <span>10×</span>
+                  <b>Reactive capabilities</b>
+                  <ul>
+                    <li>Typed, opt-in resource invalidation and pub/sub</li>
+                    <li>Stable capability lifecycle, progress, and output contracts</li>
+                  </ul>
+                  <small>Signal that typed state changed—never push arbitrary prose into the model.</small>
+                </article>
+                <article className={styles.futureDurable}>
+                  <span>100×</span>
+                  <b>Durable + accountable</b>
+                  <ul>
+                    <li>Worker-backed sessions and cross-page routing</li>
+                    <li>Browser-attested delegated identity and scopes</li>
+                    <li>Idempotent receipts with reviewable replay</li>
+                  </ul>
+                </article>
+              </div>
+              <div className={styles.truthRowCenter}><TruthLabel tone="amber">PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP</TruthLabel></div>
+              <FutureSourceLinks />
             </Slide>
           </li>
 

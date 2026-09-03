@@ -444,6 +444,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const selectedRevisionRef = useRef<number | null>(null);
   const revisionRequestRef = useRef(0);
   const activeSessionIdentityRef = useRef(repositorySessionIdentity(session));
+  const presenceInFlightSessionRef = useRef<string | null>(null);
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
@@ -537,19 +538,35 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   }, [handleFailure, isActiveSession, publishSurface, service, session.humanSessionToken]);
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
     const touch = async () => {
-      const current = surfaceRef.current;
-      const result = await service.touchPresence(session.humanSessionToken, {
-        state: editMode ? "EDITING" : "VIEWING", field: editMode ? "BODY" : null,
-        isTyping: editMode && dirtyRef.current, selectionStart: null, selectionEnd: null,
-        observedRevision: current.document.revision,
-      });
-      if (result.ok && isActiveSession()) publishSurface(result.data);
+      if (presenceInFlightSessionRef.current === sessionIdentity || !isActiveSession()) return;
+      presenceInFlightSessionRef.current = sessionIdentity;
+      try {
+        const current = surfaceRef.current;
+        const result = await service.touchPresence(session.humanSessionToken, {
+          state: editMode ? "EDITING" : "VIEWING", field: editMode ? "BODY" : null,
+          isTyping: editMode && dirtyRef.current, selectionStart: null, selectionEnd: null,
+          observedRevision: current.document.revision,
+        }, controller.signal);
+        if (active && result.ok && isActiveSession()) publishSurface(result.data);
+      } catch {
+        // Presence is advisory; inspection and explicit actions remain authoritative.
+      } finally {
+        if (presenceInFlightSessionRef.current === sessionIdentity) {
+          presenceInFlightSessionRef.current = null;
+        }
+      }
     };
     void touch();
     const timer = window.setInterval(() => void touch(), 5_000);
-    return () => window.clearInterval(timer);
-  }, [editMode, isActiveSession, publishSurface, service, session.humanSessionToken]);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [editMode, isActiveSession, publishSurface, service, session.humanSessionToken, sessionIdentity]);
 
   useEffect(() => {
     if (!statusMessage) return;

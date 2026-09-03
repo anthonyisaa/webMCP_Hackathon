@@ -448,7 +448,13 @@ The observed sequence is:
    @Databot analysis/table/chart, @ChatGPT synthesis, closed discussion, restore, and the
    same fresh-agent continuity path.
 
-The judge selects Root cause and writes the frozen `@Code` prompt. The Flight Recorder
+The judge selects Root cause and writes the frozen `@Code` prompt:
+
+> @Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger,
+> Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve
+> every verified date, quantity, and source reference, then replace only this section.
+
+The Flight Recorder
 then visibly proves task and lease creation, idle-catalog withdrawal, role-specific
 registration, `toolchange`, Luna client `tool_search`, in-page `getTools()`, Luna's tool
 selection, `executeTool()`, evidence, the exact diff, the new revision, and idle-catalog

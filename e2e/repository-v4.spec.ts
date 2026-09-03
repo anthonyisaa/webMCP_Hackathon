@@ -526,6 +526,46 @@ test("v4.2 Home and /new always show setup while the issue URL resumes its docum
   await expect(page.getByLabel("What should collaborators call you?")).toBeVisible();
 });
 
+test("v4.2 advisory presence is single-flight, contains a non-JSON 500, and resumes", async ({ page }) => {
+  test.setTimeout(25_000);
+  let presenceRequests = 0;
+  let successfulPresenceResponses = 0;
+  let releaseFirstPresence: () => void = () => undefined;
+  const firstPresenceGate = new Promise<void>((resolve) => {
+    releaseFirstPresence = resolve;
+  });
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/repository-v4/presence") && response.ok()) {
+      successfulPresenceResponses += 1;
+    }
+  });
+  await launchExample(page, "POSTMORTEM");
+  await page.route("**/api/repository-v4/presence", async (route) => {
+    presenceRequests += 1;
+    if (presenceRequests === 1) {
+      await firstPresenceGate;
+      await route.fulfill({
+        status: 500,
+        contentType: "text/plain",
+        body: "Synthetic transient presence failure.",
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await expect.poll(() => presenceRequests, { timeout: 7_000 }).toBe(1);
+  await page.waitForTimeout(5_500);
+  expect(presenceRequests).toBe(1);
+
+  releaseFirstPresence();
+  await expect.poll(() => presenceRequests, { timeout: 7_000 }).toBeGreaterThan(1);
+  await expect.poll(() => successfulPresenceResponses, { timeout: 7_000 }).toBeGreaterThan(0);
+  expect(pageErrors).toEqual([]);
+});
+
 test("v4.2 completed Postmortem exposes r5/av11 rendered evidence, agent diffs, Restore, comments, and history", async ({ page }) => {
   await launchExample(page, "POSTMORTEM");
   const bundle = await readTabSession(page);

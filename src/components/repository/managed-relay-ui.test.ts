@@ -34,6 +34,32 @@ const directory: DirectoryEntry[] = [
   { kind: "HUMAN", member, handle: "ari", displayName: "Ari" },
 ];
 
+function waitingRetryState(): RelayWorkspaceState {
+  return {
+    directory,
+    runs: [{
+      runId: "run-retry",
+      taskId: "task-retry",
+      profileId: "profile-data",
+      specialty: "DATA",
+      runtime: "OPENAI_LUNA_WEBMCP_RELAY",
+      model: "gpt-5.6-luna",
+      status: "WAITING_RETRY",
+      attemptCount: 1,
+      maxAttempts: 2,
+      terminalReason: null,
+      createdAt: "2026-09-02T12:00:00.000Z",
+      updatedAt: "2026-09-02T12:00:02.000Z",
+      completedAt: null,
+    }],
+    activeAttempt: null,
+    trace: [],
+    currentRelayEventVersion: 1,
+    webMcpRequired: true,
+    recoveryHeartbeatMs: 15_000,
+  };
+}
+
 test("managed directory separates ready specialists from discussion-only people", () => {
   const markup = renderToStaticMarkup(createElement(ManagedDirectory, { directory }));
   assert.match(markup, /Managed agents/u);
@@ -219,4 +245,34 @@ test("flight recorder exposes durable provider reconciliation instead of ready",
   }));
   assert.match(markup, /Reconciling the provider result/u);
   assert.doesNotMatch(markup, /Ready for a mention/u);
+});
+
+test.each([
+  ["IDLE", null],
+  ["FAILED", "The prior attempt stopped safely."],
+] as const)("flight recorder offers bounded retry only when runtime is %s", (phase, lastError) => {
+  const markup = renderToStaticMarkup(createElement(RelayFlightRecorder, {
+    state: waitingRetryState(),
+    runtime: { phase, activeLogicalTool: null, lastError, webMcpAvailable: true },
+    onRetry: () => undefined,
+  }));
+  assert.match(markup, /Needs a bounded retry/u);
+  assert.match(markup, />Retry once</u);
+});
+
+test.each([
+  ["CLAIMING", null, "Starting bounded retry"],
+  ["TRANSITIONING_TO_RELAY", null, "Switching to specialist tools"],
+  ["DISCOVERING", null, "Discovering page tools"],
+  ["AWAITING_MODEL", null, "Luna is composing the required call"],
+  ["EXECUTING_TOOL", "submit_scoped_revision", "Running submit_scoped_revision"],
+  ["RESTORING_IDLE", null, "Restoring idle page tools"],
+] as const)("flight recorder hides stale retry while runtime is %s", (phase, activeLogicalTool, status) => {
+  const markup = renderToStaticMarkup(createElement(RelayFlightRecorder, {
+    state: waitingRetryState(),
+    runtime: { phase, activeLogicalTool, lastError: null, webMcpAvailable: true },
+    onRetry: () => undefined,
+  }));
+  assert.ok(markup.includes(status));
+  assert.doesNotMatch(markup, />Retry once</u);
 });

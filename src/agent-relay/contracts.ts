@@ -497,7 +497,7 @@ export const MANAGED_AGENT_TOOL_DEFINITIONS = {
     logicalName: "submit_scoped_revision",
     providerKey: "submit_revision",
     description:
-      "Submit one evidence-backed replacement for only the active passage granted by this assignment. The server validates revision, range, role, lease, and provenance.",
+      "Submit one evidence-backed replacement for only the active passage granted by this assignment. replacementText must materially differ from the active selected text. The server validates revision, range, role, lease, and provenance.",
     inputSchema: {
       type: "object",
       properties: {

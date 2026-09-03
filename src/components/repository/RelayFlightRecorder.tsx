@@ -72,11 +72,18 @@ function statusCopy(
   runtime: RelayRuntimeView | null,
   attemptStatus?: RelayAttemptStatus,
 ): string {
+  if (runtime?.phase === "CLAIMING") {
+    return run?.status === "WAITING_RETRY"
+      ? "Starting bounded retry"
+      : "Claiming queued assignment";
+  }
+  if (runtime?.phase === "TRANSITIONING_TO_RELAY") return "Switching to specialist tools";
   if (runtime?.phase === "EXECUTING_TOOL" && runtime.activeLogicalTool) {
     return `Running ${runtime.activeLogicalTool}`;
   }
   if (runtime?.phase === "DISCOVERING") return "Discovering page tools";
   if (runtime?.phase === "AWAITING_MODEL") return "Luna is composing the required call";
+  if (runtime?.phase === "RESTORING_IDLE") return "Restoring idle page tools";
   if (attemptStatus === "RECONCILING" || runtime?.phase === "RECONCILING") {
     return "Reconciling the provider result";
   }
@@ -109,6 +116,8 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
     (runtime?.phase !== "UNAVAILABLE" && runtime?.lastError)
     || run?.status === "EXHAUSTED",
   );
+  const canRetry = run?.status === "WAITING_RETRY"
+    && (runtime?.phase === "IDLE" || runtime?.phase === "FAILED");
 
   return (
     <section className={styles.flightRecorder} data-testid="relay-flight-recorder" aria-labelledby="relay-flight-recorder-title">
@@ -157,7 +166,7 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
       ) : null}
 
       {runtime?.phase !== "UNAVAILABLE" && runtime?.lastError ? <p className={styles.recorderError} role="status">{runtime.lastError}</p> : null}
-      {run?.status === "WAITING_RETRY" && onRetry ? (
+      {canRetry && onRetry ? (
         <button className={styles.recorderRetry} type="button" onClick={() => onRetry(run.runId)}>Retry once</button>
       ) : null}
 

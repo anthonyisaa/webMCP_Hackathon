@@ -1,4 +1,153 @@
-# Plan — The document is the agent runtime
+# Plan — Harden the flagship and make its proof teachable
+_Updated: 2026-09-03T09:53:46+08:00_
+
+## Goal and ambition mode
+
+Finish Ratiflow as a brownfield, judge-ready v4.2 release: remove the two failure states
+observed in fresh production rehearsals, make the 12-slide deck explain the actual
+role/run and per-turn capability boundaries, add a sourced WebMCP 10×/100× future slide,
+and leave a sanitized screenshot pack plus an exact live-recording runbook. The user will
+record and narrate the final video; producing or editing video is explicitly out of scope.
+Do not change the database schema, protocol version, managed-agent authority model, or
+claim autonomous tool choice.
+
+## Chokepoint — freeze first
+
+Freeze one shared judge-story and release contract before implementation:
+
+1. **Two capability gates, stated exactly.** WebMCP changes the live browser catalog from
+   idle tools to one run- and role-scoped catalog for `@Code`, `@Data`, or `@General`, then
+   restores idle tools. The server separately exposes and pins exactly one discovered
+   function on each Luna continuation. The deck may say “the right agent gets the right
+   capability at the right moment,” but may not imply that WebMCP itself republishes a
+   different catalog every model turn or that Luna chooses the workflow.
+2. **Defensible product claim.** Luna composes strict arguments inside a server-enforced
+   sequence; the browser discovers and executes the live WebMCP capabilities; server-side
+   anchors, revisions, permits, and business rules enforce authority.
+3. **Reliability exit bar.** Presence heartbeat failures are contained and never become
+   uncaught page errors. `Retry once` is visible only while the run is actually waiting
+   and is hidden/disabled as soon as an explicit retry starts. The Code hero prompt and
+   provider instructions require a materially changed replacement while preserving the
+   server's no-op rejection. Freeze the new exact task as: `@Code Reframe this root-cause
+   section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it
+   persisted—using the synthetic repository and checkout log. Preserve every verified
+   date, quantity, and source reference, then replace only this section.` No canned
+   fallback or weakened invariant is allowed.
+4. **Future-spec thesis.** “Today: page-scoped RPC. 10×: reactive. 100×: durable and
+   accountable.” The 10× proposal is typed, agent-opted-in resource invalidation/pub-sub,
+   stable capability lifecycle, progress, streaming, and output contracts. The 100×
+   proposal is durable worker-backed sessions, browser-attested delegation identity and
+   scopes, cross-page routing, idempotent receipts, and reviewable replay. Every item is
+   visibly labeled proposed direction, not current WebMCP behavior.
+5. **Screenshot truth.** Operator screenshots contain no share URL, token, cookie,
+   unrestricted transcript, or private identifier. Product, native WebMCP, live Luna,
+   local rehearsal, and proposed-spec visuals remain separately labeled. A screenshot
+   guide helps the user record; it is not a substitute for the final live demo.
+
+## Streams
+
+### S1 — hosted Luna reliability — active
+- Owner / worktree: reliability worker in an isolated `/private/tmp` clone; return one
+  reviewed patch for explicit integration.
+- Scope and key files: `RepositoryWorkspace.tsx`, `RelayFlightRecorder.tsx`, focused UI
+  tests, the fixed Luna developer instructions and tests, the guided Code assignment
+  wording and `product_spec.md`, `EVALS.md`,
+  `docs/contracts/postmortem-hero-scenario.md`,
+  `evals/goldens/repo-document-v4.2/managed-relay.json`, and the live judge-flow
+  assertion. Those four contract/golden sources receive the exact frozen prompt before
+  implementation expectations change.
+- Must not touch: deck files, database migrations, release/submission copy, or user-owned
+  legacy media.
+- Inputs / frozen contracts: the retry and no-op invariants above; existing role catalogs,
+  provider/tool-call bounds, exact-range mutation, and two-attempt maximum remain fixed.
+- Verification: focused unit tests prove heartbeat containment, active-retry button
+  suppression, no-op-resistant instructions, and unchanged server rejection; then
+  `.codex/verify.sh`, build, native lifecycle, and repair-free production rehearsals. Add
+  an opt-in `RATIFLOW_REQUIRE_FIRST_ATTEMPT=1` live-test mode that fails immediately if
+  Retry appears rather than auto-clicking it.
+
+### S2 — judge deck and future thesis — active
+- Owner / worktree: deck worker in a separate isolated `/private/tmp` clone; return one
+  reviewed patch for explicit integration.
+- Scope and key files: `docs/contracts/html-deck-storyboard.md`, `src/app/deck/**`, and
+  `e2e/deck.spec.ts`.
+- Must not touch: repository workspace/runtime, relay/provider code, migrations, or legacy
+  video assets.
+- Inputs / frozen contracts: exact two-gate wording and sourced 10×/100× thesis above.
+- Verification: deck unit/e2e tests; all 12 direct hashes and keyboard controls; key
+  desktop/mobile captures with no clipping; current-vs-proposed labels and official
+  source links; fresh `$dev-visual-review` after integration.
+
+### S3 — screenshot-led recording kit — pending on verified I1 candidate
+- Owner / worktree: coordinating task.
+- Scope and key files: new `demo/v4.2-relay/recording-runbook.md`, sanitized screenshots
+  under `demo/v4.2-relay/screenshots/`, and a narrow capture README/manifest.
+- Must not touch: user-owned `demo/video-assets/**`, `demo/video-output/**`, or any final
+  video file.
+- Inputs / frozen contracts: one clean exact-SHA candidate flow and the final deck order.
+- Verification: every image is visually inspected, contains no browser chrome or secrets,
+  maps to a numbered runbook beat, and has an explicit evidence class. The runbook covers
+  setup, `@Code`, catalog/turn proof, r6 History/Restore, and the shorter `@Data` transfer.
+
+### I1 — integration, deployment, and rehearsal — pending
+- Owner / worktree: coordinating task.
+- Scope: integrate only the S1/S2 allowlists, run the repository gate and production
+  build, drive the real UI, deploy the exact reviewed runtime/deck when local gates pass,
+  run the native lifecycle and Luna judge trajectory, reconcile stale `README.md`,
+  `demo/devpost-submission-v4.md`, and the release manifest only to observed evidence,
+  then hand the verified exact-SHA candidate to S3.
+- Verification: `.codex/verify.sh`; `pnpm build`; production UI/deck E2E; native
+  idle→role→idle; `RATIFLOW_REQUIRE_FIRST_ATTEMPT=1 ... playwright test
+  e2e/live-luna-judge-flow.spec.ts --repeat-each=5 --workers=1 --reporter=line`, which
+  fails immediately on Retry; fifteen total runs and attempts, all first-attempt
+  successes; zero page errors or API 5xx; aggregate post-run state with no failed
+  attempts, active leases, permits, reservations, exhausted runs, or cancellations. If
+  external credentials or a privileged aggregate surface are unavailable, report that
+  gate as pending rather than infer success.
+
+## Checkpoints
+
+- Any deck wording implies a per-turn WebMCP catalog swap or autonomous Luna tool choice
+  -> block the deck and correct the claim.
+- A no-op replacement, contradictory retry control, or uncaught background error recurs
+  in a clean rehearsal -> block recording and production-confidence claims.
+- A future slide presents a proposal as adopted spec behavior, or arbitrary pushed prose
+  as safe pub/sub -> block the slide.
+- Any capture contains a share token, session material, private identifier, or raw model
+  transcript -> discard it and recapture from a fresh sanitized flow.
+- Local gate or build fails -> do not deploy.
+- Fewer than five repair-free production rehearsals -> the runbook may ship, but the
+  release remains explicitly below the internal recording-confidence bar.
+
+## Integration order
+
+`freeze this plan and adversarially review it -> (S1 isolated reliability || S2 isolated
+deck) -> reviewed patch integration -> focused tests -> shared integration gate/build ->
+driven local browser + visual review -> exact candidate deployment -> native and Luna
+rehearsals -> S3 sanitized exact-SHA screenshots/runbook -> final evidence audit ->
+dev-handoff`.
+
+S1 and S2 own disjoint implementation paths and can run in parallel after this freeze.
+Their test/build processes cannot observe each other's partial edits. S3 deliberately
+waits for the verified candidate so screenshots cannot fossilize superseded UI or claims.
+The coordinator owns requirements, patch integration, deployment, release-copy truth,
+and evidence classification.
+
+## Risks and open decisions
+
+- Luna remains generative; instruction tightening reduces no-op probability but cannot be
+  counted as reliability until the repair-free production bar is observed.
+- A true per-turn browser catalog would require a larger relay protocol/state-machine
+  change. This release explains the existing two-layer least-privilege design rather than
+  inventing that behavior under deadline.
+- Pub/sub can become a prompt-injection channel. The proposal is typed invalidation plus
+  authoritative re-read, opt-in scope, coalescing, expiry, and separate mutation grants.
+- The checkout contains unrelated user changes. Integration and deployment must exclude
+  them and must not rewrite the legacy untracked demo media.
+
+---
+
+# Archived plan — The document is the agent runtime
 _Updated: 2026-09-02T22:40:47+08:00_
 
 ## Goal and ambition mode

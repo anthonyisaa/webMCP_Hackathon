@@ -12,14 +12,16 @@ non-authoring viewer and highlights **Root cause** as the 90-second live path. T
 
 The exact hero prompt is:
 
-> @Code Check this root-cause section against the synthetic repository and checkout log.
-> Separate the external trigger from the internal amplifier, quantify the retry behavior
-> and queue growth, then replace only this section.
+> @Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger,
+> Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve
+> every verified date, quantity, and source reference, then replace only this section.
 
 Selecting the canonical Code profile creates exactly one Direct task and one queued Relay
 run. The successful trajectory calls, through the page's live WebMCP surface,
 `read_assignment`, `search_demo_code`, `read_demo_file`, and
-`submit_scoped_revision`. The result must cite `checkout.log` and `commit:7d3c9e1`, state
+`submit_scoped_revision`. The replacement must be exactly one Markdown list of three
+bullets labeled **Trigger**, **Amplifier**, and **Why it persisted**. The result must cite
+`checkout.log` and `commit:7d3c9e1`, state
 that provider 429 throttling was the external trigger, state that ignored `Retry-After`
 plus up to five zero-delay retries was the internal amplifier, and quantify 5.8× retry
 traffic plus queue growth from 420 to 18,240. It must not call provider latency alone the

@@ -43,6 +43,7 @@ type RelayGolden = {
   }>;
   postmortem: {
     heroAgent: string;
+    prompt: string;
     requiredToolOrder: string[];
     syntheticSources: {
       "checkout.log": {
@@ -153,6 +154,10 @@ test("freezes directory identities and role-scoped catalogs", () => {
     required: ["path"],
     additionalProperties: false,
   });
+  assert.match(
+    MANAGED_AGENT_TOOL_DEFINITIONS.submit_scoped_revision.description,
+    /replacementText must materially differ from the active selected text/u,
+  );
 });
 
 test("freezes bounded lease, retry, permit, and trace state machines", () => {
@@ -228,6 +233,10 @@ test("freezes the independent managed-relay oracle", () => {
   }
 
   assert.equal(golden.postmortem.heroAgent, "code");
+  assert.equal(
+    golden.postmortem.prompt,
+    "@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.",
+  );
   assert.deepEqual(golden.postmortem.requiredToolOrder, [
     "read_assignment",
     "search_demo_code",
