@@ -56,7 +56,7 @@ test("critical WebMCP story slides remain contained and truthful on desktop", as
   }
 
   await page.goto("/deck#slide-05");
-  await expect(page.getByRole("heading", { name: "Bot expertise and website access are independent." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Three bot archetypes. Dynamic access per assignment." })).toBeVisible();
   await expect(page.locator("#slide-05")).toContainText("SCOPE & CONTROL");
   await expect(page.locator("#slide-05")).toContainText("BOT EXPERTISE · DESCRIPTIVE");
   await expect(page.locator("#slide-05")).toContainText("ASSIGNMENT ACCESS · EXPLICIT GRANT");
