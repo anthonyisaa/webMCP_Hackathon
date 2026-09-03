@@ -165,7 +165,10 @@ export class RelayWebMCPRegistrationManager {
           logicalName,
         });
         const controller = new AbortController();
-        const abortFromParent = () => controller.abort(relayAbortError(input.signal?.reason));
+        // Native registerTool() owns this signal. Keep its teardown reason on the
+        // registration control plane as a string; execution boundaries translate
+        // cancellation to AbortError below.
+        const abortFromParent = () => controller.abort("Relay registration cancelled");
         input.signal?.addEventListener("abort", abortFromParent, { once: true });
         const record: RelayRegistrationRecord = {
           logicalName,
@@ -194,7 +197,7 @@ export class RelayWebMCPRegistrationManager {
         } catch (error) {
           this.#registrations.delete(physicalName);
           record.removeParentAbort();
-          controller.abort(relayAbortError("Relay registration failed"));
+          controller.abort("Relay registration failed");
           throw error;
         }
         if (controller.signal.aborted || input.signal?.aborted) {
@@ -325,7 +328,7 @@ export class RelayWebMCPRegistrationManager {
     for (const [name, registration] of this.#registrations) {
       this.#registrations.delete(name);
       registration.removeParentAbort();
-      registration.controller.abort(relayAbortError(reason));
+      registration.controller.abort(reason);
     }
     await Promise.allSettled([...this.#inFlight]);
     this.#session = null;

@@ -174,9 +174,10 @@ export class RelayBrowserRuntime {
       this.#heartbeatTimer = null;
       const run = this.#tick();
       this.#activePromise = run;
-      void run.finally(() => {
+      const clearActivePromise = () => {
         if (this.#activePromise === run) this.#activePromise = null;
-      });
+      };
+      void run.then(clearActivePromise, clearActivePromise);
     }, delayMs);
   }
 
@@ -358,6 +359,9 @@ export class RelayBrowserRuntime {
             signal: controller.signal,
           });
           const receipt = decodeRelayExecuteToolResult(raw);
+          if (logicalName === "submit_scoped_revision") {
+            this.#stopLeaseRenewal(claim.attempt);
+          }
           this.#setStatus({ phase: "AWAITING_MODEL", activeLogicalTool: null });
           outcome = resultData(await this.#dependencies.client.step(claim.grant, {
             action: "SUBMIT_FUNCTION_RESULT",
@@ -442,16 +446,46 @@ export class RelayBrowserRuntime {
     const attempt = this.#activeAttempt;
     if (this.#disposed || controller.signal.aborted || !grant || !attempt) return;
     try {
-      const renewed = resultData(await this.#dependencies.client.renewLease(
+      const result = await this.#dependencies.client.renewLease(
         grant,
         attempt.leaseId,
         controller.signal,
-      ));
+      );
+      if (!this.#isExactActiveAttempt(grant, attempt, controller)) return;
+      const renewed = resultData(result);
       this.#activeAttempt = renewed;
       this.#relayRegistrations.updateLease(renewed);
       this.#scheduleLeaseRenewal(controller);
     } catch (error) {
+      if (!this.#isExactActiveAttempt(grant, attempt, controller)) return;
       controller.abort(error instanceof Error ? error : relayAbortError("Relay lease lost"));
+    }
+  }
+
+  #isExactActiveAttempt(
+    grant: RelayGrant,
+    attempt: RelayClaimedAttemptView,
+    controller: AbortController,
+  ): boolean {
+    const active = this.#activeAttempt;
+    return !this.#disposed
+      && !controller.signal.aborted
+      && this.#activeController === controller
+      && this.#activeGrant === grant
+      && active?.attemptId === attempt.attemptId
+      && active.leaseId === attempt.leaseId
+      && active.registrationGeneration === attempt.registrationGeneration;
+  }
+
+  #stopLeaseRenewal(attempt: RelayClaimedAttemptView): void {
+    this.#clearLeaseTimer();
+    const active = this.#activeAttempt;
+    if (
+      active?.attemptId === attempt.attemptId
+      && active.leaseId === attempt.leaseId
+      && active.registrationGeneration === attempt.registrationGeneration
+    ) {
+      this.#activeAttempt = null;
     }
   }
 

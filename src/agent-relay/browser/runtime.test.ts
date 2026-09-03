@@ -425,6 +425,169 @@ test("renews the lease while visible and releases/restores idle when hidden mid-
   await runtime.dispose();
 });
 
+test("ignores an in-flight renewal failure after a successful terminal submit receipt", async () => {
+  const context = new FakeWebMCPConsumer();
+  const idle = new FakeIdleCatalog(context);
+  await idle.restore();
+  const environment = new FakeEnvironment();
+  const attempt = claimedAttempt();
+  const agent = managedAgent("CODE");
+  const accessGrant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
+  const submitPhysicalName = makeRelayPhysicalToolName({
+    accessProfile: accessGrant.accessProfile,
+    registrationScope: attempt.registrationScope,
+    registrationGeneration: attempt.registrationGeneration,
+    logicalName: "submit_scoped_revision",
+  });
+  const argumentsDigest = await sha256CanonicalJson({});
+  let signalSubmitStart!: () => void;
+  const submitStarted = new Promise<void>((resolve) => {
+    signalSubmitStart = resolve;
+  });
+  let finishSubmit!: () => void;
+  const submitGate = new Promise<void>((resolve) => {
+    finishSubmit = resolve;
+  });
+  let signalRenewalStart!: () => void;
+  const renewalStarted = new Promise<void>((resolve) => {
+    signalRenewalStart = resolve;
+  });
+  let rejectRenewal!: (error: unknown) => void;
+  const renewalResult = new Promise<never>((_resolve, reject) => {
+    rejectRenewal = reject;
+  });
+  let signalTerminalStepStart!: () => void;
+  const terminalStepStarted = new Promise<void>((resolve) => {
+    signalTerminalStepStart = resolve;
+  });
+  let finishTerminalStep!: () => void;
+  const terminalStepGate = new Promise<void>((resolve) => {
+    finishTerminalStep = resolve;
+  });
+  let terminalStepSignal: AbortSignal | undefined;
+  let completed = false;
+  let releases = 0;
+  const client = {
+    readState: async () => ({
+      ok: true as const,
+      data: state(completed ? "COMPLETED" : "QUEUED"),
+    }),
+    claim: async () => ({
+      ok: true as const,
+      data: {
+        outcome: "CLAIMED" as const,
+        run: run("ACTIVE"),
+        attempt,
+        agent,
+        capabilityGrant: accessGrant,
+        grant: GRANT,
+      },
+    }),
+    renewLease: async () => {
+      signalRenewalStart();
+      return await renewalResult;
+    },
+    releaseLease: async () => {
+      releases += 1;
+      return { ok: true as const, data: run(completed ? "COMPLETED" : "QUEUED") };
+    },
+    recordTrace: async (_grant: RelayGrant, input: RelayBrowserTraceInput) => ({
+      ok: true as const,
+      data: recordedTrace(input),
+    }),
+    step: async (_grant: RelayGrant, input: { action: string }, signal?: AbortSignal) => {
+      if (input.action === "START") {
+        return {
+          ok: true as const,
+          data: {
+            outcome: "DISCOVER_TOOLS" as const,
+            attemptId: attempt.attemptId,
+            nextStep: 1,
+            toolSearchCallId: "search-call-terminal",
+            goal: "Submit the scoped revision",
+          },
+        };
+      }
+      if (input.action === "SUBMIT_SEARCH_RESULT") {
+        return {
+          ok: true as const,
+          data: {
+            outcome: "EXECUTE_TOOL" as const,
+            attemptId: attempt.attemptId,
+            nextStep: 2,
+            functionCallId: "function-call-terminal",
+            physicalToolName: submitPhysicalName,
+            arguments: {},
+            permit: {
+              token: "rfpermit_v1.terminal" as RelayExecutionPermitToken,
+              attemptId: attempt.attemptId,
+              functionCallId: "function-call-terminal",
+              physicalToolName: submitPhysicalName,
+              argumentsDigest,
+              registrationGeneration: attempt.registrationGeneration,
+              leaseId: attempt.leaseId,
+              expiresAt: "2026-09-02T01:00:30.000Z",
+            },
+          },
+        };
+      }
+      terminalStepSignal = signal;
+      signalTerminalStepStart();
+      await terminalStepGate;
+      completed = true;
+      return {
+        ok: true as const,
+        data: {
+          outcome: "COMPLETED" as const,
+          attemptId: attempt.attemptId,
+          nextStep: 3,
+          outputText: "Assignment complete.",
+          run: run("COMPLETED"),
+        },
+      };
+    },
+    executeTool: async () => {
+      signalSubmitStart();
+      await submitGate;
+      return {
+        ok: true as const,
+        data: {
+          resultReceiptId: "receipt-terminal",
+          output: JSON.stringify({ ok: true, data: { revision: 6 } }),
+        },
+      };
+    },
+  } as RelayBrowserClientPort;
+  const runtime = new RelayBrowserRuntime({
+    context,
+    client,
+    idleCatalog: idle,
+    pageSessionId: PAGE_ID,
+    environment,
+  });
+
+  runtime.start();
+  assert.equal(environment.runTimer(0), true);
+  await submitStarted;
+  assert.equal(environment.runTimer(RELAY_BOUNDS.leaseRenewalMs), true);
+  await renewalStarted;
+  finishSubmit();
+  await terminalStepStarted;
+
+  rejectRenewal(new Error("The terminal attempt no longer owns a renewable lease."));
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  assert.equal(terminalStepSignal?.aborted, false);
+  assert.equal(
+    environment.runTimer(RELAY_BOUNDS.leaseRenewalMs),
+    false,
+    "A late renewal must not schedule another lease timer after terminal submit.",
+  );
+
+  finishTerminalStep();
+  await flushUntil(() => completed && releases === 1 && runtime.status.phase === "IDLE");
+  await runtime.dispose();
+});
+
 test("requires an explicit retry signal before claiming WAITING_RETRY work", async () => {
   const context = new FakeWebMCPConsumer();
   const idle = new FakeIdleCatalog(context);
@@ -546,4 +709,46 @@ test("claim-time quota refusal heartbeats without releasing or consuming an atte
   await flushUntil(() => claims === 2 && runtime.status.phase === "FAILED");
   assert.equal(releases, 0);
   await runtime.dispose();
+});
+
+test("scheduled tick cleanup handles a rejected runtime promise without floating a rejection", async () => {
+  const context = new FakeWebMCPConsumer();
+  const idle = new FakeIdleCatalog(context);
+  await idle.restore();
+  const environment = new FakeEnvironment();
+  const client = {
+    readState: async () => {
+      throw new Error("Synthetic state read failure");
+    },
+    claim: async () => { throw new Error("No claim expected."); },
+    renewLease: async () => { throw new Error("No renewal expected."); },
+    releaseLease: async () => { throw new Error("No release expected."); },
+    recordTrace: async () => { throw new Error("No trace expected."); },
+    step: async () => { throw new Error("No step expected."); },
+    executeTool: async () => { throw new Error("No execution expected."); },
+  } as Partial<RelayBrowserClientPort> as RelayBrowserClientPort;
+  const runtime = new RelayBrowserRuntime({
+    context,
+    client,
+    idleCatalog: idle,
+    pageSessionId: PAGE_ID,
+    environment,
+    onStatusChange: (status) => {
+      if (status.phase === "FAILED") throw new Error("Synthetic status sink failure");
+    },
+  });
+  const unhandled: unknown[] = [];
+  const onUnhandled = (error: unknown) => unhandled.push(error);
+  process.on("unhandledRejection", onUnhandled);
+
+  try {
+    runtime.start();
+    assert.equal(environment.runTimer(0), true);
+    await flushUntil(() => runtime.status.phase === "FAILED");
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+    await runtime.dispose();
+  }
 });

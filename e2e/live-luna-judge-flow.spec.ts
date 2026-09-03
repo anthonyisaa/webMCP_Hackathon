@@ -24,6 +24,53 @@ type NativeCatalogEntry = {
   sameWindow: boolean;
 };
 
+type SafePageErrorDiagnostic = {
+  name: string;
+  message: string;
+  phase: string;
+  checkpoint: string;
+  elapsedMs: number;
+};
+
+function scrubPageErrorText(value: string, maximumLength: number): string {
+  return value
+    .replace(/https?:\/\/\S+/giu, "[url]")
+    .replace(/\b(?:rfrelay|rfpermit)_v\d+\.[A-Za-z0-9._-]+\b/gu, "[token]")
+    .replace(/\beyJ[A-Za-z0-9._-]{20,}\b/gu, "[token]")
+    .replace(/\b[A-Za-z0-9_-]{48,}\b/gu, "[opaque]")
+    .slice(0, maximumLength);
+}
+
+function captureSafePageErrors(page: Page) {
+  const startedAt = Date.now();
+  const errors: SafePageErrorDiagnostic[] = [];
+  let phase = "BOOTSTRAP";
+  let checkpoint = "listener-attached";
+  page.on("pageerror", (error) => {
+    errors.push({
+      name: scrubPageErrorText(error.name || "Error", 64),
+      message: scrubPageErrorText(error.message || "Unknown page error", 240),
+      phase,
+      checkpoint,
+      elapsedMs: Date.now() - startedAt,
+    });
+  });
+  return {
+    enter(nextPhase: string, nextCheckpoint: string): void {
+      phase = nextPhase;
+      checkpoint = nextCheckpoint;
+    },
+    async expectNone(nextCheckpoint: string): Promise<void> {
+      await page.waitForTimeout(0);
+      expect(
+        errors,
+        `Native page errors through ${nextCheckpoint}: ${JSON.stringify(errors)}`,
+      ).toEqual([]);
+      checkpoint = nextCheckpoint;
+    },
+  };
+}
+
 const AGENT_NAMES: Readonly<Record<ManagedAgentExpertise, string>> = {
   CODE: "Code",
   DATA: "Data",
@@ -401,15 +448,17 @@ test.describe("opt-in native Luna judge trajectory", () => {
   }) => {
     test.setTimeout(660_000);
     expect(browserName).toBe("chromium");
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
+    const pageErrors = captureSafePageErrors(page);
 
+    pageErrors.enter("POSTMORTEM_LAUNCH", "before-postmortem-navigation");
     const postmortemUrl = await launchExample(page, "POSTMORTEM", 5);
     await expect(page.getByRole("heading", {
       level: 1,
       name: MANAGED_RELAY_EXAMPLE_OVERLAYS.POSTMORTEM.title,
     })).toBeVisible();
+    await pageErrors.expectNone("postmortem-idle-ready");
 
+    pageErrors.enter("POSTMORTEM_REPOSITORY", "before-code-repository-run");
     await assignGuidedAgent(page, "CODE", "REPOSITORY_SCOPED_EDIT", 6);
     await expectPostmortemFacts(page);
     await expectPostmortemCodeStructure(page);
@@ -426,10 +475,12 @@ test.describe("opt-in native Luna judge trajectory", () => {
         /18[,.\s]?240/u,
       ],
     });
+    await pageErrors.expectNone("code-repository-r6-verified");
 
     await expect(page.getByTestId("guided-selection")).toContainText(
       "Load @Code on Root cause",
     );
+    pageErrors.enter("POSTMORTEM_EDITORIAL", "before-code-editorial-run");
     await assignGuidedAgent(page, "CODE", "EDITORIAL_SCOPED_EDIT", 7);
     await expectPostmortemFacts(page);
     await inspectManagedRevision(page, {
@@ -448,13 +499,17 @@ test.describe("opt-in native Luna judge trajectory", () => {
     await expect(page.getByRole("button", {
       name: "Open revision history. Revision 7",
     })).toBeVisible();
+    await pageErrors.expectNone("code-editorial-r7-verified");
 
+    pageErrors.enter("PRODUCT_LAUNCH", "before-product-navigation");
     const productUrl = await launchExample(page, "PRODUCT_DOCUMENT", 6);
     expect(productUrl).not.toBe(postmortemUrl);
     await expect(page.getByRole("heading", {
       level: 1,
       name: MANAGED_RELAY_EXAMPLE_OVERLAYS.PRODUCT_DOCUMENT.title,
     })).toBeVisible();
+    await pageErrors.expectNone("product-idle-ready");
+    pageErrors.enter("PRODUCT_METRICS", "before-data-metrics-run");
     await assignGuidedAgent(page, "DATA", "METRICS_SCOPED_EDIT", 7);
     await expectProductFacts(page);
     await inspectManagedRevision(page, {
@@ -475,6 +530,6 @@ test.describe("opt-in native Luna judge trajectory", () => {
       name: "Open revision history. Revision 7",
     })).toBeVisible();
 
-    expect(pageErrors).toEqual([]);
+    await pageErrors.expectNone("data-metrics-r7-verified");
   });
 });

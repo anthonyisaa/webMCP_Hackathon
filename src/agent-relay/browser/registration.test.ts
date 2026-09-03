@@ -21,8 +21,21 @@ import {
   capabilityGrant,
   claimedAttempt,
 } from "./test-helpers";
+import type { WebMCPToolLike } from "../../webmcp/types";
 
 const GRANT = "rfrelay_v1.test" as RelayGrant;
+
+class ObservedRegistrationSignalConsumer extends FakeWebMCPConsumer {
+  readonly registrationSignals: AbortSignal[] = [];
+
+  override registerTool(
+    tool: WebMCPToolLike,
+    options?: { signal?: AbortSignal },
+  ): void {
+    if (options?.signal) this.registrationSignals.push(options.signal);
+    super.registerTool(tool, options);
+  }
+}
 
 function permit(input: {
   physicalName: string;
@@ -241,6 +254,78 @@ test("denies unarmed calls, consumes one permit, propagates cancellation, and re
   await manager.withdraw();
   await assert.rejects(context.executeTool(assignmentDescriptor, {}));
   assert.equal(context.callbackDispatches, dispatchesBeforeStale);
+});
+
+test("withdraw keeps native teardown reasons as strings while in-flight execution receives AbortError", async () => {
+  const context = new ObservedRegistrationSignalConsumer();
+  let executionSignal: AbortSignal | undefined;
+  let signalServerStart!: () => void;
+  const serverStarted = new Promise<void>((resolve) => {
+    signalServerStart = resolve;
+  });
+  const client = {
+    executeTool: async (
+      _grant: RelayGrant,
+      _permit: RelayExecutionPermitToken,
+      _name: string,
+      _input: Readonly<Record<string, unknown>>,
+      signal?: AbortSignal,
+    ) => {
+      executionSignal = signal;
+      signalServerStart();
+      return await new Promise<never>((_resolve, reject) => {
+        const abort = () => reject(signal?.reason);
+        if (signal?.aborted) abort();
+        else signal?.addEventListener("abort", abort, { once: true });
+      });
+    },
+  } as Partial<RelayBrowserClientPort> as RelayBrowserClientPort;
+  const manager = new RelayWebMCPRegistrationManager({
+    context,
+    client,
+    now: () => Date.parse("2026-09-02T01:00:00.000Z"),
+  });
+  const grant = capabilityGrant("REPOSITORY_SCOPED_EDIT");
+  const attempt = claimedAttempt();
+  await manager.register({ grant: GRANT, capabilityGrant: grant, attempt });
+  const discovered = await normalizeRelayManifest({
+    tools: await context.getTools(),
+    capabilityGrant: grant,
+    attempt,
+    origin: TEST_ORIGIN,
+    topLevelWindow: TEST_WINDOW,
+  });
+  const assignment = discovered.manifest.entries[0]!;
+  const descriptor = discovered.descriptors.get(assignment.physicalName)!;
+  const pending = manager.executeArmed({
+    descriptor,
+    arguments: {},
+    permit: permit({
+      physicalName: assignment.physicalName,
+      argumentsDigest: await sha256CanonicalJson({}),
+      token: "permit-withdraw",
+    }),
+  });
+
+  await serverStarted;
+  const withdrawing = manager.withdraw("Relay attempt ended");
+  await assert.rejects(
+    pending,
+    (error: unknown) => error instanceof DOMException
+      && error.name === "AbortError"
+      && error.message === "Relay attempt ended",
+  );
+  await withdrawing;
+
+  assert.ok(executionSignal);
+  assert.equal(executionSignal.reason instanceof DOMException, true);
+  assert.equal(executionSignal.reason.name, "AbortError");
+  assert.equal(context.registrationSignals.length, 7);
+  for (const signal of context.registrationSignals) {
+    assert.equal(signal.aborted, true);
+    assert.equal(typeof signal.reason, "string");
+    assert.equal(signal.reason, "Relay attempt ended");
+  }
 });
 
 test("uses the exact native input encoding advertised by a string-schema descriptor", async () => {

@@ -13,6 +13,7 @@ import {
   unavailableRelayStatus,
   type RelayBrowserRuntimeStatus,
 } from "../../agent-relay/browser";
+import { safeRelayErrorMessage } from "../../agent-relay/browser/errors";
 import type {
   IssueAgentProfile,
   IssueWorkspaceSurface,
@@ -65,6 +66,11 @@ function createPageSessionId(identityKey: string): string {
     throw new Error("A cryptographic page session ID is required for repository WebMCP.");
   }
   return globalThis.crypto.randomUUID();
+}
+
+function reportDetachedRelayCleanupFailure(error: unknown): void {
+  if (error instanceof DOMException && error.name === "AbortError") return;
+  console.error("Managed Relay cleanup failed.", safeRelayErrorMessage(error));
 }
 
 /** Browser-only, UI-free registration boundary for one mounted v4 issue page. */
@@ -285,7 +291,8 @@ export function RepositoryWebMCPBridge({
       relayStateReadControllerRef.current?.abort("Repository session changed");
       relayStateReadControllerRef.current = null;
       if (relayClientRef.current === activeRelayClient) relayClientRef.current = null;
-      void relayRuntime?.dispose();
+      const relayDisposal = relayRuntime?.dispose();
+      if (relayDisposal) void relayDisposal.catch(reportDetachedRelayCleanupFailure);
       if (relayRuntimeRef.current === relayRuntime) relayRuntimeRef.current = null;
       manager.dispose();
       if (managerRef.current === manager) managerRef.current = null;

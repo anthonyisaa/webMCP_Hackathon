@@ -68,7 +68,7 @@ test("critical WebMCP story slides remain contained and truthful on desktop", as
   await expect(page.locator("#slide-05")).toContainText("@Code + Repository");
 
   await page.goto("/deck#slide-07");
-  await expect(page.locator("#slide-07")).toContainText("same @Code identity receiving Repository then Editorial grants");
+  await expect(page.locator("#slide-07")).toContainText("History preserves who asked, which tools ran, what changed, why it changed, and how to restore it");
   await expect(page.locator("#slide-07")).toContainText("r6 · Code");
   await expect(page.locator("#slide-07")).toContainText("r7 · Code");
   await expect(page.locator("#slide-07")).toContainText("Editorial access · facts preserved");

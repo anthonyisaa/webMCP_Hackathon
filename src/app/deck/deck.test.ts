@@ -49,10 +49,10 @@ describe("Ratiflow HTML deck", () => {
       "Open Postmortem. Assign @Code with Repository access to Root cause. Follow tool discovery, required calls, and the revision.",
       "Code, Data, and General describe expertise. Each run receives exactly one temporary Metrics, Repository, or Editorial catalog.",
       "Repository evidence separates the external trigger from the retry amplifier in a restorable revision.",
-      "History shows the same @Code identity receiving Repository then Editorial grants, with tools, authorship, and Restore preserved.",
+      "History preserves who asked, which tools ran, what changed, why it changed, and how to restore it.",
       "The document and comments still work; dynamic discovery and the managed relay fail closed.",
       "@Data checks capacity, updates Success Measures, and leaves inspectable arithmetic behind.",
-      "WebMCP exposes and invokes assignment tools; Ratiflow enforces authority, then withdraws the temporary catalog when the run ends.",
+      "Luna composes each required call; the browser discovers and executes WebMCP tools; Ratiflow records the result.",
       "Our proposal: typed, opt-in pub/sub first; then durable workers, attested scopes, and reviewable replay.",
       "Choose a bot and assignment access, then inspect the site-tool trace, revision history, and Restore.",
     ]);
@@ -107,7 +107,8 @@ describe("Ratiflow HTML deck", () => {
     assert.match(markup, /@Code \+ Repository/u);
     assert.match(markup, /@General \+ Editorial/u);
     assert.match(markup, /May suggest a default; never grants authority/u);
-    assert.match(markup, /same @Code identity receiving Repository then Editorial grants/u);
+    assert.match(markup, /History preserves who asked, which tools ran, what changed, why it changed, and how to restore it/u);
+    assert.match(markup, /r6 · Code/u);
     assert.match(markup, /r7 · Code/u);
     assert.match(markup, /Editorial access · facts preserved/u);
     assert.match(markup, /search_demo_code/u);

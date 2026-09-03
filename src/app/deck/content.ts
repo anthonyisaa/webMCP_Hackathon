@@ -39,7 +39,7 @@ export const DECK_SLIDES = [
     id: "slide-07",
     section: "HISTORY & RESTORE",
     title: "Every agent change keeps its decision trail.",
-    subtitle: "History shows the same @Code identity receiving Repository then Editorial grants, with tools, authorship, and Restore preserved.",
+    subtitle: "History preserves who asked, which tools ran, what changed, why it changed, and how to restore it.",
   },
   {
     id: "slide-08",
@@ -57,7 +57,7 @@ export const DECK_SLIDES = [
     id: "slide-10",
     section: "HOW IT WORKS",
     title: "How a mention becomes a committed revision.",
-    subtitle: "WebMCP exposes and invokes assignment tools; Ratiflow enforces authority, then withdraws the temporary catalog when the run ends.",
+    subtitle: "Luna composes each required call; the browser discovers and executes WebMCP tools; Ratiflow records the result.",
   },
   {
     id: "slide-11",
