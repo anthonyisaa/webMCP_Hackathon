@@ -1,43 +1,42 @@
 # Ratiflow evaluation contract
 
-Version 4.3 · Capability-first WebMCP Relay · 2026-09-03
+Version 4.4 · Company-scoped managed delegation · 2026-09-03
 
-## v4.3 correction gate (authoritative)
+## v4.4 interaction correction gate (authoritative)
 
-Version 4.3 replaces every v4.2 rule that treated Data/Code/General expertise as a
-WebMCP permission, catalog key, physical namespace, or required sequence.
+Version 4.4 replaces v4.3's human-selected assignment access with a fixed company policy
+for each canonical managed handle.
 
 The release must prove all of the following:
 
-1. The managed agent mention shape requires one explicit `accessProfile` while the human
-   mention shape rejects it; raw tools and sources are never caller-selectable.
-2. `RelayRun.accessProfile` and its server-expanded `RelayCapabilityGrant`—not agent
-   expertise—determine catalog order, source access, task category, physical names,
-   required calls, manifest validation, and permit authorization.
-3. Code+Metrics and Data+Metrics have identical logical catalogs/order while retaining
-   distinct expertise and authorship. Code+Metrics and Code+Repository retain identical
-   agent identity while changing catalog, required source sequence, and evidence.
-4. A crossed pairing completes through native WebMCP and commits access-specific evidence
-   under the selected bot identity. A forged wrong known catalog, including the equal-size
-   Repository/Editorial pair, fails before provider continuation, source access, mutation,
-   or permit creation.
+1. Both canonical mention shapes reject public `accessProfile`; raw tools and sources are
+   never caller-selectable.
+2. One server-owned map fixes Data to Metrics, Code to Repository, and General to
+   Editorial after canonical managed-profile resolution. Self-declared agents cannot
+   enter that policy.
+3. `RelayRun.accessProfile` and its server-expanded `RelayCapabilityGrant` determine
+   catalog order, source access, task category, physical names, required calls, manifest
+   validation, and permit authorization after the company mapping is persisted.
+4. Each of the three managed agents completes through WebMCP with only its fixed catalog
+   and matching evidence. A supplied/crossed access field or forged wrong known catalog,
+   including the equal-size Repository/Editorial pair, fails before provider continuation,
+   source access, mutation, or permit creation.
 5. The server independently rejects out-of-grant tools and out-of-range mutations.
    Catalog absence and `readOnlyHint` are guidance, not authorization.
 6. Existing pre-v4.3 rows and exact v1 signed grant/permit claims replay without semantic
    drift after the forward-only access-profile migration.
 
-Active product, deck, runbook, capture, and submission copy must use **assignment access
-grant**, **site capability catalog**, and **server-required task sequence**. It must never
-describe the catalog as bot-kind-derived or assign identity/access-policy authority to
-WebMCP.
+Active product, deck, runbook, capture, and submission copy must use **company-configured
+access**, **site capability catalog**, and **server-required task sequence**. It must not
+show a human permission picker or assign authorization authority to WebMCP.
 
 ## 0. Authority and proof classes
 
 This suite evaluates one focused promise: **Mention the expert. The page supplies the
 tools. The document keeps the proof.** People collaborate in an Incident postmortem or
 Product document by leaving anchored comments; selecting `@Data`, `@Code`, or `@General`
-and an explicit assignment access profile creates durable work; the open top-level page
-exposes that grant's site capability catalog; the server pins each required next function
+creates durable work under that bot's fixed company access; the open top-level page
+exposes the resulting site capability catalog; the server pins each required next function
 from the immutable run profile; Luna composes its
 strict arguments and returns the call; the browser executes it through WebMCP; and
 Ratiflow preserves
@@ -134,12 +133,12 @@ portion of the Product golden independently freeze blank r1 source, digests, req
 headings, and empty profile/task/discussion state. First-run templates are not validated
 by importing completed-example builders.
 
-### Independent v4.3 managed-relay golden
+### Independent v4.4 managed-relay golden
 
 `evals/goldens/repo-document-v4.2/managed-relay.json` independently freezes the three
-managed bot identities, three assignment access profiles and their exact catalogs, fixed
+managed bot identities, their three fixed company access profiles and exact catalogs, fixed
 Luna runtime/model, Postmortem Repository prompt and synthetic code/log facts, Product
-Metrics prompt and capacity facts, orthogonality invariants, required trace subsequence,
+Metrics prompt and capacity facts, managed-handle mapping, required trace subsequence,
 forbidden conclusions, and WebMCP-off behavior.
 Production fixtures and catalogs must not import it.
 
@@ -178,10 +177,10 @@ All rows run without an LLM and pass 100%.
 | D27 Migration and old-code sequence | The additive v4.1 migration passes fresh-database and replay checks without editing an applied migration. It extends the request-operation CHECK without dropping old values, makes task profile/context immutable, and backfills comment creation revision from linked activity while the named append-only trigger is transactionally disabled/re-enabled—never from mutable anchors. Private generation-bound page connections and UUID-CAS wait leases bind profile, credential session, and page. Replaced pre-v4.1 RPCs use a final server-only response-contract selector defaulting to exact legacy inputs/projections and profile-free delegated-agent behavior; the new adapter sends `v4.1`. The legacy Save branch accepts but ignores bounded `changeSummary`, while the v4.1 branch/HTTP boundary reject it. After apply, unchanged pre-v4.1 route/RPC smoke must pass before v4.1 adapter/reset/browser smoke; database advisors and deployment/native evidence follow in the frozen order. |
 | D28 Retention and storage | Issue/session expiry is bounded to 30 days; expiry invalidates reads/mutations. Browser persistence contains credentials and pointers only; authoritative content is fetched before registration and secrets never enter results/logs. Credential-response loss never requires recoverable plaintext storage. |
 | D29 Safe Markdown and charts | Reading mode renders safe GFM headings, lists, links, code, task lists, and tables from exact revision source while skipping raw HTML, blocking remote images, disabling interactive task checkboxes, and rejecting unsafe URLs. Exact `chart` JSON accepts only the frozen v1 bar/line schema and finite bounds, renders labelled SVG plus accessible data table from the fixed palette, and leaves invalid/malicious source inert, editable, revisioned, diffable, and restorable. |
-| D30 Rendered-to-source mapping | Exact HAST text-leaf UTF-16 positions map once to Unicode code-point source anchors; valid cross-leaf selections preserve intervening Markdown delimiters. Entity/escape interiors, code, generated footnotes, image text, chart internals, and surrogate interiors fail closed; keyboard whole-table/chart selection is exact; active highlights split only exact leaves and never alter stored source. |
+| D30 Rendered-to-source mapping | Exact HAST text-leaf UTF-16 positions map once to Unicode code-point source anchors. Cross-leaf selections are valid only when both endpoints share the same `strong`/`em`/`del`/link ancestor set, or when plain endpoints fully enclose formatted nodes; a selection that would preserve only one side of inline Markdown syntax fails closed. Entity/escape interiors, code, generated footnotes, image text, chart internals, and surrogate interiors also fail closed; keyboard whole-table/chart selection is exact. Highlights split exact leaves, never paint both parent and child nodes, and follow blue-current > green-recent-agent > yellow-pending precedence without altering stored source. |
 | D31 Completed-example oracle | Public example requires `{kind, displayName}` and returns the selected fresh completed historical golden plus that caller only as the current non-authoring viewer. It does not pre-seed the continuity agent; that profile is created by the later checked connect overlay. Postmortem equals r5/av11 and Product equals its own checked terminal graph after normalizing only fresh IDs, credentials/paths, timestamps/expiry, and colors; seeded names/owners, historical profiles, prompts/context, comments/Close, tasks, chart/table source, counters, diffs, provenance, rationales, evidence, and graph relationships remain exact. Protected reset independently returns the first three comment-first Direct mentions at r1/av4 with their profiles/comments/context but no page connection, and never exposes raw paths in evidence. |
-| D32 Directory principals | `@Data`, `@Code`, and `@General` each resolve by immutable canonical profile ID to a distinct internal member, case-insensitively unique ASCII handle, directory visibility, descriptive expertise, `DEMO_DIRECTORY` identity source, and fixed runtime. A managed directory profile owns no authoritative tools or source labels. A typed name, stale selection, cross-document ID, or forged model field has no authority. Existing `SELF_DECLARED` profiles remain isolated Advanced compatibility data. |
-| D33 Atomic target compilation | The new discriminated mention input accepts a HUMAN member ID or an AGENT profile ID plus explicit `accessProfile`. Human target rejects `accessProfile` and creates exactly one thread/root comment with no task/run. Managed agent target requires one known profile, a non-empty ≤8,000-code-point Selection, and exactly one known access profile; it atomically creates comment, thread, Direct task/context, mention snapshot, and one `QUEUED` run with immutable access. Raw tools/sources are rejected. Legacy v4.1 mention input remains byte-compatible. |
+| D32 Directory principals | `@Data`, `@Code`, and `@General` each resolve by immutable canonical profile ID to a distinct internal member, case-insensitively unique ASCII handle, directory visibility, descriptive expertise, `DEMO_DIRECTORY` identity source, and fixed runtime. One server-owned managed-handle map assigns Data→Metrics, Code→Repository, and General→Editorial; it cannot be entered by `SELF_DECLARED` profiles. A typed name, stale selection, cross-document ID, or forged model field has no authority. Existing `SELF_DECLARED` profiles remain isolated Advanced compatibility data. |
+| D33 Atomic target compilation | The discriminated mention input accepts only a HUMAN member ID or an AGENT profile ID; both branches reject public `accessProfile`. A human target creates exactly one thread/root comment with no task/run. A managed agent target requires one known managed profile and a non-empty ≤8,000-code-point Selection; after canonical lookup the server derives company access and atomically creates comment, thread, Direct task/context, mention snapshot, and one `QUEUED` run with immutable access. Raw access/tools/sources are rejected. Legacy v4.1 mention input remains byte-compatible. |
 | D34 Run/attempt lifecycle | One task owns one run lineage and ≤2 numbered attempts. Run and attempt transitions match checked enums; one document has at most one active Relay run. Explicit Retry creates new attempt/provider/mutation IDs. Cancelling or staling the task atomically cancels every nonterminal run/attempt. |
 | D35 Lease and claim | Claim occurs before paid work and returns `CLAIMED | NO_WORK | BUSY`; normal empty heartbeat is not an error. One renewable 45-second lease across tabs, renewed every 15 seconds, binds document/profile/task/run/attempt/human/page/session. A successful claim returns bot expertise and a separate server-expanded `RelayCapabilityGrant`. Lease loss, expiry, cross-page use, and takeover fail safely without duplicate provider dispatch. |
 | D36 Relay grant and permit | A 120-second in-memory same-origin Relay grant is server-minted and never reaches Luna or storage. The grant is reconstructed from `run.accessProfile`; existing v1 signed claim keys remain byte-exact. Every function call receives a 30-second one-shot permit bound to attempt, provider call, physical tool, exact argument digest, generation, lease, and server mutation ID. The server authorizes that physical/logical tool against the immutable run profile. Unarmed native invocation, out-of-grant tool use, replay with changed arguments, stale generation, and expired/revoked permit fail with zero effect; exact completed replay returns its stored receipt. |
@@ -193,7 +192,7 @@ All rows run without an LLM and pass 100%.
 Deterministic boundary and adversarial matrices cover Unicode/source anchors, profile
 rename/duplication, authorization, replay, concurrency, pagination, wait races, unsafe
 Markdown/chart input, and protocol isolation. Static SQL inspection does not replace
-local adapter parity or post-apply database advisors and crossed-run smoke. Historical
+local adapter parity or post-apply database advisors and all-three-agent smoke. Historical
 v4.1 compatibility gates remain scoped to the migration that introduced v4.1; they do
 not authorize migration-first rollout of the capability-first Relay.
 
@@ -208,12 +207,12 @@ injected `modelContext` are `ADAPTER_CAPTURED`, never native.
 | B02 Session/share | Direct `/issue/[shareToken]` reload/tab resume, isolated named collaborator join, precedence and fragment scrubbing, credential-only persistence, invalid/expired recovery, and blocked-storage fallback are correct. Root setup never silently redirects to the most recent issue. |
 | B03 Document primacy and rendering | A calm top bar and semantic rendered Markdown document dominate. Tables and accessible charts render from revisioned source; type, `rN · Saved`, presence, Share, Edit, comments, and History remain legible without dashboard/stage/chat residue. |
 | B04 Human editing | Explicit Edit swaps to native source controls; Done and Cmd/Ctrl+S create a derived-summary revision. Native undo/redo, spellcheck, reload, remote sync, stale-draft preservation, Use latest/manual merge, and visible errors work without WebMCP. |
-| B05 Rendered selection | Exact title/body selection in rendered content exposes one comment affordance and opens one anchored comment bubble. Cross-leaf GFM text maps to checked source; ambiguous/unsafe nodes fail closed; focus and pointer-menu native branches restore correctly. |
+| B05 Rendered selection | Exact title/body selection in rendered content exposes one comment affordance and opens one anchored comment bubble. The exact live range remains visibly blue after composer focus, including delimiter-safe cross-leaf and Unicode selections; submitted code-point offsets equal the painted range. Same-wrapper inline selections and plain selections enclosing complete formatted nodes map to checked source; partial inline-syntax crossings and other ambiguous/unsafe nodes fail closed; focus and pointer-menu native branches restore correctly. |
 | B06 Human discussion | Two isolated named humans create an anchored plain comment, reply, and Close it. Attribution, created-revision context, rebase/stale state, synchronization, and quiet resolved state remain visible; no acceptance or content mutation occurs. |
-| B07 @ delegation | The same comment bubble offers owner-disambiguated autocomplete after `@`. Choosing a current agent and entering the exact prompt creates one visible Direct assignment with its initial comment/context; no secondary form, mode chooser, category, title, confirmation, or approval step appears. An unselected @ remains a comment and a renamed/stale choice fails atomically with recoverable UI. |
+| B07 @ delegation | The same comment bubble offers owner-disambiguated autocomplete after `@`. Choosing a current agent and entering the exact prompt creates one visible Direct assignment with its initial comment/context; no secondary form, permission scope, mode chooser, category, title, confirmation, or approval step appears, and the public payload contains no `accessProfile`. An unselected @ remains a comment and a renamed/stale choice fails atomically with recoverable UI. |
 | B08 Concurrent assignments | Databot, Logbot, and Builder comments coexist from r1 with immutable agent-name/owner attribution. Open and Completed views retain each prompt, target, context, thread, rationale, evidence, and linked change. |
 | B09 Direct agents | Adapter Databot and Logbot commit only their assigned ranges, creating r2/r3 with clear owner/task/agent provenance. Disjoint r1 submissions rebase safely and never overwrite. |
-| B10 Completed change and correction | Builder creates r4 directly. Its completed comment shows highlighted before/after change, rationale, evidence, revision link, and Restore. Priya's plain question, second @Builder correction, r5 completion, and later Close remain distinct; no human content-approval event is invented. |
+| B10 Completed change and correction | Builder creates r4 directly. Its completed comment shows before/after change, rationale, evidence, revision link, and Restore. Seeded resolved history paints no document highlight. A new open comment/task paints only its exact range yellow; a newly observed agent-authored commit paints only its replacement green through 29,999 ms and clears at 30,000 ms without polling restart. Priya's plain question, second @Builder correction, r5 completion, and later Close remain distinct; no human content-approval event is invented. |
 | B11 History | The simple revision list separates content revisions from coordination activity. Each r1-r5 card opens author/owner/prompt/context/rationale/evidence, complete diff, and rendered historical snapshot; Restore appends a new revision rather than erasing the agent change. |
 | B12 Product example | The completed Product document visibly proves a human capacity correction, Databot arithmetic/GFM table/chart, ChatGPT synthesis, closed human discussion, multiple owners, revision comparison, and Restore without reusing postmortem content. |
 | B13 New-owner continuity | A genuinely new human joins after completion and connects a new adapter agent with no assigned task. Activity-context pages expose cross-contributor facts, decisions, comment-only discussion, prompts, and rationales needed for the checked answer. |
@@ -222,15 +221,15 @@ injected `modelContext` are `ADAPTER_CAPTURED`, never native.
 | B16 Catalog/lifecycle | From page start, exactly the eight idle/BYOA tools register in frozen order. A managed claim withdraws all eight before registering exactly one generation-scoped Metrics catalog (6 tools), Repository catalog (7), or Editorial catalog (7), chosen only by immutable run access; idle and managed tools never coexist. Completion, terminal failure, or release withdraws the assignment catalog before restoring the same eight idle tools. Route/session/navigation teardown removes tools, waits, listeners, and timers; reconnect is required for the next registration lifetime, retries are bounded, and no duplicate registration remains. |
 | B17 390px/accessibility | No horizontal overflow; ≥44px targets; comment bubble/autocomplete, comments, completed diff, History, chart data, Restore, and new document actions are reachable. Drawers/listboxes support expected keys, focus return, and reduced motion. |
 | B18 Runtime health | Full two-example, multi-human, multi-agent flow has no uncaught page, hydration, request-loop, stale-session, secret, duplicate-listener, unsafe-rendering, or overflow error. |
-| B19 Judge NUX | A fresh judge sets a nickname, chooses Postmortem or Product, understands the two-sheet document, selects the guided section, opens one familiar comment bubble, types `@`, distinguishes grouped Humans from managed Agents, and confirms a separately labeled website-access choice without narration. Guided flows may preselect a matching profile but never lock it to bot identity. Copy states that Relay runs only while an eligible page is open and selected context goes to OpenAI. |
-| B20 Managed directory | Autocomplete shows `@Data`, `@Code`, and `@General` with descriptive expertise, visibility, readiness, and stable disambiguation. The same composer separately offers exactly Metrics, Repository, and Editorial scoped edit for managed assignments. A human mention creates discussion only and has no access selector; a managed mention creates exactly one visible queued task with the chosen access. Stale/deleted selection fails recoverably. Advanced BYOA remains available but secondary. |
+| B19 Judge NUX | A fresh judge sets a nickname, chooses Postmortem or Product, understands the two-sheet document, selects any safe passage, opens one familiar comment bubble, types `@`, distinguishes grouped Humans from managed Agents, and runs the assignment without a permission decision. Copy states that access is company-configured, Relay runs only while an eligible page is open, and selected context goes to OpenAI. |
+| B20 Managed directory | Autocomplete shows `@Data`, `@Code`, and `@General` with descriptive expertise, visibility, readiness, stable disambiguation, and fixed company access: Metrics, Repository, and Editorial respectively. Neither human nor managed mention exposes an access selector. A human mention creates discussion only; a managed mention creates exactly one visible queued task with server-resolved access. Stale/deleted selection fails recoverably. Advanced BYOA remains available but secondary. |
 | B21 Top-level mode switch | One coordinator—not two bridges—moves exact idle eight tools → one generation-scoped assignment capability catalog → exact idle eight tools. It observes `toolchange`, discovers with `getTools()`, executes the exact returned descriptor with `executeTool()`, and tears down on navigation/failure. |
 | B22 Permit and descriptor safety | Unarmed invocation reaches the callback but returns `RELAY_EXECUTION_NOT_ARMED`; armed exact invocation succeeds once; replay is denied; execution cancellation reaches page code; after abort, a saved stale descriptor is rejected without callback effect. |
-| B23 Live Code hero | The frozen prompt is `@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.` With explicit Repository access, it produces one lineage, searches/reads only synthetic code/log sources, commits only Root cause, shows the 429 trigger versus retry amplifier with 5.8×/420→18,240 evidence, and restores idle tools. Flight Recorder and History agree. |
-| B24 Live Data transfer | With explicit Metrics access, the frozen `@Data` prompt queries only synthetic Northstar data, proves 10+4=14 and 10+8=18, preserves October 15 invite-only beta/November 1 GA/$180,000 renewal, changes only Success measures, and restores idle tools. |
-| B25 Access independence | Code+Metrics and Data+Metrics visibly register identical logical catalogs/order while keeping distinct bot identity/authorship. Code+Metrics and Code+Repository keep the same bot identity while changing catalog, physical discriminator, required source sequence, and evidence. A crossed pairing commits the correct evidence. Physical names and generations differ; stable logical labels remain readable. |
+| B23 Live Code hero | The frozen prompt is `@Code Reframe this root-cause section as exactly three labeled Markdown bullets—Trigger, Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve every verified date, quantity, and source reference, then replace only this section.` Company-configured Repository access produces one lineage, searches/reads only synthetic code/log sources, commits only Root cause, shows the 429 trigger versus retry amplifier with 5.8×/420→18,240 evidence, and restores idle tools. Flight Recorder and History agree. |
+| B24 Live Data transfer | Company-configured Metrics access for `@Data` queries only synthetic Northstar data, proves 10+4=14 and 10+8=18, preserves October 15 invite-only beta/November 1 GA/$180,000 renewal, changes only Success measures, and restores idle tools. |
+| B25 Fixed company access | Data, Code, and General resolve only to Metrics, Repository, and Editorial respectively. Public missing/supplied/crossed access never changes that mapping. Each resulting run persists its exact profile; physical names and generations differ, stable logical labels remain readable, and downstream manifest/permit checks still reject any forged catalog. |
 | B26 Two-tab/cancel/retry | Two tabs create at most one paid attempt and one revision. Navigation before dispatch revokes locally; task Cancel or stale edit terminates lineage; post-dispatch timeout reconciles; a visible Retry creates a fresh attempt without canned fallback. |
-| B27 HTML deck | `/deck` has exactly 12 16:9 slides, arrow/key and direct-hash navigation, progress, responsive fit, print and reduced-motion behavior, descriptive alt text, and one claim per slide. The mechanism slide visually separates bot expertise, explicit assignment access, capability grant, WebMCP exposure/invocation, and server enforcement, including same-access/different-bot and same-bot/different-access examples. Every visual is either a clearly labeled rendered product visual or an exact-SHA verified screenshot with source notes; rendered visuals never carry live-Luna, native-WebMCP, or deployment-proof labels. |
+| B27 HTML deck | `/deck` has exactly 11 16:9 slides, arrow/key and direct-hash navigation, progress, responsive fit, print and reduced-motion behavior, descriptive alt text, and one claim per slide. It frames the problem as lost context when people and agents share documents, follows only the `@Code` Postmortem example, and explains that every agent receives the same document history/provenance while company policy controls assignment tools. The architecture is model-agnostic, the roadmap makes two sourced 10× asks, and the final slide contains only the live-app link. The mechanism slide separates fixed company access, persisted capability grant, WebMCP exposure/invocation, and server enforcement; it does not show a permission picker. Every visual is either a clearly labeled rendered product visual or an exact-SHA verified screenshot with source notes; rendered visuals never carry live-Luna, native-WebMCP, or deployment-proof labels. |
 
 A dated manual capture must verify the real platform spelling/dictionary menu. Synthetic
 `contextmenu` tests prove branching only.
@@ -256,10 +255,10 @@ and exact SHA.
 | N10 Runtime health | No uncaught error, hydration issue, phantom handle, secret-bearing output, bootstrap leak, pre-scrub registration, unsafe render, or profile/counter drift occurs across setup and the full flow. |
 | N11 Consumer lifecycle | On the deployed top-level page, standard `document.modelContext.getTools()` observes idle → assignment capability catalog → idle and `toolchange`; `executeTool()` uses the exact returned descriptor. Evidence records `OBJECT` or `JSON_STRING_COMPAT` from that descriptor and `NATIVE_CALLBACK_SIGNAL` or `APPLICATION_PROPAGATED` for cancellation. `navigator.modelContext` is labeled compatibility-only. |
 | N12 Stale and unarmed rejection | A real supported client cannot actuate a Relay callback without its matching armed permit and cannot execute a descriptor after that registration generation is withdrawn. Effect counts remain unchanged. |
-| N13 Composed Luna Repository run | One frozen Postmortem `@Code + Repository` assignment links a real Luna client-tool-search response to the exact native `getTools()` manifest, its observed descriptor-bound input encoding, native `executeTool()` calls, stored result receipts, one completed task, and one revision. Every ID/digest in sanitized evidence reconciles. |
-| N14 Composed Luna Metrics run | One frozen Product `@Data + Metrics` assignment provides the equivalent composed proof with the checked capacity arithmetic and scoped revision. |
+| N13 Composed Luna Repository run | One frozen Postmortem `@Code` assignment with company-configured Repository access links a real Luna client-tool-search response to the exact native `getTools()` manifest, its observed descriptor-bound input encoding, native `executeTool()` calls, stored result receipts, one completed task, and one revision. Every ID/digest in sanitized evidence reconciles. |
+| N14 Composed Luna Metrics run | One frozen Product `@Data` assignment with company-configured Metrics access provides the equivalent composed proof with the checked capacity arithmetic and scoped revision. |
 | N15 WebMCP ablation | With WebMCP removed, human editing/comments/History/Restore remain usable but managed discovery and execution fail closed, no revision lands, and the queued task remains honest. |
-| N16 Truthful labeling | UI, deck, evidence, and submission all say application-owned Luna WebMCP Relay and separate descriptive bot expertise from assignment access. None claims native Luna Site Tools, assigns bot authentication or Ratiflow policy authority to WebMCP, promises background cron or real customer connectors, treats model identity as verified, or displays hidden reasoning. |
+| N16 Truthful labeling | UI, deck, evidence, and submission all say application-owned Luna WebMCP Relay and distinguish descriptive expertise, company-configured access, and the persisted run grant. None claims native Luna Site Tools, assigns bot authentication or Ratiflow policy authority to WebMCP, promises background cron or real customer connectors, treats model identity as verified, or displays hidden reasoning. |
 
 A platform safety confirmation is reported separately from Ratiflow's stored Direct
 authority. If the host asks for action-time confirmation, evidence must not claim that
@@ -283,16 +282,16 @@ fixed model; they never invent a BYOA connect identity.
 | A05 Conflict/replay | Race overlapping edits, stale cursors, cancellation, and aborted retry. Agent re-inspects and never duplicates or forces a write. | ≥4/5 recovery; 5/5 no bad mutation |
 | A06 New-owner continuity | A freshly joined owner connects a new agent with no task. It pages activity context/history and explains why provider latency alone was insufficient, citing retry amplification and Priya's closed comment. | 5/5 keyed answer using tools |
 | A07 Product continuity | A fresh agent on the completed Product example reconstructs the capacity correction, option arithmetic, launch choice, rationale, and closed discussion across multiple contributors. | ≥4/5 exact; 5/5 no unsupported fact |
-| A08 Luna Repository assignment | Fixed Luna begins with client `tool_search`; explicit Repository access determines the exact next physical function by name, reads its assignment first, gathers both synthetic sources without repeating an earlier deferred tool, and commits the exact scoped conclusion under the selected bot identity. | 5/5 composed native lineage; zero unsupported claim |
+| A08 Luna Repository assignment | Fixed Luna begins with client `tool_search`; company-configured Repository access for Code determines the exact next physical function by name, reads its assignment first, gathers both synthetic sources without repeating an earlier deferred tool, and commits the exact scoped conclusion under the selected bot identity. | 5/5 composed native lineage; zero unsupported claim |
 | A09 Luna Metrics assignment | Fixed Luna discovers only the Metrics catalog; each continuation pins the exact next physical function by name, calls the metrics fixture, computes exact capacity arithmetic, and commits only Success measures under the selected bot identity. | 5/5 composed native lineage; exact arithmetic |
-| A10 Access switch and crossed pairing | A later run changes access without changing the bot and receives the new profile's catalog; a separate crossed pairing uses a non-matching bot/expertise label with the correct access-specific evidence. | 5/5 exact catalog delta and authorship; no stale descriptor |
+| A10 Fixed company mapping | Data, Code, and General each receive only their checked Metrics, Repository, and Editorial catalog. Supplied or crossed public access is rejected; an old run still executes from its persisted grant. | 5/5 exact catalogs and authorship; no stale descriptor |
 | A11 Failure honesty | Rate limit, malformed tool result, WebMCP absence, lease loss, ambiguous dispatch, and exhausted attempts show bounded Retry/failure states; no canned result or phantom revision appears. | 5/5 honest state and zero duplicate spend |
 
 ## 7. WebMCP ablation
 
 With identical model/version, golden state, prompt, five seeds, and timing, compare:
 
-1. v4.3 Ratiflow with the same fixed Luna model, managed bot, assignment access, prompt,
+1. v4.4 Ratiflow with the same fixed Luna model, managed bot and its company access, prompt,
    seed, and timing, where the browser dynamically discovers and executes the site capability catalog through native
    WebMCP; and
 2. WebMCP disabled, where the document remains human-usable but the managed Relay has no
@@ -310,15 +309,15 @@ better, narrow the claim or fix the surface.
 |---|---|
 | V01 Fresh visual review | After UI work, a fresh read-only design judge drives desktop and 390px; any BLOCK prevents presentation. |
 | V02 Document primacy | Rendered postmortem/Product content is unmistakably primary; typography, tables/charts, comments, completed changes, provenance, and History are legible but quiet. |
-| V03 First-time clarity | Without narration, a new evaluator can enter a nickname, choose either two-sheet demo, select the guided section, leave a plain human comment or choose `@Data`, `@Code`, or `@General` plus separate assignment access, understand that Relay runs while the page is open, follow discovery/execution/revision in the Flight Recorder, and find History/Restore. Advanced BYOA does not obstruct the path. |
+| V03 First-time clarity | Without narration, a new evaluator can enter a nickname, choose either two-sheet demo, select any safe passage, leave a plain human comment or choose `@Data`, `@Code`, or `@General` and run it without a permission step, understand that Relay runs while the page is open, follow discovery/execution/revision in the Flight Recorder, and find History/Restore. Advanced BYOA does not obstruct the path. |
 | V04 History clarity | The simple Git-like view makes r1-r5 authorship, prompts, context, rationale, evidence, diffs, and reversible Restore understandable without turning the document into a developer dashboard. |
 | V05 Mobile/a11y | 390px flow, keyboard focus, autocomplete/drawer behavior, native editing controls, contrast, reduced motion, long untrusted content, chart data, and error states pass. |
 | R01 Five rehearsals | Exact postmortem and Product heroes each pass five consecutive fresh runs without repair. |
-| R02 Build and health | `.codex/verify.sh`, production build, local browser suite, and the controlled app-first/fail-closed rollout pass on the release SHA: app cutover, old-deployment/maintenance fence, stale/missing HTTP-contract rejection, zero-mutation old-store probe, zero active attempt/grant/permit check, approved transactional migration, four-argument claim rejection, database advisors, aligned plus crossed bot/access smoke, runtime reachability, release browser suite, and post-flow error scan. |
+| R02 Build and health | `.codex/verify.sh`, production build, local browser suite, and the controlled app-first/fail-closed rollout pass on the release SHA: app cutover, old-deployment/maintenance fence, stale/missing HTTP-contract rejection, zero-mutation old-store probe, zero active attempt/grant/permit check, approved transactional migration, four-argument claim rejection, database advisors, all-three fixed bot/access smoke, runtime reachability, release browser suite, and post-flow error scan. |
 | R03 Native proof | Exact-SHA N01-N16 evidence is sanitized and eligible, including the v4.3 Relay-native and truth-label gates; adapter-only rows remain labeled. |
-| R04 Demo | Public YouTube video is under three minutes, has audio, shows the working app, starts from nickname and document choice, lands one `@Code + Repository` postmortem run and one `@Data + Metrics` Product run, makes bot expertise versus assignment access explicit, shows the capability-catalog transition and Luna-powered application-owned Relay in the Flight Recorder, then proves the exact revisions and History/Restore. |
+| R04 Demo | Public YouTube video is under three minutes, has audio, shows the working app, starts from nickname and document choice, lands one `@Code` postmortem run with company-configured Repository access and one `@Data` Product run with company-configured Metrics access, shows the clean blue→yellow→green document feedback and capability-catalog transition, then proves the exact revisions and History/Restore. |
 | R05 Public package | Live URL remains accessible; public repository contains source/assets/setup/license; copy, video, deployment, manifest, and submission identify one SHA. |
-| R06 HTML deck | The public `/deck` has 12 visually reviewed slides, clearly labeled rendered product visuals and/or exact-SHA screenshots, keyboard/mobile/print proof, correct live/repo links, no secret or invented result, and an explicit application-owned Relay truth label. Any live-Luna or native-WebMCP label is backed by the matching exact-SHA evidence; rendered visuals never substitute for R03. |
+| R06 HTML deck | The public `/deck` has 11 visually reviewed slides, clearly labeled rendered product visuals and/or exact-SHA screenshots, keyboard/mobile/print proof, a working live-app link, no secret or invented result, and an explicit application-owned Relay truth label. Any live-Luna or native-WebMCP label is backed by the matching exact-SHA evidence; rendered visuals never substitute for R03. |
 
 The production URL currently serves the prior v4.2 persona-coupled build. The v4.3
 capability-first migration, promotion, native observation, recaptured evidence, public

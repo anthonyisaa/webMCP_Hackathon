@@ -1,24 +1,23 @@
 # Ratiflow protocol-4 issue-document and managed-relay contract
 
-Version 4.3 · Ratiflow grants assignment capabilities · 2026-09-03
+Version 4.4 · Company-scoped managed delegation · 2026-09-03
 
-## v4.3 capability-first authority
+## v4.4 company access authority
 
-Managed bot identity and website authority are independent. `@Data`, `@Code`, and
-`@General` retain descriptive `expertise`; directory `visibility` is metadata only. A
-managed directory entry does not carry authoritative site tools or source labels.
+`@Data`, `@Code`, and `@General` retain descriptive `expertise`; directory `visibility`
+is metadata only. One server-owned policy keyed only by canonical managed handle fixes
+their website authority: Data receives Metrics, Code receives Repository, and General
+receives Editorial. Self-declared profiles never enter this policy.
 
-The canonical managed mention agent arm requires one separately selected
-`accessProfile`: `METRICS_SCOPED_EDIT`, `REPOSITORY_SCOPED_EDIT`, or
-`EDITORIAL_SCOPED_EDIT`. The server—not the browser or model—maps it through the checked
-access policy to task category, ordered site tools, required calls, source labels, and
-`DIRECT_SELECTION` authority. It stores the profile on `RelayRun` and returns a distinct
-`RelayCapabilityGrant` on claim. The human mention arm rejects `accessProfile`; neither
-arm accepts raw tools, sources, actor, owner, origin, credentials, or mutation range
-authority.
+Neither canonical mention arm accepts `accessProfile`. After resolving a managed profile
+ID, the server—not the browser or model—maps its canonical handle through the checked
+company policy to one access profile, task category, ordered site tools, required calls,
+source labels, and `DIRECT_SELECTION` authority. It stores the profile on `RelayRun` and
+returns a distinct `RelayCapabilityGrant` on claim. Neither arm accepts raw tools,
+sources, actor, owner, origin, credentials, or mutation range authority.
 
 Every new catalog, physical name, manifest, source read, and permit is reconstructed from
-the grant-bound run access profile. Agent expertise must not influence those decisions.
+the grant-bound run access profile after assignment-time company resolution.
 Existing signed token shapes remain unchanged; server authorization follows their bound
 run ID. Catalog visibility guides compatible agents, while repository range, revision,
 task, lease, and permit checks enforce access.
@@ -26,7 +25,8 @@ task, lease, and permit checks enforce access.
 This refreeze is additive to the shipped v4.1 collaboration document. The literal wire
 and storage protocol remains `4`, `REPOSITORY_PROTOCOL_VERSION` remains `4`, and the
 public namespace remains `/api/repository-v4/**`. Version 4.2 introduced the managed
-sidecar; version 4.3 makes assignment access independent from bot expertise. It does not create protocol 5 or
+sidecar; version 4.3 made run access durable; version 4.4 removes the human access choice
+and fixes it by managed handle. It does not create protocol 5 or
 replace the immutable v4 document, task, thread, comment, revision, and activity ledger.
 
 Checked TypeScript authority is split deliberately. `src/repository/contracts.ts` owns
@@ -86,8 +86,8 @@ member snapshot, handle, and display name. An agent entry contains exactly:
 - runtime `OPENAI_LUNA_WEBMCP_RELAY | BRING_YOUR_OWN_AGENT`;
 - readiness `READY | WEBMCP_UNAVAILABLE | DISABLED`.
 
-Managed directory profiles own no authoritative tools or source labels. Self-declared
-Advanced compatibility entries retain their existing repository-tool metadata.
+Managed directory profiles do not expose raw authoritative tool or source lists.
+Self-declared Advanced compatibility entries retain their existing repository-tool metadata.
 
 The three managed demo handles are exactly `data`, `code`, and `general`. Each managed
 agent owns a different internal member principal and stable profile. The existing
@@ -95,6 +95,12 @@ one-profile-per-document-member invariant therefore remains intact; managed agen
 never multiplexed through the judge's member or credential. `COMPANY | TEAM | PERSONAL`
 is demo/display metadata, not authorization. Runtime readiness is derived at the server
 and page boundary and is not accepted from a browser or model.
+
+`MANAGED_AGENT_ACCESS_BY_HANDLE` is exact: `data -> METRICS_SCOPED_EDIT`,
+`code -> REPOSITORY_SCOPED_EDIT`, and `general -> EDITORIAL_SCOPED_EDIT`. Both the
+in-memory service and durable adapter consume this one checked policy after canonical
+profile resolution. Expertise alone cannot enter it because a self-declared agent also
+has `GENERAL` expertise but is not a managed handle.
 
 Handles are selected from autocomplete by canonical ID. Display text and typed `@`
 names are not authority. `IssueMentionTarget` is exactly one of:
@@ -105,11 +111,11 @@ names are not authority. `IssueMentionTarget` is exactly one of:
 `CreateDirectoryMentionHttpInput` contains current `expectedRevision`, bounded comment,
 canonical `target`, and an anchor. A human target may use a Document or Selection anchor
 and rejects `accessProfile`. An agent target requires an active, non-empty Selection
-anchor no longer than 8,000 code points and exactly one `accessProfile`. The server locks
-the document, resolves identity by profile ID, and expands access through the canonical
-policy; callers cannot submit raw tools or sources. A missing, renamed, disabled,
-cross-document, or type-mismatched target fails with `STALE_MENTION_TARGET`; an unknown or
-malformed access choice fails without partial state.
+anchor no longer than 8,000 code points and also rejects `accessProfile`. The server locks
+the document, resolves identity by profile ID, and expands access from the canonical
+managed handle; callers cannot submit access, raw tools, or sources. A missing, renamed,
+disabled, cross-document, or type-mismatched target fails with
+`STALE_MENTION_TARGET` without partial state.
 
 The selected ID is authority, but visible text must still agree with it. The canonical
 mention token is `@` followed by the target's current display label; for the managed demo
@@ -139,14 +145,14 @@ Selecting a ready managed agent atomically creates:
 It returns outcome `MANAGED_TASK_QUEUED` with the canonical agent target and the thread,
 comment, task, and run UUIDs. Category is server-derived as
 `METRICS_SCOPED_EDIT -> DATA`, `REPOSITORY_SCOPED_EDIT -> CODEBASE`, and
-`EDITORIAL_SCOPED_EDIT -> WRITING`. Task authority, exact-range validation,
+`EDITORIAL_SCOPED_EDIT -> WRITING` after the fixed handle mapping. Task authority, exact-range validation,
 stale overlap behavior, rationale, evidence, revision, and Restore continue to use the
 existing repository engine.
 
 The current `/api/repository-v4/task/mention` route accepts two exact, non-overlapping
 request shapes. The shipped v4.1 shape `{ expectedRevision, comment,
 mentionedAgentName, assignedToMemberId, anchor }` continues to call the old
-`createMentionTask` service and RPC. The v4.3 canonical-target-plus-access shape calls
+`createMentionTask` service and RPC. The v4.4 canonical-target shape calls
 `createDirectoryMention`. Both prohibit public `requestId`, derive it from an
 `Idempotency-Key`, and replay only an exact identical request. Literal or unselected `@`
 text remains an ordinary comment.
@@ -257,8 +263,9 @@ The only access-profile additions are:
 - Repository: `search_demo_code`, `read_demo_file`; and
 - Editorial: `read_company_style_guide`, `check_document_consistency`.
 
-Bot expertise is not an input. Equal access profiles produce equal logical catalogs for
-different bots; changing only access changes the same bot's catalog.
+Users and models cannot switch this catalog. Data, Code, and General assignments resolve
+to the Metrics, Repository, and Editorial profiles respectively; downstream execution
+continues to reconstruct the catalog only from the immutable run profile.
 
 Physical WebMCP names are unique to run, attempt, and registration generation; the UI
 shows the stable logical names above. An old `RegisteredTool` descriptor cannot execute
@@ -1263,13 +1270,20 @@ injects HTML. The entire fence is ordinary revisioned source and can be diffed/r
 
 The renderer keeps exact source positions. HAST text leaves whose raw UTF-16 slice equals
 their visible text permit interior endpoints. Cross-leaf selections are valid when both
-endpoints are exact; the stored raw slice intentionally includes intervening Markdown
-delimiters. Entity/escape interiors, inline or fenced code, generated footnote chrome,
-image replacement text, chart internals, and an offset inside a surrogate pair fail
+endpoints share the same `strong`/`em`/`del`/link ancestor set, or when plain endpoints
+fully enclose formatted nodes. A selection that would retain only one side of inline
+Markdown syntax fails closed instead of persisting an unsafe delimiter-bearing slice.
+Entity/escape interiors, inline or fenced code, generated footnote chrome, image
+replacement text, chart internals, and an offset inside a surrogate pair also fail
 closed. A chart or table block may instead use its keyboard-accessible whole-block source
 anchor. DOM UTF-16 offsets convert once to Unicode code-point offsets before the existing
-exact selected-text check. Active highlights split exact leaves at anchor boundaries;
-ambiguous leaves may be highlighted only when fully covered.
+exact selected-text check. Highlights split exact leaves at anchor boundaries and never
+paint overlapping parent and child nodes. The current composer selection is neutral blue;
+active selection anchors on standalone open threads plus open/proposed tasks are yellow;
+a newly observed Direct or Review agent replacement is green for exactly 30 seconds.
+Resolved, completed, rejected, cancelled, and stale history paints nothing. Blue wins
+over green, which wins over yellow; ambiguous leaves may be highlighted only when fully
+covered. Initial load seeds the revision cursor and never flashes historical green.
 
 Rendering uses no raw-HTML plugin or unsafe HTML injection. HTML is skipped, the Markdown
 URL transform and an explicit element allow-list remain active, remote images never load,

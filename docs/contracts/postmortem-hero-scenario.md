@@ -1,14 +1,18 @@
 # INC-482 managed-relay Postmortem hero
 
-Version 4 · v4.3 product on protocol 4 · 2026-09-03
+Version 5 · v4.4 product on protocol 4 · 2026-09-03
 
-## v4.3 capability-first live overlay
+## v4.4 company-scoped live overlay
 
 The public **Explore postmortem** path creates a fresh isolated two-sheet clone with the
 substantial history and synthetic evidence frozen below. It adds the evaluator only as a
-non-authoring viewer and highlights **Root cause** as the 90-second live path. The grouped
-@ directory shows Humans and the immutable managed agents `@Data`, `@Code`, and
-`@General`; legacy self-declared profiles remain under Advanced.
+non-authoring viewer. The resolved seed paints no historical range. The evaluator may
+select any safe rendered text; the suggested 90-second path uses **Root cause**. The
+grouped @ directory shows Humans and the immutable managed agents `@Data`, `@Code`, and
+`@General`; legacy self-declared profiles remain under Advanced. A live selection is
+neutral blue, the submitted open task is yellow, and the newly committed agent
+replacement is green for 30 seconds before the document returns to its unpainted reading
+state.
 
 The exact hero prompt is:
 
@@ -16,10 +20,11 @@ The exact hero prompt is:
 > Amplifier, and Why it persisted—using the synthetic repository and checkout log. Preserve
 > every verified date, quantity, and source reference, then replace only this section.
 
-Selecting the canonical Code profile and the separate `REPOSITORY_SCOPED_EDIT` access
-profile creates exactly one Direct task and one queued Relay run. Code expertise is
-descriptive; Repository access determines the tools. The successful trajectory calls,
-through the page's live WebMCP surface,
+Selecting the canonical Code profile and **Assign & run** creates exactly one Direct task
+and one queued Relay run; there is no access control in the composer. After canonical
+profile lookup, company policy resolves Code to `REPOSITORY_SCOPED_EDIT` and stores that
+profile immutably on the run. The successful trajectory calls, through the page's live
+WebMCP surface,
 `read_assignment`, `search_demo_code`, `read_demo_file`, and
 `submit_scoped_revision`. The replacement must be exactly one Markdown list of three
 bullets labeled **Trigger**, **Amplifier**, and **Why it persisted**. The result must cite
@@ -35,10 +40,10 @@ catalog registered,
 `toolchange`, Luna client `tool_search`, `getTools()`, the server-pinned function call
 returned by Luna, `executeTool()`, result digest,
 revision, assignment catalog withdrawn, and idle catalog restored. A later assignment may
-keep `@Code` and change access to `EDITORIAL_SCOPED_EDIT`, which must expose
-`read_company_style_guide` and `check_document_consistency` instead of Repository source
-tools. History keeps the
-human grantor, managed agent, `gpt-5.6-luna`, runtime
+use `@General`, whose fixed `EDITORIAL_SCOPED_EDIT` company policy exposes
+`read_company_style_guide` and `check_document_consistency`; `@Data` is fixed to
+`METRICS_SCOPED_EDIT`. Users and models cannot switch those managed mappings. History
+keeps the human grantor, managed agent, resolved immutable run grant, `gpt-5.6-luna`, runtime
 `OPENAI_LUNA_WEBMCP_RELAY`, synthetic evidence, exact diff, and Restore.
 This readable trace is not native browser attestation; dated supported-client evidence
 against the exact deployed SHA remains the native WebMCP proof class.
@@ -99,7 +104,8 @@ Builder reads the prior discussion and collaboration history, then directly comm
 clarified r5. Priya closes the ordinary human discussion. Closing records resolver and
 time; it is not acceptance, and it does not create a revision. The second Builder task
 uses scenario label `PM-CODE-2` and stored key `TASK-4`; it is Completed and shows its
-highlighted r4→r5 change with a Restore affordance.
+r4→r5 before/after change in the task detail with a Restore affordance. That resolved
+historical anchor does not paint the seeded document.
 
 ## Frozen source facts
 

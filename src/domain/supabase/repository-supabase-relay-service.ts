@@ -1,5 +1,6 @@
 import {
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  relayAccessProfileForManagedHandle,
   RELAY_BOUNDS,
   RELAY_PHYSICAL_TOOL_NAME_PATTERN,
   type DirectoryMentionReceipt,
@@ -18,6 +19,7 @@ import {
   type RelayProgressCommentInput,
   type RelayReadAssignmentResult,
   type RelayReadDocumentContextResult,
+  type RelayAccessProfile,
   type RelayResult,
   type RelayRun,
   type RelayStepOutcome,
@@ -180,14 +182,44 @@ export class SupabaseRepositoryRelayService implements RepositoryRelayServicePor
     input: CreateDirectoryMentionServiceInput,
     signal?: AbortSignal,
   ): Promise<RelayResult<DirectoryMentionReceipt>> {
+    if (Object.hasOwn(input, "accessProfile")) {
+      return relayFailure(
+        "INVALID_INPUT",
+        "Managed website access is company-configured and cannot be supplied by a mention.",
+      );
+    }
+    let accessProfile: RelayAccessProfile | undefined;
     if (isObject(input.target) && input.target.kind === "AGENT") {
-      const ready = await this.#requireCapabilityFirstStore(sessionToken, signal);
-      if (!ready.ok) return ready;
+      const targetProfileId = input.target.profileId;
+      const state = await this.readRelayState(sessionToken, signal);
+      if (!state.ok) return state;
+      const agent = state.data.directory.find((entry) =>
+        entry.kind === "AGENT"
+          && entry.identitySource === "DEMO_DIRECTORY"
+          && entry.profileId === targetProfileId);
+      if (!agent) {
+        return relayFailure(
+          "STALE_MENTION_TARGET",
+          "The selected managed agent changed. Choose it again.",
+        );
+      }
+      switch (agent.handle) {
+        case "data":
+        case "code":
+        case "general":
+          accessProfile = relayAccessProfileForManagedHandle(agent.handle);
+          break;
+        default:
+          return relayFailure(
+            "RELAY_RESULT_INVALID",
+            "The durable managed directory contains an unknown company handle.",
+          );
+      }
     }
     return this.#rpc("ratiflow_create_issue_directory_mention_v4", {
       p_handle: sessionToken,
       p_request_id: input.requestId,
-      p_input: { ...input, requestId: undefined },
+      p_input: { ...input, requestId: undefined, accessProfile },
     }, signal);
   }
 

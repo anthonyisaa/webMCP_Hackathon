@@ -3,12 +3,14 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { test } from "vitest";
 
-import type { DirectoryEntry, RelayWorkspaceState } from "@/agent-relay/contracts";
+import {
+  relayAccessProfileForManagedHandle,
+  type DirectoryEntry,
+  type RelayWorkspaceState,
+} from "@/agent-relay/contracts";
 
 import { ManagedDirectory } from "./ManagedDirectory";
 import { RelayFlightRecorder } from "./RelayFlightRecorder";
-import { WebsiteAccessSelector } from "./WebsiteAccessSelector";
-import { repositoryRecommendedAccessProfile } from "./relay-access-copy";
 
 const member = { memberId: "member-1", displayName: "Ari" };
 const directory: DirectoryEntry[] = [
@@ -54,13 +56,14 @@ function waitingRetryState(): RelayWorkspaceState {
   };
 }
 
-test("managed directory presents expertise and visibility without implying tool access", () => {
+test("managed directory presents each bot's company-set tool profile", () => {
   const markup = renderToStaticMarkup(createElement(ManagedDirectory, { directory }));
   assert.match(markup, /Managed bots/u);
-  assert.match(markup, /Expertise, not access/u);
+  assert.match(markup, /Tools set by company/u);
   assert.match(markup, /@Data/u);
   assert.match(markup, /Data analysis expertise/u);
-  assert.match(markup, /company visibility/u);
+  assert.match(markup, /Metrics tools/u);
+  assert.match(markup, /Company-set/u);
   assert.match(markup, /People/u);
   assert.match(markup, /@Ari/u);
   assert.match(markup, /discussion only/u);
@@ -115,8 +118,8 @@ test("flight recorder shows the access-granted catalog and sanitized execution p
   assert.match(markup, /gpt-5.6-luna/u);
   assert.match(markup, /Application-owned Luna ↔ WebMCP relay/u);
   assert.match(markup, /Bot expertise/u);
-  assert.match(markup, /Website access/u);
-  assert.match(markup, /6 tools · Metrics grant/u);
+  assert.match(markup, /Company tools/u);
+  assert.match(markup, /6 tools · Metrics · company-set/u);
   assert.match(markup, /Luna returned the required tool call/u);
   assert.match(markup, /Synthetic sources are labeled/u);
   assert.doesNotMatch(markup, /leaseId|pageSessionId|rfrelay_v1/u);
@@ -183,7 +186,7 @@ test("flight recorder keeps the newest completed run and its access visible", ()
     runtime: { phase: "IDLE", activeLogicalTool: null, lastError: null, webMcpAvailable: true },
   }));
   assert.match(markup, /@General/u);
-  assert.match(markup, /7 tools · Editorial grant/u);
+  assert.match(markup, /7 tools · Editorial · company-set/u);
   assert.doesNotMatch(markup, /@Data/u);
 });
 
@@ -268,51 +271,8 @@ test.each([
   assert.doesNotMatch(markup, />Retry once</u);
 });
 
-test("a Code bot can receive Metrics access without changing its expertise", () => {
-  const codeBot: DirectoryEntry = {
-    kind: "AGENT",
-    profileId: "profile-code",
-    principal: { memberId: "managed-code", displayName: "Code" },
-    handle: "code",
-    displayName: "Code",
-    visibility: "TEAM",
-    readiness: "READY",
-    identitySource: "DEMO_DIRECTORY",
-    expertise: "CODE",
-    runtime: "OPENAI_LUNA_WEBMCP_RELAY",
-  };
-  const state = {
-    ...waitingRetryState(),
-    directory: [codeBot],
-    runs: [{
-      ...waitingRetryState().runs[0]!,
-      profileId: "profile-code",
-      agentExpertise: "CODE",
-      accessProfile: "METRICS_SCOPED_EDIT",
-    }],
-  } satisfies RelayWorkspaceState;
-
-  const markup = renderToStaticMarkup(createElement(RelayFlightRecorder, {
-    state,
-    runtime: { phase: "IDLE", activeLogicalTool: null, lastError: null, webMcpAvailable: true },
-  }));
-  assert.match(markup, /@Code/u);
-  assert.match(markup, />code</u);
-  assert.match(markup, /6 tools · Metrics grant/u);
-  assert.match(markup, /query_demo_metrics/u);
-  assert.doesNotMatch(markup, /search_demo_code/u);
-});
-
-test("website access stays an explicit, independently editable run choice", () => {
-  const markup = renderToStaticMarkup(createElement(WebsiteAccessSelector, {
-    value: "METRICS_SCOPED_EDIT",
-    onChange: () => undefined,
-  }));
-  assert.match(markup, /Website access for this run/u);
-  assert.match(markup, /Metrics/u);
-  assert.match(markup, /Repository/u);
-  assert.match(markup, /Editorial/u);
-  assert.match(markup, /not the bot’s expertise/u);
-  assert.equal(repositoryRecommendedAccessProfile("CODE"), "REPOSITORY_SCOPED_EDIT");
-  assert.equal(repositoryRecommendedAccessProfile("DATA"), "METRICS_SCOPED_EDIT");
+test("company policy fixes one website tool profile per managed bot", () => {
+  assert.equal(relayAccessProfileForManagedHandle("code"), "REPOSITORY_SCOPED_EDIT");
+  assert.equal(relayAccessProfileForManagedHandle("data"), "METRICS_SCOPED_EDIT");
+  assert.equal(relayAccessProfileForManagedHandle("general"), "EDITORIAL_SCOPED_EDIT");
 });

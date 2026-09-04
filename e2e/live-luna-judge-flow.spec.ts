@@ -77,6 +77,12 @@ const AGENT_NAMES: Readonly<Record<ManagedAgentExpertise, string>> = {
   GENERAL: "General",
 };
 
+const COMPANY_ACCESS_PROFILES: Readonly<Record<ManagedAgentExpertise, RelayAccessProfile>> = {
+  CODE: "REPOSITORY_SCOPED_EDIT",
+  DATA: "METRICS_SCOPED_EDIT",
+  GENERAL: "EDITORIAL_SCOPED_EDIT",
+};
+
 const ACCESS_NAMES: Readonly<Record<RelayAccessProfile, string>> = {
   METRICS_SCOPED_EDIT: "Metrics",
   REPOSITORY_SCOPED_EDIT: "Repository",
@@ -302,10 +308,10 @@ async function expectTraceCompletion(recorder: Locator): Promise<void> {
 async function assignGuidedAgent(
   page: Page,
   expertise: ManagedAgentExpertise,
-  accessProfile: RelayAccessProfile,
   expectedRevision: number,
 ): Promise<void> {
   const agentName = AGENT_NAMES[expertise];
+  const accessProfile = COMPANY_ACCESS_PROFILES[expertise];
   const guided = page.getByTestId("guided-selection");
   await expect(guided).toContainText(`Load @${agentName}`);
   await guided.click();
@@ -318,13 +324,19 @@ async function assignGuidedAgent(
   await expect(composer).toContainText(
     `Assigned to @${agentName} · ${expertise.toLocaleLowerCase("en-US")} expertise`,
   );
-  await expect(composer.getByLabel("Website access for this run")).toHaveValue(accessProfile);
+  await expect(composer.getByLabel("Website access for this run")).toHaveCount(0);
+  await expect(composer.getByTestId("website-access-selector")).toHaveCount(0);
 
   const accessCatalog = waitForExactAccessCatalog(page, accessProfile);
+  const mentionRequestPromise = page.waitForRequest((request) =>
+    request.url().endsWith("/api/repository-v4/task/mention")
+    && request.method() === "POST");
   await composer.getByRole("button", {
     name: "Assign & run",
     exact: true,
   }).click();
+  const mentionRequest = await mentionRequestPromise;
+  expect(mentionRequest.postDataJSON()).not.toHaveProperty("accessProfile");
   await accessCatalog;
   const recorder = await expectVisibleLogicalCatalog(page, expertise, accessProfile);
 
@@ -442,7 +454,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
     "Set RATIFLOW_LIVE_LUNA_JUDGE=1 to spend live Luna calls and run the native judge trajectory.",
   );
 
-  test("fresh Postmortem @Code + Repository → r6 → same @Code + Editorial → r7, then fresh Product @Data + Metrics → r7", async ({
+  test("fresh Postmortem @Code + Repository → r6 → @General + Editorial → r7, then fresh Product @Data + Metrics → r7", async ({
     browserName,
     page,
   }) => {
@@ -459,7 +471,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
     await pageErrors.expectNone("postmortem-idle-ready");
 
     pageErrors.enter("POSTMORTEM_REPOSITORY", "before-code-repository-run");
-    await assignGuidedAgent(page, "CODE", "REPOSITORY_SCOPED_EDIT", 6);
+    await assignGuidedAgent(page, "CODE", 6);
     await expectPostmortemFacts(page);
     await expectPostmortemCodeStructure(page);
     await inspectManagedRevision(page, {
@@ -478,15 +490,15 @@ test.describe("opt-in native Luna judge trajectory", () => {
     await pageErrors.expectNone("code-repository-r6-verified");
 
     await expect(page.getByTestId("guided-selection")).toContainText(
-      "Load @Code on Root cause",
+      "Load @General on Root cause",
     );
-    pageErrors.enter("POSTMORTEM_EDITORIAL", "before-code-editorial-run");
-    await assignGuidedAgent(page, "CODE", "EDITORIAL_SCOPED_EDIT", 7);
+    pageErrors.enter("POSTMORTEM_EDITORIAL", "before-general-editorial-run");
+    await assignGuidedAgent(page, "GENERAL", 7);
     await expectPostmortemFacts(page);
     await inspectManagedRevision(page, {
       revision: 7,
       sourceRevision: 6,
-      agentName: "Code",
+      agentName: "General",
       evidence: /Ratiflow consistency rules/u,
       replacementFacts: [
         /external trigger/iu,
@@ -499,7 +511,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
     await expect(page.getByRole("button", {
       name: "Open revision history. Revision 7",
     })).toBeVisible();
-    await pageErrors.expectNone("code-editorial-r7-verified");
+    await pageErrors.expectNone("general-editorial-r7-verified");
 
     pageErrors.enter("PRODUCT_LAUNCH", "before-product-navigation");
     const productUrl = await launchExample(page, "PRODUCT_DOCUMENT", 6);
@@ -510,7 +522,7 @@ test.describe("opt-in native Luna judge trajectory", () => {
     })).toBeVisible();
     await pageErrors.expectNone("product-idle-ready");
     pageErrors.enter("PRODUCT_METRICS", "before-data-metrics-run");
-    await assignGuidedAgent(page, "DATA", "METRICS_SCOPED_EDIT", 7);
+    await assignGuidedAgent(page, "DATA", 7);
     await expectProductFacts(page);
     await inspectManagedRevision(page, {
       revision: 7,

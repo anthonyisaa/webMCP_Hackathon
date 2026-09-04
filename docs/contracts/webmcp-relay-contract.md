@@ -1,11 +1,11 @@
 # Ratiflow application-owned WebMCP relay contract
 
-Version 4.3 · capability-first additive protocol-4 contract · 2026-09-03
+Version 4.4 · company-scoped additive protocol-4 contract · 2026-09-03
 
-## 0. Capability grant refreeze (authoritative)
+## 0. Company access refreeze (authoritative)
 
-Version 4.3 replaces the previous persona-derived catalog design. No active rule in this
-contract derives access from bot expertise.
+Version 4.4 replaces v4.3's human-selected access. One server-owned managed-handle policy
+fixes company access before a run is created.
 
 ```ts
 type ManagedAgentExpertise = "DATA" | "CODE" | "GENERAL";
@@ -22,19 +22,19 @@ interface RelayCapabilityGrant {
 }
 ```
 
-Expertise is descriptive identity metadata. The managed mention agent branch requires a
-separate `accessProfile`; the human branch forbids it. The server expands the profile
-through the one canonical `RELAY_ACCESS_POLICIES` map and stores it immutably on the run.
-That map owns exact catalog order, required execution order, task category, source labels,
-and physical discriminator (`metrics | repository | editorial`). Directory profiles do
-not own authoritative tool names or source labels.
+Expertise remains descriptive identity metadata. Both canonical mention branches reject
+public `accessProfile`. After canonical `DEMO_DIRECTORY` profile lookup, the server maps
+`data -> METRICS_SCOPED_EDIT`, `code -> REPOSITORY_SCOPED_EDIT`, and
+`general -> EDITORIAL_SCOPED_EDIT`, then expands the resolved profile through
+`RELAY_ACCESS_POLICIES` and stores it immutably on the run. The access-policy map owns
+exact catalog order, required execution order, task category, source labels, and physical
+discriminator (`metrics | repository | editorial`).
 
 Catalog registration, physical naming, manifest reconstruction, provider sequencing,
-task category, and tool/permit authorization use only `run.accessProfile`. They must not
-read agent expertise. A successful claim and `read_assignment` expose expertise and the
-separate capability grant; source labels come only from the grant. The two orthogonality
-invariants are exact: equal profiles yield equal logical catalogs for different bots, and
-different profiles yield different catalogs for the same bot.
+task category, and tool/permit authorization use only `run.accessProfile`. A successful
+claim and `read_assignment` expose expertise and the separate capability grant; source
+labels come only from the grant. Users and models cannot switch a managed bot's access,
+while old runs retain the exact immutable profile they already stored.
 
 Ratiflow grants and enforces access; WebMCP only exposes/invokes the page-owned tools.
 Existing v1 grant and permit claim schemas remain exact and resolve access by joining
@@ -101,7 +101,6 @@ type CreateDirectoryMentionHttpInput = {
   | {
       target: { kind: "AGENT"; profileId: string };
       anchor: Extract<IssueAnchorInput, { scope: "SELECTION" }>;
-      accessProfile: RelayAccessProfile;
     }
 );
 ```
@@ -111,9 +110,10 @@ The exact behavior of the directory branch of
 
 - a `HUMAN` target forbids `accessProfile` and creates one ordinary discussion, no task,
   and no relay run;
-- a managed `AGENT` target requires exactly one known `accessProfile` and creates one
-  Direct task, its thread and first comment, one immutable target/context snapshot, and
-  one `RelayRun` in `QUEUED` with that immutable profile; and
+- a managed `AGENT` target also forbids `accessProfile`; after canonical lookup the server
+  derives the company profile and creates one Direct task, its thread and first comment,
+  one immutable target/context snapshot, and one `RelayRun` in `QUEUED` with that
+  immutable profile; and
 - a missing, renamed, deleted, disabled, wrong-document, or otherwise stale canonical
   target fails atomically with `STALE_MENTION_TARGET`.
 
@@ -124,10 +124,11 @@ through the BYOA `connect_agent` path.
 
 Every managed agent has a distinct internal `IssueMemberSnapshot` principal and an
 immutable canonical profile ID. The server derives profile, principal, handle, expertise,
-visibility, runtime, and model from that profile ID. Separately, it expands the selected
-run `accessProfile` into task category, source tools, required sequence, and Direct
-selection authority. Model JSON and browser-supplied display strings can choose neither
-identity nor access and never choose actor, owner, grantor, origin, task, credential, or range.
+visibility, runtime, model, and company access from that profile ID. It expands the
+resolved run `accessProfile` into task category, source tools, required sequence, and
+Direct selection authority. Model JSON and browser-supplied display strings can choose
+neither identity nor access and never choose actor, owner, grantor, origin, task,
+credential, or range.
 
 Directory entries use these exact enums:
 
@@ -1012,8 +1013,9 @@ digests, aggregate usage, timing, and pass/fail. It never runs from the default 
 
 Release requires these adversarial results:
 
-1. `METRICS_SCOPED_EDIT`, `REPOSITORY_SCOPED_EDIT`, and `EDITORIAL_SCOPED_EDIT` produce
-   exact 6/7/7 catalogs and visible access deltas; bot expertise never changes them.
+1. Data, Code, and General resolve to `METRICS_SCOPED_EDIT`,
+   `REPOSITORY_SCOPED_EDIT`, and `EDITORIAL_SCOPED_EDIT` respectively and produce exact
+   6/7/7 catalogs; public input cannot switch them.
 2. A second tab gets `BUSY`, creates no second attempt, and causes no second provider
    spend.
 3. Missing WebMCP prevents provider actuation and commit; human document work still

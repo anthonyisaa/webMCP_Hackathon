@@ -1,13 +1,16 @@
 # Northstar CSV managed-relay Product document hero
 
-Version 3 · v4.3 product on protocol 4 · 2026-09-03
+Version 4 · v4.4 product on protocol 4 · 2026-09-03
 
-## v4.3 capability-first live overlay
+## v4.4 company-scoped live overlay
 
 The public **Explore product document** path creates a fresh isolated two-sheet clone of
 the detailed Northstar decision below. It preserves existing human saves, agent revisions,
-discussion, alternative wording, and Restore, then highlights **Success measures** as the
-managed Metrics-access proof.
+discussion, alternative wording, and Restore without painting resolved historical ranges.
+The evaluator may select any safe rendered text; the suggested path uses **Success
+measures** for the managed Metrics-access proof. A live selection is neutral blue, the
+submitted open task is yellow, and the newly committed agent replacement is green for 30
+seconds before the document returns to its unpainted reading state.
 
 The exact live prompt is:
 
@@ -15,9 +18,10 @@ The exact live prompt is:
 > which October 15 scope fits 14 engineering days and preserve the November 1 renewal
 > commitment, then replace only this section.
 
-Selecting the canonical Data profile and the separate `METRICS_SCOPED_EDIT` access profile
-creates exactly one Direct task and one queued Relay run. Data expertise is descriptive;
-Metrics access determines the tools. The successful trajectory calls `read_assignment`, `query_demo_metrics`, and
+Selecting the canonical Data profile and **Assign & run** creates exactly one Direct task
+and one queued Relay run; there is no access control in the composer. After canonical
+profile lookup, company policy resolves Data to `METRICS_SCOPED_EDIT` and stores that
+profile immutably on the run. The successful trajectory calls `read_assignment`, `query_demo_metrics`, and
 `submit_scoped_revision` through the page's live WebMCP surface. The replacement must show
 that 10 reliability days + 4 invite-only-beta days = 14 and fits exactly; 10 + all 8
 export days = 18 and exceeds the window by 4; October 15 remains an invite-only
@@ -29,9 +33,8 @@ The visible application trace uses one task/run/attempt lineage and records Luna
 tool search, the Metrics assignment catalog, WebMCP `getTools()` and `executeTool()`, verified
 result digests, the exact Success-measures diff, revision, and Restore. It is not native
 browser attestation; dated supported-client evidence against the exact deployed SHA
-remains the native WebMCP proof class. Changing access to Repository or Editorial—even
-while keeping `@Data`—must remove `query_demo_metrics` and expose only the newly granted
-source tools.
+remains the native WebMCP proof class. Company policy fixes `@Code` to Repository access
+and `@General` to Editorial access; users and models cannot switch any managed mapping.
 
 Ratiflow grants and enforces document, range, and action access. WebMCP exposes and invokes
 the matching tab-bound tools; catalog visibility is not the security boundary.

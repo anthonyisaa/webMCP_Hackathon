@@ -82,39 +82,6 @@ function isNativeControl(target: EventTarget | null): boolean {
   );
 }
 
-function SyntheticCapacityChart() {
-  return (
-    <figure className={styles.capacityFigure}>
-      <figcaption>Synthetic October 15 capacity</figcaption>
-      <div
-        className={styles.capacityChart}
-        role="img"
-        aria-label="Reliability-only requires 10 days, invite-only beta requires 14 days, and full export requires 18 days against 14 available days."
-      >
-        <div className={styles.capacityMarker}><span>14 available</span></div>
-        <div className={styles.capacityBarRow}>
-          <span>Reliability</span><i style={{ "--bar": "56%" } as CSSProperties} /><b>10</b>
-        </div>
-        <div className={`${styles.capacityBarRow} ${styles.capacityFit}`}>
-          <span>Invite-only beta</span><i style={{ "--bar": "78%" } as CSSProperties} /><b>14</b>
-        </div>
-        <div className={`${styles.capacityBarRow} ${styles.capacityOver}`}>
-          <span>Full export now</span><i style={{ "--bar": "100%" } as CSSProperties} /><b>18</b>
-        </div>
-      </div>
-      <table className={styles.srOnly}>
-        <caption>Engineering days required before October 15</caption>
-        <thead><tr><th>Option</th><th>Required days</th><th>Available days</th></tr></thead>
-        <tbody>
-          <tr><td>Reliability only</td><td>10</td><td>14</td></tr>
-          <tr><td>Invite-only beta</td><td>14</td><td>14</td></tr>
-          <tr><td>Full export now</td><td>18</td><td>14</td></tr>
-        </tbody>
-      </table>
-    </figure>
-  );
-}
-
 function SourceLinks() {
   return (
     <p className={styles.sourceLinks}>
@@ -123,8 +90,6 @@ function SourceLinks() {
       <a href="https://webmachinelearning.github.io/webmcp/" target="_blank" rel="noreferrer noopener">WebMCP draft</a>
       <span aria-hidden="true"> · </span>
       <a href="https://developers.openai.com/api/docs/guides/tools-tool-search" target="_blank" rel="noreferrer noopener">OpenAI tool search</a>
-      <span aria-hidden="true"> · </span>
-      <a href="https://developers.openai.com/api/docs/models/gpt-5.6-luna" target="_blank" rel="noreferrer noopener">GPT-5.6 Luna</a>
     </p>
   );
 }
@@ -265,9 +230,9 @@ export function RatiflowDeck() {
                   <p className={styles.docRule} />
                 </div>
                 <div className={styles.scatteredWords} aria-label="Agent context detached from the document">
-                  <span className={styles.fragmentPrompt}>prompt</span>
+                  <span className={styles.fragmentPrompt}>decision</span>
                   <span className={styles.fragmentSource}>source</span>
-                  <span className={styles.fragmentScope}>scope</span>
+                  <span className={styles.fragmentScope}>context</span>
                   <span className={styles.fragmentAuthor}>author</span>
                   <i aria-hidden="true" />
                 </div>
@@ -278,36 +243,36 @@ export function RatiflowDeck() {
           <li>
             <Slide index={2} currentIndex={currentIndex} compositionClass={styles.sequenceSlide}>
               <p className={styles.lede}>{DECK_SLIDES[2].subtitle}</p>
-              <div className={styles.sequence} aria-label="Conceptual three-step transaction sequence">
+              <div className={styles.sequence} aria-label="Shared document context flows through company-scoped tools into a reversible revision with provenance">
                 <div className={styles.sequenceStep}>
-                  <PreviewLabel>SCOPED COMMENT</PreviewLabel>
+                  <PreviewLabel>SHARED HISTORY</PreviewLabel>
                   <span className={styles.stepIndex}>01</span>
                   <div className={styles.selectionExcerpt}>Retry middleware introduced in <mark>commit 7d3c9e1</mark>…</div>
                   <div className={styles.commentBubble}><b>@Code</b> Check this section against the synthetic repository.</div>
-                  <strong>MENTION</strong>
+                  <strong>CONTEXT</strong>
                 </div>
                 <div className={styles.sequenceConnector} aria-hidden="true"><i /></div>
                 <div className={styles.sequenceStep}>
-                  <PreviewLabel>ASSIGNMENT ACCESS</PreviewLabel>
+                  <PreviewLabel>COMPANY-SCOPED TOOLS</PreviewLabel>
                   <span className={styles.stepIndex}>02</span>
                   <div className={styles.toolDiscovery}>
-                    <small>Repository scoped edit</small>
+                    <small>@Code → Repository</small>
                     <code>search_demo_code</code>
                     <code>read_demo_file</code>
                   </div>
-                  <strong>DISCOVER</strong>
+                  <strong>TOOLS</strong>
                 </div>
                 <div className={styles.sequenceConnector} aria-hidden="true"><i /></div>
                 <div className={styles.sequenceStep}>
                   <PreviewLabel>REVERSIBLE REVISION</PreviewLabel>
                   <span className={styles.stepIndex}>03</span>
-                  <div className={styles.compactDiff}><del>Provider 429 throttling at 09:43 UTC was the external trigger…</del><ins>Provider throttling triggered; retry code sustained…</ins></div>
-                  <strong>REVISION</strong>
+                  <div className={styles.compactDiff}><del>Provider throttling triggered the incident…</del><ins>Provider throttling triggered; retry code sustained the failure.</ins></div>
+                  <strong>PROVENANCE</strong>
                 </div>
               </div>
               <div className={styles.truthRowCenter}>
-                <TruthLabel tone="green">APPLICATION-OWNED LUNA WEBMCP RELAY</TruthLabel>
-                <TruthLabel tone="violet">SYNTHETIC DEMO CODE</TruthLabel>
+                <TruthLabel tone="green">SAME HISTORY + PROVENANCE</TruthLabel>
+                <TruthLabel tone="violet">AGENT-SPECIFIC TOOLS · COMPANY POLICY</TruthLabel>
               </div>
             </Slide>
           </li>
@@ -315,34 +280,23 @@ export function RatiflowDeck() {
           <li>
             <Slide index={3} currentIndex={currentIndex} compositionClass={styles.onboardingSlide}>
               <p className={styles.lede}>{DECK_SLIDES[3].subtitle}</p>
-              <div className={styles.onboardingFlow} aria-label="Three-step live demo flow: choose a document, assign Code with Repository access, and watch execution">
-                <div className={styles.onboardingStep}>
-                  <span className={styles.giantNumber}>1</span>
-                  <PreviewLabel>CHOOSE</PreviewLabel>
-                  <label>Enter a nickname and open the guided document.</label>
-                  <div className={styles.fakeInput}>Ada</div>
-                  <div className={styles.templateChoice}><b>Postmortem</b><span>Incident learning · revision history</span></div>
-                </div>
-                <div className={styles.onboardingStep}>
-                  <span className={styles.giantNumber}>2</span>
-                  <PreviewLabel>ASSIGN</PreviewLabel>
-                  <div className={styles.assignmentExcerpt}><span>ROOT CAUSE · EXACT SELECTION</span>Retry middleware introduced in <mark>commit 7d3c9e1</mark> ignored <mark>Retry-After</mark>…</div>
-                  <div className={styles.commentBubble}><b>@Code</b> Verify the trigger and amplifier, then replace only this section.</div>
-                  <div className={styles.accessChoice}><span>Website access for this run</span><b>Repository scoped edit</b></div>
-                </div>
-                <div className={styles.onboardingStep}>
-                  <span className={styles.giantNumber}>3</span>
-                  <PreviewLabel>WATCH EXECUTION</PreviewLabel>
-                  <div className={styles.proofSteps}>
-                    <code>CAPABILITY GRANT · REPOSITORY · 7</code>
-                    <code>LUNA · REQUIRED CALLS</code>
-                    <code>EXECUTE_TOOL · SCOPED WRITE</code>
-                    <code>REVISION COMMITTED · r6</code>
-                  </div>
-                  <div className={styles.proofResult}><EvidenceDot tone="code" /><span><b>Root cause revised</b><small>Evidence + diff + Restore in History</small></span></div>
-                </div>
+              <div className={`${styles.previewFrame} ${styles.assignmentPreview}`} role="img" aria-label="Postmortem passage selected in blue with a Code instruction and Assign and run action, without a permission chooser.">
+                <article className={styles.assignmentDocument}>
+                  <PreviewLabel>EXACT PASSAGE IN THE DEMO DOCUMENT</PreviewLabel>
+                  <span>POSTMORTEM · INC-482</span>
+                  <h3>Root cause</h3>
+                  <p>Provider 429 throttling at 09:43 UTC was the external trigger. <mark>Retry middleware introduced in commit <code>7d3c9e1</code> ignored <code>Retry-After</code> and made up to five zero-delay retries.</mark></p>
+                  <small>Live selection · neutral blue · exact range</small>
+                </article>
+                <aside className={styles.assignmentComment}>
+                  <div className={styles.agentIdentity}><EvidenceDot tone="code" /><span><b>@Code</b><small>Company-managed bot</small></span></div>
+                  <p>Verify the trigger and retry amplifier, then replace only this selection.</p>
+                  <div className={styles.policyNote}><span>Automatic company policy</span><b>@Code → Repository tools</b></div>
+                  <div className={styles.scopeLine}><span>EXACT RANGE</span><code>Root cause</code></div>
+                  <span className={styles.assignAction}>Assign &amp; run</span>
+                </aside>
               </div>
-              <div className={styles.truthRowCenter}><TruthLabel tone="green">CHOOSE → ASSIGN → WATCH EXECUTION</TruthLabel></div>
+              <div className={styles.truthRowCenter}><TruthLabel tone="green">SELECT → @ BOT → ASSIGN &amp; RUN · NO PERMISSION CHOOSER</TruthLabel></div>
             </Slide>
           </li>
 
@@ -350,38 +304,38 @@ export function RatiflowDeck() {
             <Slide index={4} currentIndex={currentIndex} compositionClass={styles.capabilitySlide}>
               <p className={styles.lede}>{DECK_SLIDES[4].subtitle}</p>
               <div className={styles.capabilityComposition}>
-                <div className={styles.capabilitySeparation} aria-label="Bot identity and assignment access are independent inputs to a server-issued capability grant">
+                <div className={styles.capabilitySeparation} aria-label="The selected managed bot and its fixed company policy produce a server-issued immutable run grant">
                   <article className={styles.identityCard}>
-                    <span>WHO DOES THE WORK</span>
+                    <span>SHARED INPUT</span>
                     <b><EvidenceDot tone="code" /> @Code</b>
-                    <p>Archetypes: Code · Data · General</p>
-                    <small>May suggest a default; never grants authority</small>
+                    <p>Full document history + provenance</p>
+                    <small>The same decision trail is available to every agent</small>
                   </article>
                   <div className={styles.capabilityArrow} aria-hidden="true">+</div>
                   <article className={styles.accessCard}>
-                    <span>WHAT THIS RUN MAY USE</span>
-                    <b>Metrics · Repository · Editorial</b>
-                    <p>Exactly one temporary catalog per run</p>
-                    <small>Human-approved · exact-selection authority</small>
+                    <span>FIXED COMPANY POLICY</span>
+                    <b>Repository access</b>
+                    <p>Code → Repository</p>
+                    <small>Hard-coded for this demo · organization-configured in practice</small>
                   </article>
                   <div className={styles.capabilityArrow} aria-hidden="true">→</div>
                   <article className={styles.grantCard}>
-                    <span>RATIFLOW CAPABILITY GRANT</span>
-                    <b>7 tab-bound site tools</b>
+                    <span>IMMUTABLE RUN GRANT</span>
+                    <b>7 tab-bound tools</b>
                     <code>search_demo_code</code>
                     <code>read_demo_file</code>
                   </article>
                 </div>
-                <div className={styles.orthogonalityProof} aria-label="Capability invariants: different bots with Metrics access receive the same tools, and one Code bot can receive different tools when assignment access changes">
-                  <div><span>@Code + Metrics</span><code>query_demo_metrics · 6 tools</code></div>
-                  <div><span>@Data + Metrics</span><code>same catalog · 6 tools</code></div>
-                  <div><span>@Code + Repository</span><code>code search + file read · 7 tools</code></div>
-                  <div><span>@General + Editorial</span><code>style + consistency · 7 tools</code></div>
+                <div className={styles.policyMap} aria-label="Fixed company access policy for the three managed bots">
+                  <div><span>@Data</span><code>Metrics · 6 tools</code></div>
+                  <div><span>@Code</span><code>Repository · 7 tools</code></div>
+                  <div><span>@General</span><code>Editorial · 7 tools</code></div>
                 </div>
               </div>
               <div className={styles.truthRowCenter}>
-                <TruthLabel tone="violet">BOT EXPERTISE · DESCRIPTIVE</TruthLabel>
-                <TruthLabel tone="green">ASSIGNMENT ACCESS · EXPLICIT GRANT</TruthLabel>
+                <TruthLabel tone="green">DOCUMENT HISTORY · SHARED</TruthLabel>
+                <TruthLabel tone="green">COMPANY ACCESS · FIXED BY MANAGED BOT</TruthLabel>
+                <TruthLabel tone="violet">RUN GRANT · IMMUTABLE</TruthLabel>
                 <TruthLabel tone="neutral">WEBMCP · EXPOSES / INVOKES TOOLS</TruthLabel>
                 <TruthLabel tone="neutral">RATIFLOW SERVER · ENFORCES ACCESS</TruthLabel>
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
@@ -401,7 +355,8 @@ export function RatiflowDeck() {
               </div>
               <div className={styles.truthRowCenter}>
                 <TruthLabel tone="violet">SYNTHETIC DEMO CODE</TruthLabel>
-                <TruthLabel tone="green">EXACT-RANGE REVISION · RESTORABLE</TruthLabel>
+                <TruthLabel tone="green">NEW AGENT REPLACEMENT · GREEN FOR 30 SECONDS</TruthLabel>
+                <TruthLabel tone="neutral">EXACT-RANGE REVISION · RESTORABLE</TruthLabel>
               </div>
             </Slide>
           </li>
@@ -411,24 +366,24 @@ export function RatiflowDeck() {
               <p className={styles.lede}>{DECK_SLIDES[6].subtitle}</p>
               <div className={styles.historyComposition}>
                 <ol className={styles.revisionSpine} aria-label="Revision authorship sequence">
-                  <li><EvidenceDot tone="code" /><span><b>r5 · Builder</b><small>Seeded clarification · evidence preserved</small></span></li>
+                  <li><EvidenceDot tone="code" /><span><b>r4 · Builder</b><small>Initial root-cause analysis · synthetic evidence</small></span></li>
+                  <li><EvidenceDot tone="code" /><span><b>r5 · Builder</b><small>Clarified after human discussion</small></span></li>
                   <li><EvidenceDot tone="code" /><span><b>r6 · Code</b><small>Verified retry behavior · exact-range revision</small></span></li>
-                  <li><EvidenceDot tone="code" /><span><b>r7 · Code</b><small>Editorial access · facts preserved</small></span></li>
                 </ol>
-                <div className={`${styles.previewFrame} ${styles.historyDetail}`} role="img" aria-label="Revision detail with prompt, source context, model, evidence, diff, and Restore action.">
+                <div className={`${styles.previewFrame} ${styles.historyDetail}`} role="img" aria-label="Revision detail with asker, agent, runtime, evidence, revision lineage, and Restore action.">
                   <PreviewLabel>IMMUTABLE REVISION DETAIL</PreviewLabel>
-                  <span>REVISION DETAIL · r7</span>
-                  <h3>Code reworded Root cause</h3>
+                  <span>REVISION DETAIL · r6</span>
+                  <h3>Code verified Root cause</h3>
                   <dl>
                     <div><dt>Asked by</dt><dd>Ada</dd></div>
                     <div><dt>Agent</dt><dd>@Code</dd></div>
                     <div><dt>Runtime</dt><dd>gpt-5.6-luna · WebMCP Relay</dd></div>
-                    <div><dt>Evidence</dt><dd>Style guide · consistency rules</dd></div>
+                    <div><dt>Evidence</dt><dd>commit:7d3c9e1 · checkout.log</dd></div>
                   </dl>
-                  <div className={styles.restoreLine}><b>Before / after preserved</b><span>Restore r6</span></div>
+                  <div className={styles.restoreLine}><b>Before / after preserved</b><span>Restore r5</span></div>
                 </div>
               </div>
-              <div className={styles.truthRowCenter}><TruthLabel tone="green">PROMPT · SOURCES · DIFF · AUTHORSHIP</TruthLabel></div>
+              <div className={styles.truthRowCenter}><TruthLabel tone="green">ASKER · AGENT · EVIDENCE · RESTORE</TruthLabel></div>
             </Slide>
           </li>
 
@@ -461,32 +416,10 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={8} currentIndex={currentIndex} compositionClass={styles.dataSlide}>
+            <Slide index={8} currentIndex={currentIndex} compositionClass={styles.architectureSlide}>
               <p className={styles.lede}>{DECK_SLIDES[8].subtitle}</p>
-              <div className={styles.dataComposition}>
-                <div className={`${styles.previewFrame} ${styles.successMeasures}`} role="img" aria-label="Design preview of revised Northstar Success Measures based on synthetic capacity data.">
-                  <PreviewLabel>GUIDED DEMO PATH · PRODUCT DOC</PreviewLabel>
-                  <span>NORTHSTAR · SUCCESS MEASURES</span>
-                  <h3>Stage access. Protect reliability.</h3>
-                  <p><b>October 15</b> · invite-only design-partner beta</p>
-                  <p><b>November 1</b> · full GA</p>
-                  <p><b>$180,000</b> · renewal depends on production-ready CSV</p>
-                  <div className={styles.dataComment}><EvidenceDot tone="data" /><span><b>@Data</b> 14 days fit reliability plus the beta slice—exactly.</span></div>
-                </div>
-                <SyntheticCapacityChart />
-              </div>
-              <div className={styles.truthRowCenter}>
-                <TruthLabel tone="violet">SYNTHETIC DEMO DATA</TruthLabel>
-                <TruthLabel tone="green">r6 → r7 · EXACT-RANGE REVISION</TruthLabel>
-              </div>
-            </Slide>
-          </li>
-
-          <li>
-            <Slide index={9} currentIndex={currentIndex} compositionClass={styles.architectureSlide}>
-              <p className={styles.lede}>{DECK_SLIDES[9].subtitle}</p>
-              <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: mention with access choice, server capability grant, WebMCP site tools, Luna Responses, executeTool, server-checked revision, then assignment catalog withdrawal and idle restoration.">
-                {["@mention + access", "server capability grant", "WebMCP site tools", "Luna Responses", "executeTool", "revision + cleanup"].map((node, index) => (
+              <div className={styles.architectureFlow} role="img" aria-label="Application-owned relay flow: managed bot mention, server-resolved company capability grant, WebMCP site tools, an agent API, executeTool, server-checked revision, then assignment catalog withdrawal and idle restoration.">
+                {["@managed bot", "company policy + grant", "WebMCP site tools", "agent API", "executeTool", "revision + cleanup"].map((node, index) => (
                   <div className={styles.architectureNode} key={node}>
                     <span>{String(index + 1).padStart(2, "0")}</span><b>{node}</b>
                   </div>
@@ -496,8 +429,8 @@ export function RatiflowDeck() {
                 <li>tool_search_call</li><li>getTools()</li><li>tool_search_output</li><li>function call</li><li>executeTool()</li><li>revision → catalog withdrawn → idle</li>
               </ol>
               <div className={styles.truthRowCenter}>
-                <TruthLabel tone="violet">APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS</TruthLabel>
-                <TruthLabel tone="green">LUNA TOOL SEARCH · LOCAL API OBSERVED</TruthLabel>
+                <TruthLabel tone="violet">APPLICATION-OWNED IN-PAGE RELAY · MODEL VIA API</TruthLabel>
+                <TruthLabel tone="green">AGENT MODEL · RUNNING VIA API</TruthLabel>
                 <TruthLabel tone="neutral">NATIVE PROOF IS DATED, OBSERVATIONAL EVIDENCE</TruthLabel>
                 <TruthLabel tone="neutral">RUN END · IDLE CATALOG RESTORED</TruthLabel>
                 <TruthLabel tone="neutral">PRODUCT FLOW VISUAL</TruthLabel>
@@ -507,31 +440,20 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={10} currentIndex={currentIndex} compositionClass={styles.futureSlide}>
-              <p className={styles.lede}>{DECK_SLIDES[10].subtitle}</p>
-              <div className={styles.futureScale} aria-label="Proposed WebMCP direction from today's page-scoped RPC to reactive capabilities and durable accountable sessions">
-                <article>
-                  <span>TODAY</span>
-                  <b>Page-scoped RPC</b>
-                  <p>Register a tool. Invoke it while the page and its context are live.</p>
-                </article>
+            <Slide index={9} currentIndex={currentIndex} compositionClass={styles.futureSlide}>
+              <p className={styles.lede}>{DECK_SLIDES[9].subtitle}</p>
+              <div className={styles.futureScale} aria-label="Two proposed WebMCP features for keeping agent context current and approved work durable">
                 <article className={styles.futureReactive}>
-                  <span>10×</span>
-                  <b>Reactive capabilities</b>
-                  <ul>
-                    <li>Typed, opt-in resource invalidation and pub/sub</li>
-                    <li>Stable capability lifecycle, progress, and output contracts</li>
-                  </ul>
-                  <small>Signal that typed state changed—never push arbitrary prose into the model.</small>
+                  <span>10× ASK · 01</span>
+                  <b>Tell agents when relevant information changes.</b>
+                  <p><strong>Use case</strong> An agent can refresh the affected facts instead of starting over or continuing with stale context.</p>
+                  <small><strong>Engineering</strong> Typed resources plus change notifications let agents re-read only invalidated state.</small>
                 </article>
                 <article className={styles.futureDurable}>
-                  <span>100×</span>
-                  <b>Durable + accountable</b>
-                  <ul>
-                    <li>Worker-backed sessions and cross-page routing</li>
-                    <li>Browser-attested grants and delegated identity</li>
-                    <li>Idempotent receipts with reviewable replay</li>
-                  </ul>
+                  <span>10× ASK · 02</span>
+                  <b>Let approved tasks finish after the page closes.</b>
+                  <p><strong>Use case</strong> A long-running task can survive navigation and still return a clear, reviewable result.</p>
+                  <small><strong>Engineering</strong> Worker-backed sessions carry delegated identity and scope, with idempotent receipts.</small>
                 </article>
               </div>
               <div className={styles.truthRowCenter}><TruthLabel tone="amber">PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP</TruthLabel></div>
@@ -540,33 +462,11 @@ export function RatiflowDeck() {
           </li>
 
           <li>
-            <Slide index={11} currentIndex={currentIndex} compositionClass={styles.finalSlide}>
-              <p className={styles.lede}>{DECK_SLIDES[11].subtitle}</p>
+            <Slide index={10} currentIndex={currentIndex} compositionClass={styles.finalSlide}>
+              <p className={styles.lede}>{DECK_SLIDES[10].subtitle}</p>
               <div className={styles.finalComposition}>
-                <div className={styles.finalPaths}>
-                  <article className={`${styles.previewFrame} ${styles.finalPath}`}>
-                    <PreviewLabel>POSTMORTEM · @CODE + REPOSITORY</PreviewLabel>
-                    <span>PATH 01 · INC-482</span>
-                    <b>Verify Root cause</b>
-                    <p>Select Root cause → assign <code>@Code</code> → choose Repository access → open r6.</p>
-                    <small>Watch the assignment catalog, required calls, evidence-backed diff, and Restore.</small>
-                  </article>
-                  <article className={`${styles.previewFrame} ${styles.finalPath}`}>
-                    <PreviewLabel>PRODUCT · @DATA + METRICS</PreviewLabel>
-                    <span>PATH 02 · NORTHSTAR</span>
-                    <b>Check launch capacity</b>
-                    <p>Select Success Measures → assign <code>@Data</code> → choose Metrics access → open r7.</p>
-                    <small>Watch the assignment catalog, capacity arithmetic, scoped revision, and Restore.</small>
-                  </article>
-                </div>
-                <ol className={styles.finalChecklist} aria-label="What to inspect in the live Ratiflow demo">
-                  <li><span>01</span><b>Choose</b><small>Postmortem or Product</small></li>
-                  <li><span>02</span><b>Assign</b><small>Bot + website access</small></li>
-                  <li><span>03</span><b>Watch</b><small>Granted tools + required calls</small></li>
-                  <li><span>04</span><b>Inspect</b><small>History, evidence, and Restore</small></li>
-                </ol>
+                <Link className={styles.finalAction} href="/">Open the live Ratiflow app →</Link>
               </div>
-              <Link className={styles.finalAction} href="/">Open the live demo picker →</Link>
             </Slide>
           </li>
         </ol>

@@ -25,6 +25,7 @@ import {
 const PERSON_NAME = "Quinn Patel";
 const POSTMORTEM_SELECTION =
   "Describe what happened, when it started, and when service recovered.";
+const POSTMORTEM_UNICODE_SELECTION = "— Provider HTTP 429 responses began.";
 const MANAGED_CODE_PROFILE_ID = "00000000-0000-4000-8000-000000004202";
 const MANAGED_RELAY_RUN_ID = "00000000-0000-4000-8000-000000004212";
 const MANAGED_RELAY_TASK_ID = "00000000-0000-4000-8000-000000004222";
@@ -121,7 +122,7 @@ const MANAGED_QUEUED_RUN: RelayRun = {
   taskId: MANAGED_RELAY_TASK_ID,
   profileId: MANAGED_CODE_PROFILE_ID,
   agentExpertise: "CODE",
-  accessProfile: "METRICS_SCOPED_EDIT",
+  accessProfile: "REPOSITORY_SCOPED_EDIT",
   runtime: MANAGED_AGENT_RUNTIME,
   model: MANAGED_AGENT_MODEL,
   status: "QUEUED",
@@ -299,31 +300,88 @@ async function selectRenderedText(page: Page, selectedText: string): Promise<voi
   await expect(rendered).toBeVisible();
   await rendered.evaluate((root, target) => {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
     let node = walker.nextNode();
     while (node) {
-      const value = node.textContent ?? "";
-      const start = value.indexOf(target);
-      if (start >= 0) {
-        const range = document.createRange();
-        range.setStart(node, start);
-        range.setEnd(node, start + target.length);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-        (node.parentElement ?? root).dispatchEvent(new MouseEvent("mouseup", {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-        }));
-        return;
-      }
+      textNodes.push(node as Text);
       node = walker.nextNode();
     }
-    throw new Error(`Rendered document text was absent: ${target}`);
+    const renderedText = textNodes.map((textNode) => textNode.data).join("");
+    const targetStart = renderedText.indexOf(target);
+    if (targetStart < 0) throw new Error(`Rendered document text was absent: ${target}`);
+    if (renderedText.indexOf(target, targetStart + 1) >= 0) {
+      throw new Error(`Rendered document text was ambiguous: ${target}`);
+    }
+
+    const endpoint = (absoluteOffset: number, start: boolean) => {
+      let consumed = 0;
+      for (const [index, textNode] of textNodes.entries()) {
+        const next = consumed + textNode.data.length;
+        if (absoluteOffset < next || (
+          absoluteOffset === next
+          && (!start || index === textNodes.length - 1)
+        )) {
+          return { node: textNode, offset: absoluteOffset - consumed };
+        }
+        consumed = next;
+      }
+      throw new Error(`Rendered document offset was absent: ${absoluteOffset}`);
+    };
+
+    const start = endpoint(targetStart, true);
+    const end = endpoint(targetStart + target.length, false);
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (start.node.parentElement ?? root).dispatchEvent(new MouseEvent("mouseup", {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    }));
   }, selectedText);
   const composer = page.getByTestId("selection-comment-composer");
   await expect(composer).toBeVisible();
   await expect(composer.locator("blockquote")).toHaveText(selectedText);
+}
+
+type DocumentHighlight = "selection" | "pending" | "agent-change";
+
+async function expectNoDocumentHighlights(page: Page): Promise<void> {
+  await expect(
+    page.getByTestId("rendered-document-body").locator("[data-highlight]"),
+  ).toHaveCount(0);
+}
+
+async function expectExactDocumentHighlight(
+  page: Page,
+  highlight: DocumentHighlight,
+  selectedText: string,
+): Promise<Locator> {
+  const rendered = page.getByTestId("rendered-document-body");
+  const marks = rendered.locator(`mark[data-highlight="${highlight}"]`);
+  await expect.poll(async () => rendered.locator("[data-highlight]").evaluateAll(
+    (nodes, expectedHighlight) => {
+      const matching = nodes.filter((node) =>
+        node.getAttribute("data-highlight") === expectedHighlight);
+      return {
+        hasMatchingLeaf: matching.length > 0,
+        onlyMatchingLeaves: matching.length === nodes.length,
+        exactText: matching.map((node) => node.textContent ?? "").join(""),
+        allAreLeafMarks: nodes.every((node) =>
+          node.tagName === "MARK" && !node.querySelector("[data-highlight]")),
+      };
+    }, highlight), {
+    message: `Only the exact ${highlight} range should be highlighted.`,
+  }).toEqual({
+    hasMatchingLeaf: true,
+    onlyMatchingLeaves: true,
+    exactText: selectedText,
+    allAreLeafMarks: true,
+  });
+  return marks;
 }
 
 function waitForSuccessfulMutation(page: Page, path: string) {
@@ -447,8 +505,11 @@ test("v4.2 Advanced BYOA guides one page-scoped agent from a named prompt to a t
   try {
     await launchTemplate(page, "POSTMORTEM");
     await expect(page.getByRole("heading", {
-      name: "Select a passage. Pick a bot and its website access. Watch the proof.",
+      name: "Highlight text. @ a bot. Watch the change.",
     })).toBeVisible();
+    await expect(page.getByText(
+      "The selection bounds the edit. @Code's company profile supplies its website tools automatically.",
+    )).toBeVisible();
     await page.getByText("Advanced: bring your own agent", { exact: true }).click();
     await expect.poll(() => page.evaluate(() => {
       const harness = (window as unknown as {
@@ -489,7 +550,7 @@ test("v4.2 Advanced BYOA guides one page-scoped agent from a named prompt to a t
     await expect(status).toBeVisible();
     await status.click();
     await expect(page.getByRole("heading", {
-      name: "Select a passage. Pick a bot and its website access. Watch the proof.",
+      name: "Highlight text. @ a bot. Watch the change.",
     })).toBeVisible();
     await page.getByText("Advanced: Contextbot connected", { exact: true }).click();
     await expect(page.getByText("Connected for this page · owned by Quinn Patel")).toBeVisible();
@@ -583,6 +644,7 @@ test("v4.2 completed Postmortem exposes r5/av11 rendered evidence, agent diffs, 
     name: "Open revision history. Revision 5",
   })).toBeVisible();
   const rendered = page.getByTestId("rendered-document-body");
+  await expectNoDocumentHighlights(page);
   await expect(rendered.getByRole("table").first()).toContainText("28,417");
   await expect(rendered.getByRole("img", {
     name: "Checkout outcomes during INC-482",
@@ -636,6 +698,7 @@ test("v4.2 completed Product document exposes r6/av11 analysis, closed discussio
     name: "Northstar · CSV export launch decision",
   })).toBeVisible();
   const rendered = page.getByTestId("rendered-document-body");
+  await expectNoDocumentHighlights(page);
   await expect(rendered.getByRole("table").first()).toContainText("Staged invite-only beta");
   await expect(rendered.getByRole("img", {
     name: "Pre-beta engineering-day options",
@@ -664,37 +727,73 @@ test("v4.2 completed Product document exposes r6/av11 analysis, closed discussio
   await expect(rail.locator("ins")).toContainText("invite-only CSV beta");
 });
 
-test("v4.2 exact rendered-source selection creates an anchored human comment", async ({ page }) => {
-  await launchTemplate(page, "POSTMORTEM");
-  await selectRenderedText(page, POSTMORTEM_SELECTION);
+test("v4.4 an exact Unicode selection stays blue, then only its submitted comment range turns yellow", async ({ page }) => {
+  await launchExample(page, "POSTMORTEM");
+  await expectNoDocumentHighlights(page);
+  const before = await readTabSession(page);
+
+  await page.getByTestId("rendered-document-body").evaluate((root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let boldStart: Text | null = null;
+    let plainEnd: Text | null = null;
+    let node = walker.nextNode();
+    while (node) {
+      const text = node as Text;
+      if (text.data === "09:43 UTC") boldStart = text;
+      if (text.data.includes("Provider HTTP 429 responses began.")) plainEnd = text;
+      node = walker.nextNode();
+    }
+    if (!boldStart || !plainEnd) {
+      throw new Error("The formatted timeline selection endpoints were absent.");
+    }
+    const range = document.createRange();
+    range.setStart(boldStart, 0);
+    range.setEnd(plainEnd, plainEnd.data.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (boldStart.parentElement ?? root).dispatchEvent(new MouseEvent("mouseup", {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    }));
+  });
+  await expect(page.getByTestId("selection-comment-composer")).toHaveCount(0);
+  await expectNoDocumentHighlights(page);
+
+  await selectRenderedText(page, POSTMORTEM_UNICODE_SELECTION);
   const composer = page.getByTestId("selection-comment-composer");
   const comment = "Should this include the exact customer-visible recovery time?";
   await composer.getByLabel("Comment or @ an agent").fill(comment);
+  await expectExactDocumentHighlight(page, "selection", POSTMORTEM_UNICODE_SELECTION);
   await expect(composer.getByTestId("website-access-selector")).toHaveCount(0);
   const created = waitForSuccessfulMutation(page, "/api/repository-v4/thread/create");
   await composer.getByRole("button", { name: "Comment", exact: true }).click();
   await created;
+  await expectExactDocumentHighlight(page, "pending", POSTMORTEM_UNICODE_SELECTION);
 
   const session = await readTabSession(page);
-  expect(session.surface.tasks).toEqual([]);
-  expect(session.surface.threads).toHaveLength(1);
-  const thread = session.surface.threads[0]!;
+  expect(session.surface.tasks).toEqual(before.surface.tasks);
+  expect(session.surface.threads).toHaveLength(before.surface.threads.length + 1);
+  const thread = session.surface.threads.find(({ comments }) =>
+    comments.some(({ body }) => body === comment));
+  if (!thread) throw new Error("The exact-range human comment was absent.");
   expect(thread.taskId).toBeNull();
   expect(thread.anchor).toMatchObject({
     scope: "SELECTION",
     field: "BODY",
-    selectedText: POSTMORTEM_SELECTION,
-    createdRevision: 1,
+    selectedText: POSTMORTEM_UNICODE_SELECTION,
+    createdRevision: 5,
   });
   if (thread.anchor.scope !== "SELECTION") throw new Error("Selection anchor was lost.");
   expect(Array.from(session.surface.document.body)
     .slice(thread.anchor.rangeStart, thread.anchor.rangeEnd)
-    .join("")).toBe(POSTMORTEM_SELECTION);
-  expect(thread.comments[0]).toMatchObject({ body: comment, createdRevision: 1 });
+    .join("")).toBe(POSTMORTEM_UNICODE_SELECTION);
+  expect(thread.comments[0]).toMatchObject({ body: comment, createdRevision: 5 });
 
   const rail = await openCommentsRail(page);
-  const card = rail.locator('article[data-kind="human"]');
-  await expect(card).toContainText(POSTMORTEM_SELECTION);
+  const card = rail.locator('article[data-kind="human"]').filter({ hasText: comment });
+  await expect(card).toContainText(POSTMORTEM_UNICODE_SELECTION);
   await expect(card).toContainText(comment);
   await expect(card.getByRole("button", { name: "Close" })).toBeVisible();
 });
@@ -725,7 +824,7 @@ test("v4.2 literal @ text stays a human comment until an autocomplete agent is e
   await expect(rail.locator('article[data-kind="human"]')).toContainText(literal);
 });
 
-test("v4.3 @Code can independently receive Metrics website access and expose that catalog", async ({
+test("v4.4 @Code receives company-configured Repository access without a picker or request override", async ({
   browser,
   baseURL,
 }) => {
@@ -929,15 +1028,29 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
     await composer.getByLabel("Comment or @ an agent").fill("@");
     const directory = composer.getByRole("listbox", { name: "Company directory" });
     await expect(directory).toBeVisible();
-    await directory.getByRole("option", { name: /@Code\b/u }).click();
-    const accessSelector = composer.getByLabel("Website access for this run");
-    await expect(accessSelector).toHaveValue("REPOSITORY_SCOPED_EDIT");
-    await accessSelector.selectOption("METRICS_SCOPED_EDIT");
-    await expect(accessSelector).toHaveValue("METRICS_SCOPED_EDIT");
-    const instruction = "@Code check this passage against the synthetic metrics.";
+    const codeOption = directory.getByRole("option", { name: /@Code\b/u });
+    await expect(codeOption).toContainText("Software analysis expertise · Repository tools");
+    await expect(codeOption.getByText("Company-set", { exact: true })).toBeVisible();
+    expect(await codeOption.evaluate((row) => {
+      const detail = row.querySelector("small");
+      const policy = [...row.querySelectorAll("span")].find((candidate) =>
+        candidate.textContent === "Company-set");
+      if (!detail || !policy) return false;
+      const rowRect = row.getBoundingClientRect();
+      return [detail, policy].every((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.left >= rowRect.left
+          && rect.right <= rowRect.right
+          && rect.top >= rowRect.top
+          && rect.bottom <= rowRect.bottom;
+      }) && row.scrollWidth <= row.clientWidth;
+    })).toBe(true);
+    await codeOption.click();
+    await expect(composer.getByLabel("Website access for this run")).toHaveCount(0);
+    await expect(composer.getByTestId("website-access-selector")).toHaveCount(0);
+    const instruction = "@Code verify this passage against the synthetic repository.";
     await composer.getByLabel("Comment or @ an agent").fill(instruction);
     await expect(composer.getByText(/Assigned to @Code · code expertise/u)).toBeVisible();
-    await expect(composer.getByText(/not the bot’s expertise.*sets the WebMCP catalog/u)).toBeVisible();
     const mentionRequestPromise = page.waitForRequest((request) =>
       request.url().endsWith("/api/repository-v4/task/mention")
       && request.method() === "POST");
@@ -946,7 +1059,6 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
     const mentionRequest = await mentionRequestPromise;
     const mentionBody = mentionRequest.postDataJSON() as Record<string, unknown>;
     expect(Object.keys(mentionBody).sort()).toEqual([
-      "accessProfile",
       "anchor",
       "comment",
       "expectedRevision",
@@ -955,7 +1067,6 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
     expect(mentionBody).toMatchObject({
       expectedRevision: 5,
       comment: instruction,
-      accessProfile: "METRICS_SCOPED_EDIT",
       target: { kind: "AGENT", profileId: MANAGED_CODE_PROFILE_ID },
       anchor: {
         scope: "SELECTION",
@@ -964,6 +1075,7 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
         rangeEnd: 1603,
       },
     });
+    expect(mentionBody).not.toHaveProperty("accessProfile");
     expect(mentionBody).not.toHaveProperty("mentionedAgentName");
     expect(mentionBody).not.toHaveProperty("assignedToMemberId");
     expect(mentionBody.target).not.toHaveProperty("displayName");
@@ -984,12 +1096,12 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
     })).toBeVisible();
     await expect(recorder).toContainText("@Code");
     await expect(recorder).toContainText(MANAGED_AGENT_MODEL);
-    const catalog = recorder.getByRole("list", { name: "Metrics website tool catalog" });
+    const catalog = recorder.getByRole("list", { name: "Repository website tool catalog" });
     await expect(catalog).toBeVisible();
-    await expect(catalog).toContainText("query_demo_metrics");
-    await expect(catalog).not.toContainText("search_demo_code");
+    await expect(catalog).toContainText("search_demo_code");
+    await expect(catalog).not.toContainText("query_demo_metrics");
     await expect(recorder).toContainText("code");
-    await expect(recorder).toContainText("Metrics");
+    await expect(recorder).toContainText("Repository");
     await expect(recorder).toContainText("Mention became durable work");
     await expect(recorder).toContainText("Queued for this open page");
     await expect(page.getByRole("status")).toContainText(
@@ -1002,7 +1114,10 @@ test("v4.3 @Code can independently receive Metrics website access and expose tha
   }
 });
 
-test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rationale/evidence, and can be restored", async ({ page }) => {
+test("v4.4 direct agent work turns only the pending range yellow and its replacement green for exactly 30 seconds", async ({ page }) => {
+  const clockStart = new Date("2026-09-03T09:00:00.000Z");
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(clockStart.valueOf() + 1_000);
   await launchTemplate(page, "POSTMORTEM");
   const profile = await connectCurrentAgent(page, "Databot");
   expect(profile.member.displayName).toBe(PERSON_NAME);
@@ -1010,6 +1125,7 @@ test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rati
   await expect(page.getByTestId("repository-workspace")).toBeVisible();
 
   await selectRenderedText(page, POSTMORTEM_SELECTION);
+  await expectExactDocumentHighlight(page, "selection", POSTMORTEM_SELECTION);
   const composer = page.getByTestId("selection-comment-composer");
   await composer.getByLabel("Comment or @ an agent").fill("@");
   const option = composer.getByRole("option", { name: /Databot.*Quinn Patel/u });
@@ -1024,6 +1140,7 @@ test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rati
   const assigned = waitForSuccessfulMutation(page, "/api/repository-v4/task/mention");
   await composer.getByRole("button", { name: "Assign" }).click();
   await assigned;
+  await expectExactDocumentHighlight(page, "pending", POSTMORTEM_SELECTION);
   const task = await waitForTask(page, ({ taskKey }) => taskKey === "TASK-1");
   expect(task).toMatchObject({
     taskKey: "TASK-1",
@@ -1041,10 +1158,21 @@ test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rati
     replacementText: replacement,
     evidenceRefs: ["checkout.log"],
   });
+  const committedSurface = page.waitForResponse((response) =>
+    response.url().endsWith("/api/repository-v4/surface")
+    && response.request().method() === "GET"
+    && response.ok());
+  await page.clock.fastForward(3_000);
+  await committedSurface;
   await expect(page.getByRole("button", {
     name: "Open revision history. Revision 2",
   })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("rendered-document-body")).toContainText(replacement);
+  const greenReplacement = await expectExactDocumentHighlight(
+    page,
+    "agent-change",
+    replacement,
+  );
   await expect(page.getByRole("button", { name: /Apply|Approve/u })).toHaveCount(0);
 
   const rail = await openCommentsRail(page);
@@ -1056,6 +1184,21 @@ test("v4.2 selected @ agent creates Direct TASK-n, commits immediately with rati
   await expect(card).toContainText("checkout.log");
   const restore = card.getByRole("button", { name: "Restore before this change" });
   await expect(restore).toBeVisible();
+
+  const nextThreeSecondPoll = page.waitForResponse((response) =>
+    response.url().endsWith("/api/repository-v4/surface")
+    && response.request().method() === "GET"
+    && response.ok());
+  await page.clock.runFor(3_000);
+  await nextThreeSecondPoll;
+  await expectExactDocumentHighlight(page, "agent-change", replacement);
+  await page.clock.runFor(26_999);
+  await expect(greenReplacement).not.toHaveCount(0);
+  await expectExactDocumentHighlight(page, "agent-change", replacement);
+  await page.clock.runFor(1);
+  await expect(greenReplacement).toHaveCount(0);
+  await expectNoDocumentHighlights(page);
+
   const restored = waitForSuccessfulMutation(page, "/api/repository-v4/revision/restore");
   await restore.click();
   await restored;

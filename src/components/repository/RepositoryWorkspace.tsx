@@ -32,7 +32,6 @@ import {
   type IssueTask,
   type IssueThread,
   type IssueWorkspaceSurface,
-  type ManagedRelayAccessProfile,
   type RepositoryBrowserClientPort,
   type RepositoryFailure,
 } from "@/repository/contracts";
@@ -50,14 +49,16 @@ import { MANAGED_RELAY_EXAMPLE_OVERLAYS } from "@/domain/repository-examples";
 import { reconcileIssueSurface } from "@/repository/surface-reconciliation";
 import type { RepositoryWebMCPBridgeStatus } from "@/webmcp/repository-types";
 
-import { MarkdownDocument, type MarkdownSelectionEvent } from "./MarkdownDocument";
+import { MarkdownDocument, SourceHighlightText, type MarkdownSelectionEvent } from "./MarkdownDocument";
 import { ManagedDirectory } from "./ManagedDirectory";
 import { RelayFlightRecorder } from "./RelayFlightRecorder";
-import { repositorySelectionFromDom, type RepositorySourceSelection } from "./markdown-source-map";
+import {
+  repositorySelectionFromDom,
+  type RepositorySourceHighlight,
+  type RepositorySourceSelection,
+} from "./markdown-source-map";
 import { RepositoryWebMCPBridge } from "./RepositoryWebMCPBridge";
-import { repositoryRecommendedAccessProfile } from "./relay-access-copy";
 import styles from "./repository-workspace.module.css";
-import { WebsiteAccessSelector } from "./WebsiteAccessSelector";
 
 type RailTab = "COMMENTS" | "HISTORY" | "RELAY";
 type AgentExecutionTool = "wait_for_my_tasks" | "comment_on_task" | "submit_task_result" | null;
@@ -270,6 +271,158 @@ function isSelectionAnchor(anchor: IssueAnchor): anchor is IssueSelectionAnchor 
   return anchor.scope === "SELECTION";
 }
 
+export const REPOSITORY_AGENT_CHANGE_HIGHLIGHT_MS = 30_000;
+
+export interface RepositoryAgentChangeHighlight {
+  revision: number;
+  taskId: string;
+  anchor: IssueSelectionAnchor;
+}
+
+export type RepositoryAgentChangeHighlightTransition =
+  | { kind: "KEEP" }
+  | { kind: "CLEAR" }
+  | { kind: "SHOW"; highlight: RepositoryAgentChangeHighlight };
+
+function actorsMatch(left: IssueActorSnapshot, right: IssueActorSnapshot): boolean {
+  if (left.actorType !== right.actorType || left.displayName !== right.displayName) return false;
+  if (left.actorType === "SYSTEM" || right.actorType === "SYSTEM") {
+    return left.actorType === right.actorType;
+  }
+  if (left.member.memberId !== right.member.memberId
+    || left.member.displayName !== right.member.displayName) return false;
+  if (left.actorType === "HUMAN" || right.actorType === "HUMAN") {
+    return left.actorType === right.actorType;
+  }
+  return left.agentProfileId === right.agentProfileId && left.agentLabel === right.agentLabel;
+}
+
+function evidenceMatches(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function anchorMatchesDocument(anchor: IssueSelectionAnchor, surface: IssueWorkspaceSurface): boolean {
+  if (anchor.anchorState !== "ACTIVE" || anchor.anchorRevision !== surface.document.revision) return false;
+  const value = anchor.field === "TITLE" ? surface.document.title : surface.document.body;
+  return Array.from(value).slice(anchor.rangeStart, anchor.rangeEnd).join("") === anchor.selectedText;
+}
+
+/** Yellow belongs only to unresolved work that is still anchored to the current source. */
+export function repositoryOpenAnchorHighlights(
+  surface: IssueWorkspaceSurface,
+): RepositorySourceHighlight[] {
+  const taskById = new Map(surface.tasks.map((task) => [task.taskId, task]));
+  return surface.threads.flatMap((thread) => {
+    if (thread.taskId === null) {
+      return thread.status === "OPEN"
+        && isSelectionAnchor(thread.anchor)
+        && thread.anchor.anchorState === "ACTIVE"
+        && anchorMatchesDocument(thread.anchor, surface)
+        ? [{
+            field: thread.anchor.field,
+            rangeStart: thread.anchor.rangeStart,
+            rangeEnd: thread.anchor.rangeEnd,
+            kind: "PENDING" as const,
+          }]
+        : [];
+    }
+    const task = taskById.get(thread.taskId);
+    return task
+      && (task.status === "OPEN" || task.status === "PROPOSED")
+      && isSelectionAnchor(task.anchor)
+      && task.anchor.anchorState === "ACTIVE"
+      && anchorMatchesDocument(task.anchor, surface)
+      ? [{
+          field: task.anchor.field,
+          rangeStart: task.anchor.rangeStart,
+          rangeEnd: task.anchor.rangeEnd,
+          kind: "PENDING" as const,
+        }]
+      : [];
+  });
+}
+
+/**
+ * Resolve only an agent-authored replacement at the current history head. The
+ * current task anchor is authoritative because it spans the replacement text;
+ * the result/proposal anchor spans the text that existed before the commit.
+ */
+export function repositoryHeadAgentChangeHighlight(
+  surface: IssueWorkspaceSurface,
+): RepositoryAgentChangeHighlight | null {
+  const head = surface.history[0];
+  if (!head
+    || head.revision !== surface.document.revision
+    || head.revisionId !== surface.document.lastRevision.revisionId
+    || head.provenance.authority !== surface.document.lastRevision.authority
+    || head.changeSummary !== surface.document.lastRevision.summary
+    || !actorsMatch(head.provenance.author, surface.document.lastRevision.author)
+    || (head.provenance.authority !== "DIRECT" && head.provenance.authority !== "REVIEW")) return null;
+
+  const task = surface.tasks.find((entry) => entry.taskId === head.provenance.taskId);
+  if (!task || task.status !== "COMPLETED" || task.anchor.anchorState !== "ACTIVE") return null;
+  let replacementText: string;
+  let directLiveAnchor: IssueSelectionAnchor | null = null;
+  let resultRevision: number;
+  let sourceRevision: number;
+  let resultSummary: string;
+  let evidenceRefs: readonly string[];
+
+  if (head.provenance.authority === "DIRECT") {
+    if (task.mode !== "DIRECT" || task.result?.outcome !== "COMMITTED") return null;
+    replacementText = task.result.replacementText;
+    directLiveAnchor = task.result.liveAnchor;
+    resultRevision = task.result.resultRevision;
+    sourceRevision = task.result.sourceRevision;
+    resultSummary = task.result.resultSummary;
+    evidenceRefs = task.result.evidenceRefs;
+  } else {
+    if (task.mode !== "REVIEW" || task.decision?.kind !== "ACCEPTED" || !task.proposal) return null;
+    replacementText = task.proposal.replacementText;
+    resultRevision = task.decision.resultRevision;
+    sourceRevision = task.proposal.sourceRevision;
+    resultSummary = task.proposal.resultSummary;
+    evidenceRefs = task.proposal.evidenceRefs;
+  }
+
+  const diff = head.diffs[0];
+  if (resultRevision !== head.revision
+    || sourceRevision !== head.provenance.sourceRevision
+    || resultSummary !== head.changeSummary
+    || !evidenceMatches(evidenceRefs, head.evidenceRefs)
+    || head.diffs.length !== 1
+    || !diff
+    || diff.after !== replacementText
+    || (directLiveAnchor !== null && (
+      diff.field !== directLiveAnchor.field
+      || diff.rangeStart !== directLiveAnchor.rangeStart
+      || diff.rangeEnd !== directLiveAnchor.rangeEnd
+      || diff.before !== directLiveAnchor.selectedText
+    ))
+    || task.anchor.field !== diff.field
+    || task.anchor.rangeStart !== diff.rangeStart
+    || task.anchor.rangeEnd !== diff.rangeStart + Array.from(replacementText).length
+    || task.anchor.selectedText !== replacementText
+    || head.provenance.author.member.memberId !== task.assignee.memberId
+    || head.provenance.author.agentLabel !== task.agentLabel
+    || (task.agentProfileId !== null
+      && head.provenance.author.agentProfileId !== task.agentProfileId)
+    || !anchorMatchesDocument(task.anchor, surface)) return null;
+
+  return { revision: head.revision, taskId: task.taskId, anchor: task.anchor };
+}
+
+/** Same snapshots never restart the timer; gaps deliberately suppress unseen intermediate work. */
+export function repositoryAgentChangeHighlightTransition(
+  previousRevision: number,
+  nextSurface: IssueWorkspaceSurface,
+): RepositoryAgentChangeHighlightTransition {
+  if (nextSurface.document.revision <= previousRevision) return { kind: "KEEP" };
+  if (nextSurface.document.revision !== previousRevision + 1) return { kind: "CLEAR" };
+  const highlight = repositoryHeadAgentChangeHighlight(nextSurface);
+  return highlight ? { kind: "SHOW", highlight } : { kind: "CLEAR" };
+}
+
 function actorLabel(
   actor: IssueActorSnapshot,
   directory: readonly ManagedAgentDirectoryEntry[] = [],
@@ -439,7 +592,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const [relayWakeSignal, setRelayWakeSignal] = useState(0);
   const [relayRetrySignal, setRelayRetrySignal] = useState(0);
   const [selectedDirectoryKey, setSelectedDirectoryKey] = useState<string | null>(null);
-  const [selectedAccessProfile, setSelectedAccessProfile] = useState<ManagedRelayAccessProfile | null>(null);
+  const [agentChangeHighlight, setAgentChangeHighlight] = useState<RepositoryAgentChangeHighlight | null>(null);
 
   const surfaceRef = useRef(surface);
   const draftRef = useRef(draft);
@@ -449,6 +602,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const revisionRequestRef = useRef(0);
   const activeSessionIdentityRef = useRef(repositorySessionIdentity(session));
   const presenceInFlightSessionRef = useRef<string | null>(null);
+  const agentChangeTimerRef = useRef<number | null>(null);
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
@@ -461,15 +615,39 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setStatusMessage(failureMessage(failure));
   }, [onSessionUnavailable]);
 
+  const applyAgentChangeTransition = useCallback((transition: RepositoryAgentChangeHighlightTransition) => {
+    if (transition.kind === "KEEP") return;
+    if (agentChangeTimerRef.current !== null) {
+      window.clearTimeout(agentChangeTimerRef.current);
+      agentChangeTimerRef.current = null;
+    }
+    if (transition.kind === "CLEAR") {
+      setAgentChangeHighlight(null);
+      return;
+    }
+    const { highlight } = transition;
+    setAgentChangeHighlight(highlight);
+    agentChangeTimerRef.current = window.setTimeout(() => {
+      agentChangeTimerRef.current = null;
+      setAgentChangeHighlight((current) => current?.revision === highlight.revision
+        && current.taskId === highlight.taskId ? null : current);
+    }, REPOSITORY_AGENT_CHANGE_HIGHLIGHT_MS);
+  }, []);
+
   const publishSurface = useCallback((incoming: IssueWorkspaceSurface, notifyParent = true) => {
     if (incoming.document.id !== surfaceRef.current.document.id) return;
     const previous = surfaceRef.current;
     const next = reconcileIssueSurface(previous, incoming);
+    applyAgentChangeTransition(repositoryAgentChangeHighlightTransition(
+      previous.document.revision,
+      next,
+    ));
     surfaceRef.current = next;
     setSurface(next);
     setHistoryHasMore((current) => repositoryNextHistoryHasMore(olderHistory.length, current, next.hasMoreHistory));
     if (notifyParent) onSurfaceChange?.(next);
     if (next.document.revision > previous.document.revision) {
+      setSelection(null);
       if (dirtyRef.current) setConflict(next);
       else {
         const nextDraft = { title: next.document.title, body: next.document.body };
@@ -477,7 +655,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
         setDraft(nextDraft);
       }
     }
-  }, [olderHistory.length, onSurfaceChange]);
+  }, [applyAgentChangeTransition, olderHistory.length, onSurfaceChange]);
 
   const adoptSurface = useCallback((incoming: IssueWorkspaceSurface) => {
     publishSurface(incoming);
@@ -518,8 +696,12 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setRelayWakeSignal(0);
     setRelayRetrySignal(0);
     setSelectedDirectoryKey(null);
-    setSelectedAccessProfile(null);
-  }, [publishSurface, session.surface, sessionIdentity]);
+    applyAgentChangeTransition({ kind: "CLEAR" });
+  }, [applyAgentChangeTransition, publishSurface, session.surface, sessionIdentity]);
+
+  useEffect(() => () => {
+    if (agentChangeTimerRef.current !== null) window.clearTimeout(agentChangeTimerRef.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -638,7 +820,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText("");
     setSelectedAgentId(null);
     setSelectedDirectoryKey(null);
-    setSelectedAccessProfile(null);
   }, []);
 
   const directory = relayState?.directory ?? [];
@@ -650,8 +831,10 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
   const primaryRunCompleted = relayState?.runs.some(
     (run) => run.accessProfile === guided.accessProfile && run.status === "COMPLETED",
   ) ?? false;
-  const suggestedHandle = guided.agentHandle;
-  const suggestedDisplayName = suggestedHandle === "code" ? "Code" : "Data";
+  const suggestedHandle = primaryRunCompleted ? "general" : guided.agentHandle;
+  const suggestedDisplayName = suggestedHandle === "general"
+    ? "General"
+    : suggestedHandle === "code" ? "Code" : "Data";
   const suggestedDirectoryTarget = directory.find(
     (entry): entry is ManagedAgentDirectoryEntry => entry.kind === "AGENT"
       && entry.identitySource === "DEMO_DIRECTORY"
@@ -700,9 +883,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     });
     setCommentText(suggestedPrompt);
     setSelectedDirectoryKey(repositoryDirectoryEntryKey(suggestedDirectoryTarget));
-    setSelectedAccessProfile(primaryRunCompleted
-      ? "EDITORIAL_SCOPED_EDIT"
-      : guided.accessProfile);
   };
 
   const captureTitleSelection = (event: MouseEvent<HTMLHeadingElement> | KeyboardEvent<HTMLHeadingElement>) => {
@@ -729,7 +909,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText(repositoryClampCodePoints(`@${agent.name}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
     setSelectedAgentId(agent.profileId);
     setSelectedDirectoryKey(null);
-    setSelectedAccessProfile(null);
   };
 
   const chooseDirectoryTarget = (entry: DirectoryEntry) => {
@@ -738,9 +917,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText(repositoryClampCodePoints(`@${entry.displayName}${remainder || " "}`, ISSUE_COMMENT_MAX_LENGTH));
     setSelectedDirectoryKey(repositoryDirectoryEntryKey(entry));
     setSelectedAgentId(null);
-    setSelectedAccessProfile(entry.kind === "AGENT"
-      ? repositoryRecommendedAccessProfile(entry.expertise)
-      : null);
   };
 
   const changeCommentText = (value: string) => {
@@ -749,7 +925,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     if (selectedAgent && !repositoryCommentStartsWithAgent(next, selectedAgent.name)) setSelectedAgentId(null);
     if (selectedDirectoryTarget && !repositoryCommentStartsWithAgent(next, selectedDirectoryTarget.displayName)) {
       setSelectedDirectoryKey(null);
-      setSelectedAccessProfile(null);
     }
   };
 
@@ -759,7 +934,6 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentText("");
     setSelectedAgentId(null);
     setSelectedDirectoryKey(null);
-    setSelectedAccessProfile(null);
   };
 
   const submitComment = async () => {
@@ -767,29 +941,17 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     setCommentBusy(true);
     const anchor = { scope: "SELECTION" as const, field: selection.field, rangeStart: selection.rangeStart, rangeEnd: selection.rangeEnd };
     if (selectedDirectoryTarget && repositoryCommentStartsWithAgent(commentText, selectedDirectoryTarget.displayName)) {
-      let mentionInput: CreateDirectoryMentionHttpInput;
-      if (selectedDirectoryTarget.kind === "AGENT") {
-        const accessProfile = selectedAccessProfile;
-        if (!accessProfile) {
-          setCommentBusy(false);
-          setStatusMessage("Choose the website access this run may use.");
-          return;
-        }
-        mentionInput = {
+      const mentionInput: CreateDirectoryMentionHttpInput = selectedDirectoryTarget.kind === "AGENT" ? {
           expectedRevision: selection.expectedRevision,
           comment: commentText,
           target: { kind: "AGENT", profileId: selectedDirectoryTarget.profileId },
-          accessProfile,
           anchor,
-        };
-      } else {
-        mentionInput = {
+        } : {
           expectedRevision: selection.expectedRevision,
           comment: commentText,
           target: { kind: "HUMAN", memberId: selectedDirectoryTarget.member.memberId },
           anchor,
         };
-      }
       try {
         const result = await service.createDirectoryMention(session.humanSessionToken, mentionInput);
         if (!isActiveSession()) return;
@@ -927,8 +1089,26 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
     const task = thread.taskId ? taskById.get(thread.taskId) : null;
     return task ? task.status === "OPEN" || task.status === "PROPOSED" : thread.status === "OPEN";
   }).length;
-  const anchors = surface.threads.map((thread) => thread.anchor).filter(isSelectionAnchor);
-  const titleCommented = anchors.some((anchor) => anchor.field === "TITLE");
+  const highlights = useMemo<RepositorySourceHighlight[]>(() => {
+    const next = repositoryOpenAnchorHighlights(surface);
+    if (agentChangeHighlight) {
+      next.push({
+        field: agentChangeHighlight.anchor.field,
+        rangeStart: agentChangeHighlight.anchor.rangeStart,
+        rangeEnd: agentChangeHighlight.anchor.rangeEnd,
+        kind: "AGENT_CHANGE",
+      });
+    }
+    if (selection?.expectedRevision === surface.document.revision) {
+      next.push({
+        field: selection.field,
+        rangeStart: selection.rangeStart,
+        rangeEnd: selection.rangeEnd,
+        kind: "SELECTION",
+      });
+    }
+    return next;
+  }, [agentChangeHighlight, selection, surface]);
   const agentToolsReady = Boolean(webMCPStatus?.supported && !webMCPStatus.error && REPOSITORY_TOOL_NAMES.every((name) => webMCPStatus.registeredTools.includes(name)));
   const selfMember = surface.members.find((member) => member.memberId === session.selfMemberId) ?? null;
   const selfDisplayName = selfMember?.displayName ?? "this collaborator";
@@ -959,7 +1139,7 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
             : "Checking agent tools";
   const agentContextDetail = managedAgentCount
     ? relayAvailable
-      ? "Managed bots can claim assignments while this document page remains open; each run uses the website access you chose."
+      ? "Managed bots can claim assignments while this document page remains open; company policy supplies each bot’s website access."
       : "The directory is available, but this browser is not currently exposing WebMCP. Mentions remain durable until an eligible page opens."
     : connectedAgent
     ? `${connectedAgent.name} is connected on this page and owned by ${selfDisplayName}.`
@@ -1039,19 +1219,19 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
               <header>
                 <div>
                   <p>Live demo · {selfDisplayName}</p>
-                  <h2 id="repository-agent-setup-title">Select a passage. Pick a bot and its website access. Watch the proof.</h2>
+                  <h2 id="repository-agent-setup-title">Highlight text. @ a bot. Watch the change.</h2>
                 </div>
                 <button type="button" aria-label="Close agent setup" onClick={() => setAgentPanelOpen(false)}>×</button>
               </header>
 
               <div className={styles.managedCoachBody}>
                 <ol className={styles.coachSteps}>
-                  <li><b>1</b><span><strong>{primaryRunCompleted ? "Continue with a clarity pass" : "Prepare the guided run"}</strong><small>One click selects the exact section, suggested bot, and a starting website-access choice.</small><button type="button" data-testid="guided-selection" disabled={!suggestedDirectoryTarget} onClick={openGuidedSelection}>Load @{suggestedDisplayName} on {guided.sectionHeading.replace(/^## /u, "")}</button></span></li>
-                  <li><b>2</b><span><strong>Review the bot and website access</strong><small>Expertise guides the approach. The editable access choice sets the WebMCP tools; the selected passage bounds the edit.</small></span></li>
+                  <li><b>1</b><span><strong>{primaryRunCompleted ? "Continue with a clarity pass" : "Highlight any safe rendered text"}</strong><small>Drag over the exact words you want changed, or load the guided selection.</small><button type="button" data-testid="guided-selection" disabled={!suggestedDirectoryTarget} onClick={openGuidedSelection}>Load @{suggestedDisplayName} on {guided.sectionHeading.replace(/^## /u, "")}</button></span></li>
+                  <li><b>2</b><span><strong>@ a bot, add the instruction, then run</strong><small>The selection bounds the edit. @{suggestedDisplayName}&apos;s company profile supplies its website tools automatically.</small></span></li>
                   <li><b>3</b><span><strong>Watch the Flight Recorder</strong><small>See WebMCP discovery, Luna&apos;s calls, evidence, diff, and revision.</small><button type="button" onClick={() => { setRailTab("RELAY"); setRailOpen(true); }}>Open Flight Recorder</button></span></li>
                 </ol>
                 <aside className={styles.coachDirectory} aria-label="Company directory preview">
-                  {directory.length ? <><ManagedDirectory directory={directory} showHumans={false} /><small>{managedAgentCount} managed bots · access is chosen separately for every run · {directory.filter((entry) => entry.kind === "HUMAN").length} people appear in the <code>@</code> menu</small></> : <div className={styles.directoryLoading}><strong>Loading the directory…</strong><span>The document stays fully editable while this page checks its relay state.</span></div>}
+                  {directory.length ? <><ManagedDirectory directory={directory} showHumans={false} /><small>{managedAgentCount} managed bots · company-configured access · {directory.filter((entry) => entry.kind === "HUMAN").length} people appear in the <code>@</code> menu</small></> : <div className={styles.directoryLoading}><strong>Loading the directory…</strong><span>The document stays fully editable while this page checks its relay state.</span></div>}
                   <p data-ready={relayAvailable ? "true" : "false"}><i />{relayAvailable ? "WebMCP is ready. Mentions wake immediately; 15 seconds is recovery only." : "WebMCP is not exposed in this browser. Mentions stay durable until an eligible page opens."}</p>
                 </aside>
               </div>
@@ -1114,15 +1294,15 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
               <article className={`${styles.documentPaper} ${styles.documentSheet}`} aria-label={livingDocumentSheets[0].ariaLabel}>
                 <div className={styles.readingView}>
                   <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · r{surface.document.revision}</p>
-                  <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} data-commented={titleCommented ? "true" : undefined} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}>{surface.document.title}</h1>
-                  <MarkdownDocument source={livingDocumentSheets[0].markdown} testId={null} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
+                  <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}><SourceHighlightText source={surface.document.title} field="TITLE" highlights={highlights} /></h1>
+                  <MarkdownDocument source={livingDocumentSheets[0].markdown} testId={null} highlights={highlights} onSelectSource={receiveMarkdownSelection} />
                 </div>
                 <footer className={styles.documentFooter}><span>Living document · Page 1 of 2</span><span>Revision {surface.document.revision}</span></footer>
               </article>
               <article className={`${styles.documentPaper} ${styles.documentSheet}`} aria-label={livingDocumentSheets[1].ariaLabel}>
                 <div className={styles.readingView}>
                   <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · Page 2 of 2</p>
-                  <MarkdownDocument source={livingDocumentSheets[1].markdown} sourceCodePointOffset={secondSheetOffset} testId={null} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
+                  <MarkdownDocument source={livingDocumentSheets[1].markdown} sourceCodePointOffset={secondSheetOffset} testId={null} highlights={highlights} onSelectSource={receiveMarkdownSelection} />
                 </div>
                 <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author, managedDirectory)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
               </article>
@@ -1132,8 +1312,8 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
             <article className={styles.documentPaper} data-testid="writing-surface">
               <div className={styles.readingView}>
                 <p className={styles.documentEyebrow}>{repositoryKindLabel(surface.document.kind)} · r{surface.document.revision}</p>
-                <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} data-commented={titleCommented ? "true" : undefined} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}>{surface.document.title}</h1>
-                <MarkdownDocument source={surface.document.body} anchors={anchors} onSelectSource={receiveMarkdownSelection} />
+                <h1 ref={titleReadRef} data-source-start="0" data-source-end={surface.document.title.length} tabIndex={0} onMouseUp={captureTitleSelection} onKeyUp={(event) => { if (event.shiftKey || event.key === "Enter") captureTitleSelection(event); }}><SourceHighlightText source={surface.document.title} field="TITLE" highlights={highlights} /></h1>
+                <MarkdownDocument source={surface.document.body} highlights={highlights} onSelectSource={receiveMarkdownSelection} />
               </div>
               <footer className={styles.documentFooter}><span>Last changed by {actorLabel(surface.document.lastRevision.author, managedDirectory)}</span><span>{repositoryAuthorityLabel(surface.document.lastRevision.authority)}</span></footer>
             </article>
@@ -1190,9 +1370,8 @@ export function RepositoryWorkspace({ session, service, shareUrl, onNewDocument,
           }} />
           {mentionQuery !== null && !selectedAgent && !selectedDirectoryTarget ? <div className={styles.agentAutocomplete} role="listbox" aria-label="Company directory"><ManagedDirectory directory={directory} query={mentionQuery} onChoose={chooseDirectoryTarget} />{agentSuggestions.length ? <section className={styles.selfDeclaredSuggestions} aria-label="Advanced connected agents"><header>Advanced · connected on this page</header>{agentSuggestions.map((agent) => <button key={agent.profileId} type="button" role="option" aria-selected="false" onClick={() => chooseAgent(agent)}><span>{initials(agent.name)}</span><b>{agent.name}</b><small>{agent.member.displayName}</small></button>)}</section> : null}{directory.length || agentSuggestions.length ? null : <p>No matching directory entry. Unselected @ text will stay a human comment.</p>}</div> : null}
           {selectedDirectoryTarget ? <p className={styles.selectedAgent}>{selectedDirectoryTarget.kind === "AGENT" ? "Assigned to" : "Discussion with"} <strong>@{selectedDirectoryTarget.displayName}</strong> · {selectedDirectoryTarget.kind === "AGENT" ? `${selectedDirectoryTarget.expertise.toLowerCase()} expertise` : "human collaborator"}</p> : null}
-          {selectedDirectoryTarget?.kind === "AGENT" && selectedAccessProfile ? <WebsiteAccessSelector value={selectedAccessProfile} onChange={setSelectedAccessProfile} /> : null}
           {selectedAgent ? <p className={styles.selectedAgent}>Assigned to <strong>{selectedAgent.name}</strong> · {selectedAgent.member.displayName}</p> : null}
-          <footer><small>{selectedDirectoryTarget?.kind === "AGENT" || selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim() || (selectedDirectoryTarget?.kind === "AGENT" && !selectedAccessProfile)} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedDirectoryTarget?.kind === "AGENT" ? "Assign & run" : selectedDirectoryTarget?.kind === "HUMAN" ? "Mention" : selectedAgent ? "Assign" : "Comment"}</button></footer>
+          <footer><small>{selectedDirectoryTarget?.kind === "AGENT" || selectedAgent ? "The agent can change only this selected passage." : "⌘↵ to post"}</small><button type="button" disabled={commentBusy || !commentText.trim()} onClick={() => void submitComment()}>{commentBusy ? "Posting…" : selectedDirectoryTarget?.kind === "AGENT" ? "Assign & run" : selectedDirectoryTarget?.kind === "HUMAN" ? "Mention" : selectedAgent ? "Assign" : "Comment"}</button></footer>
         </aside>
       ) : null}
 

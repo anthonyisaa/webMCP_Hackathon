@@ -701,10 +701,33 @@
   text-wrap: balance;
 }
 
-.readingView > h1[data-commented="true"],
-.markdownDocument [data-commented="true"] {
-  box-shadow: inset 3px 0 #efbd62;
-  background: linear-gradient(90deg, rgb(255 243 204 / 54%), transparent 54%);
+.readingView > h1 mark[data-highlight],
+.markdownDocument mark[data-highlight] {
+  border-radius: 2px;
+  padding: 0;
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.readingView > h1 mark[data-highlight="pending"],
+.markdownDocument mark[data-highlight="pending"] {
+  background: #fff0b8;
+}
+
+.readingView > h1 mark[data-highlight="agent-change"],
+.markdownDocument mark[data-highlight="agent-change"] {
+  background: #ccebd7;
+}
+
+.readingView > h1 mark[data-highlight="selection"],
+.markdownDocument mark[data-highlight="selection"] {
+  background: #d9e9ff;
+}
+
+.readingView > h1 ::selection,
+.markdownDocument ::selection {
+  background: #c9ddf8;
 }
 
 .readingView > h1:focus-visible,
@@ -1818,11 +1841,11 @@
   overflow: hidden;
   max-height: 58px;
   margin: 0;
-  border-left: 2px solid #e8bc67;
+  border-left: 2px solid #8cafdc;
   border-radius: 0 8px 8px 0;
   padding: 7px 9px;
-  background: #fff9ed;
-  color: #716858;
+  background: #eef5ff;
+  color: #50647e;
   font-family: ui-serif, Georgia, serif;
   font-size: 10px;
   line-height: 1.4;
@@ -1878,7 +1901,18 @@
 }
 
 .agentAutocomplete .managedDirectory section > div > button {
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.agentAutocomplete .directoryIdentity small {
+  overflow: visible;
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .selfDeclaredSuggestions {
@@ -1898,7 +1932,7 @@
   text-transform: uppercase;
 }
 
-.agentAutocomplete button {
+.agentAutocomplete .selfDeclaredSuggestions button {
   display: grid;
   min-height: 40px;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1908,7 +1942,7 @@
   text-align: left;
 }
 
-.agentAutocomplete button > span {
+.agentAutocomplete .selfDeclaredSuggestions button > span {
   display: grid;
   width: 24px;
   height: 24px;
@@ -1920,14 +1954,14 @@
   font-weight: 750;
 }
 
-.agentAutocomplete button b {
+.agentAutocomplete .selfDeclaredSuggestions button b {
   overflow: hidden;
   color: #3e453f;
   font-size: 10px;
   text-overflow: ellipsis;
 }
 
-.agentAutocomplete button small {
+.agentAutocomplete .selfDeclaredSuggestions button small {
   overflow: hidden;
   max-width: 100px;
   color: #858c85;
@@ -1953,45 +1987,6 @@
 
 .selectedAgent strong {
   color: #59436f;
-}
-
-.websiteAccessSelector {
-  display: grid;
-  gap: 5px;
-  border: 1px solid #dbe4de;
-  border-radius: 10px;
-  padding: 9px;
-  background: #f5f8f6;
-}
-
-.websiteAccessSelector label {
-  color: #4f6458;
-  font-size: 9px;
-  font-weight: 720;
-}
-
-.websiteAccessSelector select {
-  width: 100%;
-  min-height: 36px;
-  border: 1px solid #cfd9d2;
-  border-radius: 8px;
-  padding: 0 8px;
-  outline: 0;
-  background: #fff;
-  color: #34443b;
-  font: inherit;
-  font-size: 9px;
-}
-
-.websiteAccessSelector select:focus {
-  border-color: #719781;
-  box-shadow: 0 0 0 3px rgb(74 137 109 / 11%);
-}
-
-.websiteAccessSelector small {
-  color: #77827b;
-  font-size: 8px;
-  line-height: 1.4;
 }
 
 .conflictBanner,

@@ -10,7 +10,7 @@ test("renders GFM structure while keeping HTML, remote images, and unsafe URLs i
     source: `## Impact\n\n- [ ] Follow up\n\n| Outcome | Count |\n|---|---:|\n| Failed | 6,742 |\n\n[unsafe](javascript:alert(1))\n\n![remote](https://example.com/pixel.png)\n\n<script>alert(1)</script>`,
   }));
 
-  assert.match(markup, /<h2[^>]*>Impact<\/h2>/u);
+  assert.match(markup, /<h2[^>]*><span[^>]*>Impact<\/span><\/h2>/u);
   assert.match(markup, /<table>/u);
   assert.match(markup, /type="checkbox"[^>]*disabled/u);
   assert.doesNotMatch(markup, /<script/u);
@@ -51,17 +51,28 @@ test("a rendered sheet maps absolute comment anchors through its source offset",
   const markup = renderToStaticMarkup(createElement(MarkdownDocument, {
     source,
     sourceCodePointOffset: 120,
-    anchors: [{
-      scope: "SELECTION",
+    highlights: [{
       field: "BODY",
       rangeStart: 120,
       rangeEnd: 132,
-      selectedText: "## Detection",
-      createdRevision: 1,
-      anchorRevision: 1,
-      anchorState: "ACTIVE",
+      kind: "PENDING",
     }],
   }));
 
-  assert.match(markup, /<h2[^>]*data-commented="true"/u);
+  assert.match(markup, /data-highlight="pending"/u);
+  assert.doesNotMatch(markup, /data-commented/u);
+});
+
+test("highlights only the exact authored inline leaf instead of its Markdown ancestors", () => {
+  const source = "Start **bold 😀** end.";
+  const start = Array.from(source.slice(0, source.indexOf("bold"))).length;
+  const end = start + Array.from("bold 😀").length;
+  const markup = renderToStaticMarkup(createElement(MarkdownDocument, {
+    source,
+    highlights: [{ field: "BODY", rangeStart: start, rangeEnd: end, kind: "AGENT_CHANGE" }],
+  }));
+
+  assert.match(markup, /<strong[^>]*><mark[^>]*data-highlight="agent-change"[^>]*>bold 😀<\/mark><\/strong>/u);
+  assert.equal((markup.match(/data-highlight=/gu) ?? []).length, 1);
+  assert.doesNotMatch(markup, /<p[^>]*data-highlight|<strong[^>]*data-highlight/u);
 });

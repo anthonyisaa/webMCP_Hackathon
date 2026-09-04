@@ -30,7 +30,7 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
     description: "A two-sheet incident record with prior human and agent revisions—and one root-cause question left for you.",
     sections: ["Impact", "Timeline", "Root cause", "Corrective actions"],
     suggestedBot: "@Code",
-    guidedAction: "Repository access suggested · editable before the run",
+    guidedAction: "Repository tools · company-set",
   },
   {
     kind: "PRODUCT_DOCUMENT",
@@ -39,7 +39,7 @@ const TEMPLATE_OPTIONS: ReadonlyArray<{
     description: "A two-sheet launch decision with prior collaboration—and one capacity question left for you.",
     sections: ["Problem", "Options", "Decisions", "Success measures"],
     suggestedBot: "@Data",
-    guidedAction: "Metrics access suggested · editable before the run",
+    guidedAction: "Metrics tools · company-set",
   },
 ];
 
@@ -57,13 +57,13 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
       <section className={styles.landing} aria-labelledby="repository-landing-title">
         <header className={styles.header}>
           <Link className={styles.brand} href="/" aria-label="Ratiflow home"><span aria-hidden="true">R</span>Ratiflow</Link>
-          <div className={styles.headerActions}><span className={styles.headerNote}>The document is the agent runtime</span><Link className={styles.deckLink} href="/deck">View the 12-slide story</Link></div>
+          <div className={styles.headerActions}><span className={styles.headerNote}>The document is the agent runtime</span><Link className={styles.deckLink} href="/deck">View the 11-slide story</Link></div>
         </header>
 
         <div className={styles.intro}>
           <p className={styles.eyebrow}>A living document for humans + agents</p>
-          <h1 id="repository-landing-title">Pick the bot. Grant the tools.<br />Keep the proof.</h1>
-          <p>Choose a bot for its expertise, then separately choose the website access its run can use. In a WebMCP-enabled browser, this page exposes that selected tool catalog to GPT-5.6 Luna; any change stays bounded to your selected passage and lands as a reversible revision.</p>
+          <h1 id="repository-landing-title">Highlight. @ a bot. Run.<br />Keep the proof.</h1>
+          <p>Each managed bot arrives with company-set website tools: Code reads the repository, Data queries metrics, and General follows the editorial guide. Highlight the passage, assign the bot, and its reversible change lands exactly where you asked.</p>
         </div>
 
         <section className={styles.setupCard} aria-labelledby="repository-identity-heading">
@@ -94,7 +94,7 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
               <span><i data-agent="code">C</i><b>@Code</b><small>Code expertise</small></span>
               <span><i data-agent="general">G</i><b>@General</b><small>General expertise</small></span>
             </div>
-            <p>Website access is chosen per run: Metrics, Repository, or Editorial. Any bot can use any of those profiles. The 15-second check is recovery, not background cron.</p>
+            <p>@Code uses Repository tools, @Data uses Metrics tools, and @General uses Editorial tools. The company mapping is automatic; the 15-second check is recovery, not background cron.</p>
           </aside>
         </section>
 
@@ -126,7 +126,7 @@ export function RepositoryLanding({ busy = false, error = null, onCreate, onOpen
 
         <section className={styles.runtimeNote} aria-label="How the managed relay works">
           <span className={styles.runtimePulse} aria-hidden="true" />
-          <div><strong>Page-bound, explicit, reversible.</strong><span>The Flight Recorder shows the access-driven catalog, every tool call, its synthetic evidence, and the exact revision.</span></div>
+          <div><strong>Page-bound, automatic, reversible.</strong><span>The Flight Recorder shows the bot&apos;s company-set catalog, every tool call, its synthetic evidence, and the exact revision.</span></div>
           <code>Application-owned WebMCP relay · GPT-5.6 Luna</code>
         </section>
 

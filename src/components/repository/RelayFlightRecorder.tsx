@@ -4,13 +4,13 @@ import {
   RELAY_ACCESS_POLICIES,
   type ManagedAgentDirectoryEntry,
   type RelayAttemptStatus,
+  type RelayAccessProfile,
   type RelayRun,
   type RelayTraceEvent,
   type RelayWorkspaceState,
 } from "@/agent-relay/contracts";
 
 import styles from "./repository-workspace.module.css";
-import { repositoryAccessProfileLabel } from "./relay-access-copy";
 
 export interface RelayRuntimeView {
   phase: string;
@@ -49,6 +49,12 @@ const TRACE_COPY: Readonly<Record<RelayTraceEvent["kind"], string>> = {
 };
 
 const TERMINAL_RUNS = new Set<RelayRun["status"]>(["COMPLETED", "EXHAUSTED", "CANCELLED"]);
+
+const ACCESS_LABEL: Readonly<Record<RelayAccessProfile, string>> = {
+  METRICS_SCOPED_EDIT: "Metrics",
+  REPOSITORY_SCOPED_EDIT: "Repository",
+  EDITORIAL_SCOPED_EDIT: "Editorial",
+};
 
 function activeRun(state: RelayWorkspaceState | null): RelayRun | null {
   if (!state) return null;
@@ -113,7 +119,7 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
   const run = activeRun(state);
   const agent = activeAgent(state, run);
   const accessPolicy = run ? RELAY_ACCESS_POLICIES[run.accessProfile] : null;
-  const accessLabel = run ? repositoryAccessProfileLabel(run.accessProfile) : null;
+  const accessLabel = run ? ACCESS_LABEL[run.accessProfile] : null;
   const events = state?.trace.filter((event) => !run || event.runId === run.runId).slice(-8) ?? [];
   const status = statusCopy(run, runtime, state?.activeAttempt?.status);
   const hasError = Boolean(
@@ -138,13 +144,13 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
       <div className={styles.relayIdentityRow}>
         <span><small>Agent</small><strong>{agent ? `@${agent.displayName}` : "Waiting"}</strong></span>
         <span><small>Bot expertise</small><strong>{run ? run.agentExpertise.toLocaleLowerCase() : "—"}</strong></span>
-        <span><small>Website access</small><strong>{accessLabel ?? "Not selected"}</strong></span>
+        <span><small>Company tools</small><strong>{accessLabel ?? "Waiting"}</strong></span>
         <span><small>Runtime</small><strong>{MANAGED_AGENT_MODEL} · {MANAGED_AGENT_RUNTIME === "OPENAI_LUNA_WEBMCP_RELAY" ? "Application-owned Luna ↔ WebMCP relay" : MANAGED_AGENT_RUNTIME}</strong></span>
       </div>
 
       {run && accessPolicy && accessLabel ? (
         <div className={styles.discoveredCatalog}>
-          <div><span>Discovered website catalog</span><small>{accessPolicy.logicalToolNames.length} tools · {accessLabel} grant</small></div>
+          <div><span>Discovered website catalog</span><small>{accessPolicy.logicalToolNames.length} tools · {accessLabel} · company-set</small></div>
           <ul aria-label={`${accessLabel} website tool catalog`}>
             {accessPolicy.logicalToolNames.map((tool) => (
               <li key={tool} data-active={runtime?.activeLogicalTool === tool ? "true" : undefined}>{tool}</li>
@@ -153,8 +159,8 @@ export function RelayFlightRecorder({ state, runtime, onRetry }: RelayFlightReco
         </div>
       ) : (
         <div className={styles.recorderEmpty}>
-          <strong>Mention a bot, then choose its website access.</strong>
-          <span>This panel will show the access-driven catalog WebMCP exposes, Luna&apos;s calls, verified evidence, and the resulting revision.</span>
+          <strong>Highlight text, then assign a managed bot.</strong>
+          <span>This panel will show the bot&apos;s company-set catalog, Luna&apos;s calls, verified evidence, and the resulting revision.</span>
         </div>
       )}
 

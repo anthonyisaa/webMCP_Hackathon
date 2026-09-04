@@ -1,23 +1,24 @@
-# Ratiflow v4.3 HTML deck storyboard
+# Ratiflow v4.4 HTML deck storyboard
 _Frozen audience, narrative, copy, composition, and evidence contract · 2026-09-03_
 
 ## 1. Purpose
 
-This contract defines the 12-slide Ratiflow WebMCP product demo. The deck walks a
-technical audience through the product, the live demonstration paths, the WebMCP
+This contract defines the 11-slide Ratiflow WebMCP product demo. The deck walks a
+technical audience through the product, one focused Code demonstration, the WebMCP
 dependency, and concrete next steps.
 
 The communication job is:
 
-> By the end, the audience should understand that Code, Data, and General are descriptive
-> bot archetypes; a person separately chooses exactly one temporary Metrics, Repository,
-> or Editorial catalog for each assignment; an archetype may suggest a default but never
-> grants authority; Ratiflow grants and enforces access; and WebMCP exposes and invokes the
-> matching tab-bound site tools until the run ends.
+> By the end, the audience should understand why people and agents need one durable
+> document history; that a person selects exact text and a managed bot without configuring
+> permissions; that company policy fixes Data to Metrics, Code to Repository, and General
+> to Editorial access; and that Ratiflow stores and enforces the immutable run grant while
+> WebMCP exposes and invokes the matching tab-bound site tools until the run ends.
 
-The narrative is `lost agent context -> one new document primitive -> three-step demo ->
-bot identity versus assignment access -> Postmortem proof -> durable memory -> ablation ->
-Product/Data transfer -> truthful architecture -> WebMCP next steps -> Ratiflow next steps`.
+The narrative is `people and agents lose document context -> clean blue/yellow/green
+interaction states -> select text + @Code + Assign & run -> fixed company policy -> Code
+proof -> durable memory -> WebMCP-off ablation -> model-agnostic API architecture -> two
+10x asks -> live app`.
 
 Sources:
 
@@ -43,7 +44,10 @@ inform Ratiflow's proposal; they do not establish that any proposed capability i
 
 - Format is a responsive 16:9 HTML presentation with a 1920 x 1080 design canvas.
 - Use the Ratiflow product palette: paper `#f3f5f1`, ink `#20221f`, green `#29685b`,
-  violet `#7356a1`, and white paper surfaces. Use the product's Geist type family.
+  violet `#7356a1`, neutral selection blue, pending yellow, and white paper surfaces.
+  Use the product's Geist type family. Color reinforces an explicit state label: initial
+  resolved documents have no paint, live selection is blue, open work is yellow, and a
+  newly committed agent replacement is green for 30 seconds.
 - Product-derived rendered visuals and exact-SHA product screenshots are the primary
   visual language. Every rendered visual must be visibly labeled `PRODUCT FLOW VISUAL`;
   it may explain checked UI, golden facts, or architecture but is never execution proof.
@@ -63,7 +67,7 @@ inform Ratiflow's proposal; they do not establish that any proposed capability i
 - No animation may imply an execution that did not occur. Motion is limited to navigation,
   progressive emphasis of already captured evidence, and subtle cross-fades.
 - The deck must not reuse the older `demo/video-assets/**` or
-  `demo/video-output/**` imagery as v4.2 proof. Those assets depict the superseded
+  `demo/video-output/**` imagery as v4.4 proof. Those assets depict the superseded
   proposal/accept workflow.
 
 ## 3. Exact truth labels
@@ -78,10 +82,11 @@ broader or more flattering claims.
 | Browser without WebMCP | `WEBMCP OFF · HUMAN MODE` |
 | Code fixture or result | `SYNTHETIC DEMO CODE` |
 | Data fixture, result, or chart | `SYNTHETIC DEMO DATA` |
-| Luna architecture boundary | `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS` |
+| Agent architecture boundary | `APPLICATION-OWNED IN-PAGE RELAY · MODEL VIA API` |
 | Rendered HTML/CSS product visualization | `PRODUCT FLOW VISUAL` |
-| Bot identity boundary | `BOT EXPERTISE · DESCRIPTIVE` |
-| Access boundary | `ASSIGNMENT ACCESS · EXPLICIT GRANT` |
+| Shared history boundary | `DOCUMENT HISTORY · SHARED` |
+| Company policy boundary | `COMPANY ACCESS · FIXED BY MANAGED BOT` |
+| Run-grant boundary | `RUN GRANT · IMMUTABLE` |
 | WebMCP boundary | `WEBMCP · EXPOSES / INVOKES TOOLS` |
 | Enforcement boundary | `RATIFLOW SERVER · ENFORCES ACCESS` |
 | Future-looking platform thesis | `PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP` |
@@ -98,8 +103,9 @@ Never describe Luna as natively supporting OpenAI Site Tools. The approved claim
 > Ratiflow's application-owned in-page relay lets Luna discover the page's live WebMCP
 > tools; the server pins each required next function, Luna composes its strict arguments,
 > and the page routes the returned call through `document.modelContext.executeTool()`.
-> Bot expertise remains descriptive; Ratiflow maps explicit assignment access to the
-> catalog and enforces document, range, and action permissions server-side.
+> Company policy maps the canonical managed bot to one fixed access profile; Ratiflow
+> stores that grant immutably on the run and enforces document, range, and action
+> permissions server-side. WebMCP exposes and invokes the matching tools.
 
 ## 4. Visual and evidence provenance
 
@@ -144,14 +150,14 @@ Capture rules:
 
 ## 5. Navigation and accessibility contract
 
-- Represent the deck as one ordered document containing 12 semantic slide sections.
+- Represent the deck as one ordered document containing 11 semantic slide sections.
   Each section has an accessible name derived from its visible heading and exposes
-  `Slide {n} of 12` to assistive technology.
-- Give every slide a stable fragment identifier from `#slide-01` through `#slide-12`.
+  `Slide {n} of 11` to assistive technology.
+- Give every slide a stable fragment identifier from `#slide-01` through `#slide-11`.
   Loading a fragment opens that slide directly without replaying earlier motion.
 - Support `ArrowRight`, `ArrowDown`, `PageDown`, and `Space` for next; `ArrowLeft`,
   `ArrowUp`, `PageUp`, and `Shift+Space` for previous; `Home` for slide 1; and `End` for
-  slide 12. Do not hijack these keys while focus is inside a link or native control.
+  slide 11. Do not hijack these keys while focus is inside a link or native control.
 - Provide always-available Previous and Next controls with at least 44 x 44 CSS-pixel hit
   targets, visible focus rings, and accessible labels. Keyboard or swipe must never be the
   only navigation mechanism.
@@ -205,16 +211,17 @@ revision and enough of the Flight Recorder to signal the product's distinguishin
 
 **Section:** `PRODUCT DEMO`.
 
-### Slide 2 — Agent context should not disappear into chat.
+### Slide 2 — Documents are becoming shared workspaces for people and agents.
 
 **Visible copy**
 
-> Ratiflow keeps prompts, sources, scope, authorship, and outcomes attached to the document.
+> Without a clear document history, context gets lost, decisions become confusing, and
+> agents cannot do their best work.
 
 **Composition**
 
 Place one clean, untouched document crop on the left. On the right, render four editorial
-text fragments—`prompt`, `source`, `scope`, and `author`—moving away from the document.
+text fragments—`decision`, `source`, `context`, and `author`—moving away from the document.
 They are conceptual typography, not product controls or a competitor imitation.
 
 **Evidence**
@@ -225,86 +232,85 @@ They are conceptual typography, not product controls or a competitor imitation.
 
 **Section:** `WHY IT EXISTS`.
 
-### Slide 3 — From @mention to revision in one governed flow.
+### Slide 3 — One shared history. Different tools for each agent.
 
 **Visible copy**
 
-> Choose the bot and assignment access separately → expose matching site tools → commit a
-> bounded, restorable change.
+> Every agent gets the same document history and provenance. Ratiflow then exposes only
+> the tools allowed by company policy.
 
 **Composition**
 
-Use one horizontal sequence of three broad product frames: the selected mention plus
-access choice, site-tool discovery, and completed exact-range diff. A single hairline connects them. Labels
-under the crops read `MENTION`, `DISCOVER`, and `REVISION`.
+Use one horizontal sequence of three broad product frames: shared document context,
+company-scoped Repository tools, and the completed exact-range diff with provenance. A
+single hairline connects them. Labels read `CONTEXT`, `TOOLS`, and `PROVENANCE`.
 
 **Evidence**
 
-- `03a-mention-source.png` and `03a-mention.png`.
-- `03b-discovery-source.png` and `03b-discovery.png`.
-- `03c-revision-source.png` and `03c-revision.png`.
+- `03a-selection-source.png` and `03a-selection.png`.
+- `03b-pending-source.png` and `03b-pending.png`.
+- `03c-committed-source.png` and `03c-committed.png`.
 - All three frames come from the same Postmortem task, run, and final release SHA.
 - Captured-evidence labels on discovery/revision frames: `LIVE LUNA · APPLICATION-OWNED WEBMCP
   RELAY` and `SYNTHETIC DEMO CODE`.
 
-**Section:** `CORE INTERACTION`.
+**Section:** `THE RATIFLOW MODEL`.
 
-### Slide 4 — Demo flow: choose, assign, watch.
+### Slide 4 — Select text. Mention a bot. Assign & run.
 
 **Visible copy**
 
-> Open Postmortem. Assign `@Code` with Repository access to Root cause. Follow tool
-> discovery, required calls, and the revision.
+> In the Postmortem, select any safe passage, choose `@Code`, write the instruction, and
+> run—no permission step.
 
 **Composition**
 
-Use three vertical product-flow frames with oversized live-text numerals `1`, `2`, and
-`3`: `CHOOSE`, `ASSIGN`, and `WATCH EXECUTION`. The first combines nickname and document
-selection; the second shows the exact Root cause range, Code identity, and separate
-Repository access choice; the third shows the granted catalog, Luna, `executeTool`,
-committed revision, and the History/Restore destination.
+Make the exact Root cause passage the dominant visual and show only the live selection in
+neutral blue: the sentence about commit `7d3c9e1`, `Retry-After`, and five zero-delay
+retries. Align the `@Code` instruction, **Assign & run**, and exact-range boundary beside
+it. A compact informational line may say `@Code → Repository tools` as automatic company
+policy; it must not look or behave like a chooser.
 
 **Evidence**
 
-- `04a-choose-source.png` and `04a-choose.png`.
-- `04b-assign-source.png` and `04b-assign.png`.
-- `04c-watch-execution-source.png` and `04c-watch-execution.png`.
-- Frames must follow one fresh-session lineage. Do not imply elapsed time or a clean live
-  run unless the matching rehearsal artifact passes.
+- `04-code-assignment-source.png` and `04-code-assignment.png`.
+- The canonical agent target is selected by ID, the task owns the exact range shown, and
+  the public submission contains no access profile.
+- Visible label: `SYNTHETIC DEMO CODE` when captured evidence is used.
 
 **Section:** `LIVE DEMO`.
 
-### Slide 5 — Three bot archetypes. Dynamic access per assignment.
+### Slide 5 — The history is shared. Access is company policy.
 
 **Visible copy**
 
-> Code, Data, and General describe expertise. Each run receives exactly one temporary
-> Metrics, Repository, or Editorial catalog.
+> Every agent gets the same document history and provenance. In this demo, hard-coded
+> company policy maps `@Code` to Repository tools.
 
 **Composition**
 
 Use a warm-paper mechanism slide with three connected layers:
 
-1. `WHO DOES THE WORK`: the `@Code`, `@Data`, and `@General` archetypes are descriptive;
-   they may suggest a default but never grant authority.
-2. `WHAT THIS RUN MAY USE`: the person's separate choice of exactly one temporary
-   Metrics, Repository, or Editorial catalog plus exact-selection document authority.
-3. `RATIFLOW CAPABILITY GRANT`: the seven tab-bound site tools including
+1. `SHARED INPUT`: canonical `@Code` receives the full document history and provenance
+   available to every agent.
+2. `FIXED COMPANY POLICY`: the server-owned mapping resolves Code to Repository access;
+   it is hard-coded in this demo and organization-configured in practice.
+3. `IMMUTABLE RUN GRANT`: the seven tab-bound site tools including
    `search_demo_code` and `read_demo_file`.
 
-Below, show the two frozen invariants: `@Code + Metrics` and `@Data + Metrics` receive the
-same six logical tools, while `@Code + Metrics` and `@Code + Repository` keep the same bot
-but change catalogs and source sequence. Include `@General + Editorial` so all three
-archetypes and catalogs are named. Show these labels verbatim:
+Below, show the complete fixed mapping: `@Data → Metrics · 6 tools`, `@Code → Repository
+· 7 tools`, and `@General → Editorial · 7 tools`.
+Show these labels verbatim:
 
-- `BOT EXPERTISE · DESCRIPTIVE`
-- `ASSIGNMENT ACCESS · EXPLICIT GRANT`
+- `DOCUMENT HISTORY · SHARED`
+- `COMPANY ACCESS · FIXED BY MANAGED BOT`
+- `RUN GRANT · IMMUTABLE`
 - `WEBMCP · EXPOSES / INVOKES TOOLS`
 - `RATIFLOW SERVER · ENFORCES ACCESS`
 
 **Evidence**
 
-- `05-capability-grant.json` — frozen bot/access separation and exact profile catalogs.
+- `05-capability-grant.json` — frozen managed-handle policy and exact profile catalogs.
 - `05-repository-task-sequence.json` — sanitized required-function order for the Repository golden.
 - Captured native evidence may upgrade the rendered contract only if one catalog
   registration remains active across the matching ordered calls.
@@ -316,13 +322,15 @@ archetypes and catalogs are named. Show these labels verbatim:
 **Visible copy**
 
 > Repository evidence separates the external trigger from the retry amplifier in a
-> restorable revision.
+> restorable revision; the new replacement is green for 30 seconds.
 
 **Composition**
 
 Use the completed comment's before/after diff as the main visual. A thin evidence line
 beneath it shows `commit:7d3c9e1` and `checkout.log`; keep the linked revision and Restore
-action visible. The product visual—not added deck prose—carries the detailed finding.
+action visible. The replacement uses the same green state as the product's 30-second
+new-change feedback and carries an explicit label; the product visual—not added deck
+prose—carries the detailed finding.
 
 **Evidence**
 
@@ -341,15 +349,15 @@ action visible. The product visual—not added deck prose—carries the detailed
 
 **Visible copy**
 
-> History preserves who asked, which tools ran, what changed, why it changed, and how to
-> restore it.
+> History keeps the asker, agent, runtime, evidence, revision lineage, and restore point
+> attached to the document.
 
 **Composition**
 
-Use one vertical revision spine showing Human and the same Code bot receiving Repository
-then Editorial grants. Beside it, open the second Code revision detail with its prompt,
-immutable source context, evidence, before/after change, model/runtime, and Restore action.
-Keep comments and revisions visually distinct but connected.
+Use one vertical revision spine showing historical Builder r4/r5 and the new managed Code
+r6. Beside it, open Code r6 with the asker, agent, model/runtime, Repository evidence, and
+Restore action. The `Before / after preserved` line states that the immutable diff exists;
+the slide does not claim to render its full text.
 
 **Evidence**
 
@@ -388,43 +396,18 @@ ON` and `WEBMCP OFF`; do not simulate a broken page.
 
 **Section:** `WEBMCP DEPENDENCY`.
 
-### Slide 9 — The same governed flow works for Data.
+### Slide 9 — How a mention becomes a committed revision.
 
 **Visible copy**
 
-> `@Data` checks capacity, updates Success Measures, and leaves inspectable arithmetic behind.
-
-**Composition**
-
-Place the Product document's revised Success Measures on the left and its accessible
-capacity chart on the right. Let the completed Data comment bridge the two. Preserve the
-14-day capacity line, October 15 checkpoint, November 1 commitment, and `$180,000` renewal
-only if those facts remain exact in the final Product golden.
-
-**Evidence**
-
-- `09-product-data-result-source.png` and `09-product-data-result.png`.
-- `09-product-data-trace.json` — live Data run including `query_demo_metrics` and scoped
-  revision submission.
-- Captured-evidence labels: `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `SYNTHETIC DEMO DATA`,
-  and capture provenance.
-- Gate: chart data, accessible data table, comment, trace, evidence refs, exact diff, and
-  resulting revision all agree with the independent Product golden.
-
-**Section:** `DATA RESULT`.
-
-### Slide 10 — How a mention becomes a committed revision.
-
-**Visible copy**
-
-> Luna composes each required call; the browser discovers and executes WebMCP tools;
-> Ratiflow records the result.
+> An agent running through an API composes each call; the browser discovers and executes
+> WebMCP tools; Ratiflow enforces and records the result.
 
 **Composition**
 
 Use a warm-paper single-line architecture flow:
 
-`@mention -> task + lease -> WebMCP catalog <-> Luna Responses -> executeTool -> revision ledger -> assignment catalog withdrawn -> idle catalog restored`
+`@managed bot -> company policy + immutable grant -> WebMCP site tools <-> agent API -> executeTool -> revision ledger -> assignment catalog withdrawn -> idle catalog restored`
 
 Keep nodes as simple live-text labels, not a dashboard. Under the flow, align the six
 required event labels. Add timestamps only when they come from one sanitized captured
@@ -432,39 +415,40 @@ run; otherwise label the architecture `PRODUCT FLOW VISUAL`.
 
 **Evidence**
 
-- `10-relay-trace.json` — sanitized end-to-end trace for the exact run shown.
-- `10-architecture-evidence.json` — release SHA, source-file anchors, catalog digest,
+- `09-relay-trace.json` — sanitized end-to-end trace for the exact run shown.
+- `09-architecture-evidence.json` — release SHA, source-file anchors, catalog digest,
   response/call correlation, revision ID, and verification references used to generate
   the diagram.
-- Always show `APPLICATION-OWNED IN-PAGE RELAY — NOT NATIVE LUNA SITE TOOLS` and the
+- Always show `APPLICATION-OWNED IN-PAGE RELAY · MODEL VIA API` and the
   visual-class label. Add `LIVE LUNA · APPLICATION-OWNED WEBMCP RELAY`, `NATIVE WEBMCP`,
   and capture provenance only for matching captured evidence.
 - Captured-evidence gate: one reconciled trace proves a client `tool_search_call`, browser
-  `getTools()`, approved `tool_search_output`, server-pinned Luna function call, matching
+  `getTools()`, approved `tool_search_output`, server-pinned agent function call, matching
   `executeTool()`, function output, and committed revision. Without that artifact, the
   rendered architecture is labeled `PRODUCT FLOW VISUAL` and depicts only the required
   sequence. The API key remains server-only and absent from every artifact.
 
 **Section:** `HOW IT WORKS`.
 
-### Slide 11 — Where WebMCP goes next: reactive, durable, accountable.
+### Slide 10 — Two things WebMCP needs for real agent work.
 
 **Visible copy**
 
-> Our proposal: typed, opt-in pub/sub first; then durable workers, attested scopes, and
-> reviewable replay.
+> Today, tool execution depends on a live page. The next step is keeping context current
+> and approved work durable.
 
 **Composition**
 
-Use a light editorial progression with three unequal columns:
+Use two equal editorial cards labeled `10× ASK · 01` and `10× ASK · 02` so 10× reads as
+an ambition rather than a measured performance claim. Each card has one feature headline,
+one plain-language use case, and one compact engineering requirement:
 
-- **Today — page-scoped RPC:** register and invoke a tool while its page context is live.
-- **10× — reactive capabilities:** typed, opt-in resource invalidation/pub-sub plus stable
-  capability lifecycle, progress, and output contracts. Invalidation signals that a typed
-  resource changed and may be re-read; it must never become arbitrary prose pushed into
-  the model.
-- **100× — durable and accountable:** worker-backed sessions, browser-attested delegated
-  identity/scopes, cross-page routing, and idempotent receipts with reviewable replay.
+- **10× — Tell agents when relevant information changes.** Use case: an agent refreshes
+  affected facts instead of restarting or continuing with stale context. Engineering:
+  typed resources plus change notifications let the agent re-read only invalidated state.
+- **10× — Let approved tasks finish after the page closes.** Use case: long-running work
+  survives navigation and returns a clear, reviewable result. Engineering: worker-backed
+  sessions carry delegated identity and scope, with idempotent receipts.
 
 Show `PROPOSED SPEC DIRECTION · NOT CURRENT WEBMCP` prominently. The in-slide source line
 may link only the current draft plus up to three compact official discussions: resources
@@ -480,35 +464,25 @@ questions, output schemas, identity/delegation, and receipts/replay.
 
 **Section:** `NEXT FOR WEBMCP`.
 
-### Slide 12 — Try Ratiflow live.
+### Slide 11 — Try Ratiflow live.
 
 **Visible copy**
 
-> Choose a bot and assignment access separately, then inspect the site-tool trace,
-> revision history, and Restore.
+> See the full people-and-agents document workflow in the live app.
 
 **Composition**
 
-Use two concrete live-demo paths. Postmortem directs the viewer to select Root cause,
-assign `@Code + Repository`, and inspect r6. Product directs the viewer to select Success
-Measures, assign `@Data + Metrics`, and inspect r7. Beneath them, show the four actions `Choose`, `Assign`,
-`Watch`, and `Inspect`, with catalog/required-call and History/Restore details. Close with
-the internal live-demo action:
+End on one uncluttered internal live-app action:
 
-> Open the live demo picker →
+> Open the live Ratiflow app →
 
 Add a verified live URL, public repository URL, and exact release SHA only after each is
 observed. Do not end on a generic thank-you slide or a scorecard.
 
 **Evidence**
 
-- `12a-postmortem-final-source.png` and `12a-postmortem-final.png`.
-- `12b-product-final-source.png` and `12b-product-final.png`.
-- `12-release.json` — verified public URLs, exact release SHA, license detection, and
-  release-manifest reference.
-- Gate: URLs are publicly reachable, repository visibility and license are verified, and
-  the displayed SHA matches every core capture. Until then, omit the corresponding line;
-  never render a placeholder.
+- The relative `/` target must route to the live app in local, preview, and production
+  environments. Do not add release metadata, secondary paths, or placeholder URLs.
 
 **Section:** `TRY IT LIVE`.
 
@@ -518,16 +492,15 @@ observed. Do not end on a generic thank-you slide or a scorecard.
 |---|---|---|
 | 1 | Checked Postmortem result and recorder composition | Final Postmortem live-run state |
 | 2 | Seed document plus detached-context typography | Exact seed screenshot |
-| 3 | Checked mention → discovery → revision sequence | Same-lineage captured sequence |
-| 4 | Checked choose → assign → watch-execution journey | Fresh-session same-lineage screenshots |
-| 5 | Contract-accurate bot/access separation and capability grants | Native catalog plus matching ordered calls |
-| 6 | Golden Code diff and synthetic refs | Live Luna result and committed diff |
-| 7 | Golden history/provenance lineage | Captured matching lineage |
+| 3 | Checked blue selection → yellow pending → green committed sequence | Same-lineage captured sequence |
+| 4 | Checked select → mention → Assign & run journey with no permission chooser | Fresh-session same-lineage screenshots |
+| 5 | Contract-accurate fixed managed-bot policy and immutable run grant | Native catalog plus matching ordered calls |
+| 6 | Golden Code diff, synthetic refs, and 30-second green result state | Live Luna result and committed diff |
+| 7 | Golden Code history/provenance lineage without alternate-access pairing | Captured matching lineage |
 | 8 | Contract WebMCP-on/off comparison | Controlled native ablation |
-| 9 | Golden Data result and chart | Live Data result, diff, and trace |
-| 10 | Contract architecture and required event sequence | Composed exact-SHA trace |
-| 11 | Clearly labeled proposed WebMCP direction | No captured-evidence upgrade; proposal only |
-| 12 | Checked two-document synthesis and internal action | Verified public URLs, SHA, and crops |
+| 9 | Contract architecture and required event sequence | Composed exact-SHA trace |
+| 10 | Clearly labeled proposed WebMCP direction | No captured-evidence upgrade; proposal only |
+| 11 | Minimal internal live-app action | Reachable live app |
 
 If an observation is unavailable, keep the explanatory frame visibly labeled
 `PRODUCT FLOW VISUAL` and omit the evidence-only label. The deck becomes submission

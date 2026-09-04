@@ -5,10 +5,7 @@ import { test } from "vitest";
 
 import { createSpecialistFixturePort } from "@/agent-relay/fixtures";
 import { buildExpectedManifest } from "@/agent-relay/server/relay-stepper";
-import type {
-  ManagedAgentExpertise,
-  RelayAccessProfile,
-} from "@/agent-relay/contracts";
+import type { ManagedAgentExpertise } from "@/agent-relay/contracts";
 import type { CreateDirectoryMentionServiceInput } from "@/repository/contracts";
 import { relaySha256 } from "@/domain/repository-relay-security";
 import {
@@ -27,7 +24,6 @@ async function queueManagedWorkspace(
   local: LocalRepositoryService,
   displayName = "Priya",
   expertise: ManagedAgentExpertise = "GENERAL",
-  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
   const owner = success(await local.launch({ kind: "POSTMORTEM", displayName }));
   success(await local.saveHumanRevision(owner.humanSessionToken, {
@@ -51,7 +47,6 @@ async function queueManagedWorkspace(
       ? "@Code Check this passage against the synthetic repository."
       : `@${agent.displayName} Rewrite this passage clearly.`,
     target: { kind: "AGENT", profileId: agent.profileId },
-    accessProfile,
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 6, rangeEnd: 10 },
   }));
   assert.equal(receipt.outcome, "MANAGED_TASK_QUEUED");
@@ -62,9 +57,8 @@ async function claimManagedWorkspace(
   local: LocalRepositoryService,
   displayName = "Priya",
   expertise: ManagedAgentExpertise = "GENERAL",
-  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
-  const queued = await queueManagedWorkspace(local, displayName, expertise, accessProfile);
+  const queued = await queueManagedWorkspace(local, displayName, expertise);
   const pageSessionId = randomUUID();
   const claimRequestId = randomUUID();
   const claim = success(await queued.relay.claimRelay(
@@ -77,14 +71,13 @@ async function claimManagedWorkspace(
 async function managedWorkspace(
   options: LocalRepositoryServiceOptions = {},
   expertise: ManagedAgentExpertise = "GENERAL",
-  accessProfile: RelayAccessProfile = "EDITORIAL_SCOPED_EDIT",
 ) {
   const local = new LocalRepositoryService({
     relaySigningSecret: SIGNING_SECRET,
     specialistFixturePort: createSpecialistFixturePort(),
     ...options,
   });
-  return { local, ...await claimManagedWorkspace(local, "Priya", expertise, accessProfile) };
+  return { local, ...await claimManagedWorkspace(local, "Priya", expertise) };
 }
 
 async function failAttempt(
@@ -180,31 +173,24 @@ test("managed mention preserves v4.1 projection and emits the frozen discovery t
   ]);
 });
 
-test("bot expertise and website access vary independently while access alone selects the catalog", async () => {
-  const dataMetrics = await managedWorkspace({}, "DATA", "METRICS_SCOPED_EDIT");
-  const codeMetrics = await managedWorkspace({}, "CODE", "METRICS_SCOPED_EDIT");
+test("company policy fixes each managed handle to its immutable website access", async () => {
+  const dataMetrics = await managedWorkspace({}, "DATA");
+  const codeRepository = await managedWorkspace({}, "CODE");
+  const generalEditorial = await managedWorkspace({}, "GENERAL");
   assert.equal(dataMetrics.claim.agent.expertise, "DATA");
-  assert.equal(codeMetrics.claim.agent.expertise, "CODE");
-  assert.deepEqual(
-    dataMetrics.claim.capabilityGrant,
-    codeMetrics.claim.capabilityGrant,
-  );
-  assert.equal(codeMetrics.claim.run.accessProfile, "METRICS_SCOPED_EDIT");
-  assert.equal(codeMetrics.claim.run.agentExpertise, "CODE");
-
-  const codeRepository = await managedWorkspace({}, "CODE", "REPOSITORY_SCOPED_EDIT");
-  assert.equal(codeRepository.claim.agent.expertise, codeMetrics.claim.agent.expertise);
+  assert.equal(codeRepository.claim.agent.expertise, "CODE");
+  assert.equal(generalEditorial.claim.agent.expertise, "GENERAL");
+  assert.equal(dataMetrics.claim.run.accessProfile, "METRICS_SCOPED_EDIT");
+  assert.equal(codeRepository.claim.run.accessProfile, "REPOSITORY_SCOPED_EDIT");
+  assert.equal(generalEditorial.claim.run.accessProfile, "EDITORIAL_SCOPED_EDIT");
   assert.notDeepEqual(
     codeRepository.claim.capabilityGrant.logicalToolNames,
-    codeMetrics.claim.capabilityGrant.logicalToolNames,
+    generalEditorial.claim.capabilityGrant.logicalToolNames,
   );
-  assert.equal(codeRepository.claim.run.accessProfile, "REPOSITORY_SCOPED_EDIT");
 });
 
-test("a Code bot completes a Metrics-scoped run with metrics authority and evidence", async () => {
-  const { local, owner, relay, claim } = await managedWorkspace(
-    {}, "CODE", "METRICS_SCOPED_EDIT",
-  );
+test("the Data bot completes its company-configured Metrics run with matching evidence", async () => {
+  const { local, owner, relay, claim } = await managedWorkspace({}, "DATA");
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
     claim.run.accessProfile,
@@ -237,7 +223,7 @@ test("a Code bot completes a Metrics-scoped run with metrics authority and evide
   };
 
   const assignment = JSON.parse((await execute("read_assignment", "cross-assignment", {})).output);
-  assert.equal(assignment.data.agent.expertise, "CODE");
+  assert.equal(assignment.data.agent.expertise, "DATA");
   assert.equal(assignment.data.capabilityGrant.accessProfile, "METRICS_SCOPED_EDIT");
   await execute("query_demo_metrics", "cross-metrics", {
     dataset: "northstar_launch_capacity",
@@ -256,9 +242,7 @@ test("a Code bot completes a Metrics-scoped run with metrics authority and evide
 });
 
 test("an equal-cardinality Editorial manifest cannot cross a Repository-scoped run boundary", async () => {
-  const { owner, relay, claim } = await managedWorkspace(
-    {}, "CODE", "REPOSITORY_SCOPED_EDIT",
-  );
+  const { owner, relay, claim } = await managedWorkspace({}, "CODE");
   const forged = success(buildExpectedManifest(
     "https://ratiflow.test",
     "EDITORIAL_SCOPED_EDIT",
@@ -287,7 +271,7 @@ test("an equal-cardinality Editorial manifest cannot cross a Repository-scoped r
   assert.equal(state.runs[0]?.status, "ACTIVE");
 });
 
-test("agent mentions require access and human mentions reject it", async () => {
+test("the server derives managed access and both mention arms reject supplied access", async () => {
   const local = new LocalRepositoryService({ relaySigningSecret: SIGNING_SECRET });
   const owner = success(await local.launch({ kind: "POSTMORTEM", displayName: "Priya" }));
   const relay = local.getRelayService();
@@ -301,13 +285,21 @@ test("agent mentions require access and human mentions reject it", async () => {
     comment: `@${agent.displayName} Review this passage.`,
     target: { kind: "AGENT", profileId: agent.profileId },
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 5 },
-  };
-  const missing = await relay.createDirectoryMention(
+  } as const;
+  const agentWithAccess = await relay.createDirectoryMention(
     owner.humanSessionToken,
-    base as unknown as CreateDirectoryMentionServiceInput,
+    { ...base, accessProfile: "METRICS_SCOPED_EDIT" } as unknown as CreateDirectoryMentionServiceInput,
   );
-  assert.equal(missing.ok, false);
-  if (!missing.ok) assert.equal(missing.code, "INVALID_INPUT");
+  assert.equal(agentWithAccess.ok, false);
+  if (!agentWithAccess.ok) assert.equal(agentWithAccess.code, "INVALID_INPUT");
+
+  const queued = success(await relay.createDirectoryMention(
+    owner.humanSessionToken,
+    { ...base, requestId: randomUUID() },
+  ));
+  assert.equal(queued.outcome, "MANAGED_TASK_QUEUED");
+  const derived = success(await relay.readRelayState(owner.humanSessionToken)).runs[0];
+  assert.equal(derived?.accessProfile, "METRICS_SCOPED_EDIT");
 
   const humanWithAccess = await relay.createDirectoryMention(
     owner.humanSessionToken,
@@ -362,7 +354,7 @@ test("one-shot managed tool permits replay one receipt and reject a changed requ
 });
 
 test("read_demo_file permits match the exact path-only catalog schema", async () => {
-  const { relay, claim } = await managedWorkspace({}, "CODE", "REPOSITORY_SCOPED_EDIT");
+  const { relay, claim } = await managedWorkspace({}, "CODE");
   const expected = success(buildExpectedManifest(
     "https://ratiflow.test",
     claim.run.accessProfile,
@@ -554,7 +546,6 @@ test("an older WAITING_RETRY head blocks newer work and only its exact retry can
     expectedRevision: 2,
     comment: "@General Rewrite the next passage clearly.",
     target: { kind: "AGENT", profileId: firstClaim.agent.profileId },
-    accessProfile: "EDITORIAL_SCOPED_EDIT",
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 11, rangeEnd: 16 },
   }));
   if (!secondReceipt.runId) throw new Error("second run missing");

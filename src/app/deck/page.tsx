@@ -5,7 +5,7 @@ import { RatiflowDeck } from "./RatiflowDeck";
 export const metadata: Metadata = {
   title: "Ratiflow · WebMCP product demo",
   description:
-    "A 12-slide product demo showing how Ratiflow turns an explicit assignment access grant into scoped, reversible agent work.",
+    "An 11-slide product demo showing how Ratiflow preserves shared document history while giving each agent assignment-specific tools.",
 };
 
 export default function RatiflowDeckPage() {

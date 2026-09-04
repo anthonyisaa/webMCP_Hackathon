@@ -13,6 +13,7 @@ import { relayResponse } from "@/app/api/repository-v4/_response";
 import {
   AGENT_DIRECTORY_IDENTITY_SOURCES,
   AGENT_DIRECTORY_VISIBILITIES,
+  MANAGED_AGENT_ACCESS_BY_HANDLE,
   MANAGED_AGENT_HANDLES,
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
@@ -107,6 +108,11 @@ test("keeps protocol 4 and the exact idle BYOA catalog", () => {
 test("freezes descriptive bot identities separately from website access policies", () => {
   assert.deepEqual(MANAGED_AGENT_EXPERTISES, ["DATA", "CODE", "GENERAL"]);
   assert.deepEqual(MANAGED_AGENT_HANDLES, ["data", "code", "general"]);
+  assert.deepEqual(MANAGED_AGENT_ACCESS_BY_HANDLE, {
+    data: "METRICS_SCOPED_EDIT",
+    code: "REPOSITORY_SCOPED_EDIT",
+    general: "EDITORIAL_SCOPED_EDIT",
+  });
   assert.deepEqual(AGENT_DIRECTORY_VISIBILITIES, ["COMPANY", "TEAM", "PERSONAL"]);
   assert.deepEqual(AGENT_DIRECTORY_IDENTITY_SOURCES, [
     "DEMO_DIRECTORY",

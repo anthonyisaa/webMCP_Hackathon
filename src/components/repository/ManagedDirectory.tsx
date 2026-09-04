@@ -1,6 +1,10 @@
-import type {
-  DirectoryEntry,
-  ManagedAgentDirectoryEntry,
+import {
+  MANAGED_AGENT_HANDLES,
+  relayAccessProfileForManagedHandle,
+  type DirectoryEntry,
+  type ManagedAgentDirectoryEntry,
+  type ManagedAgentHandle,
+  type RelayAccessProfile,
 } from "@/agent-relay/contracts";
 
 import styles from "./repository-workspace.module.css";
@@ -18,6 +22,22 @@ const EXPERTISE_COPY: Readonly<Record<ManagedAgentDirectoryEntry["expertise"], s
   CODE: "Software analysis expertise",
   GENERAL: "Generalist expertise",
 };
+
+const ACCESS_COPY: Readonly<Record<RelayAccessProfile, string>> = {
+  METRICS_SCOPED_EDIT: "Metrics tools",
+  REPOSITORY_SCOPED_EDIT: "Repository tools",
+  EDITORIAL_SCOPED_EDIT: "Editorial tools",
+};
+
+function isManagedHandle(value: string): value is ManagedAgentHandle {
+  return MANAGED_AGENT_HANDLES.some((handle) => handle === value);
+}
+
+function managedAccessCopy(entry: ManagedAgentDirectoryEntry): string {
+  return isManagedHandle(entry.handle)
+    ? ACCESS_COPY[relayAccessProfileForManagedHandle(entry.handle)]
+    : "Company tools";
+}
 
 function initials(value: string): string {
   return value.split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -42,9 +62,11 @@ export function ManagedDirectory({ directory, activeProfileId = null, onChoose, 
         <span className={styles.directoryAvatar} data-expertise={entry.kind === "AGENT" ? entry.expertise.toLowerCase() : "human"}>{initials(entry.displayName)}</span>
         <span className={styles.directoryIdentity}>
           <strong>@{entry.displayName}</strong>
-          <small>{entry.kind === "AGENT" ? EXPERTISE_COPY[entry.expertise] : "Collaborator · discussion only"}</small>
+          <small>{entry.kind === "AGENT"
+            ? `${EXPERTISE_COPY[entry.expertise]} · ${entry.identitySource === "DEMO_DIRECTORY" ? managedAccessCopy(entry) : "Connected tools"}`
+            : "Collaborator · discussion only"}</small>
         </span>
-        {entry.kind === "AGENT" ? <span className={styles.directoryScope}>{entry.visibility.toLowerCase()} visibility</span> : null}
+        {entry.kind === "AGENT" && entry.identitySource === "DEMO_DIRECTORY" ? <span className={styles.directoryScope}>Company-set</span> : null}
       </>
     );
     return onChoose ? (
@@ -63,7 +85,7 @@ export function ManagedDirectory({ directory, activeProfileId = null, onChoose, 
   return (
     <div className={styles.managedDirectory} data-testid="managed-agent-directory">
       <section aria-label="Managed bots">
-        <header><span>Managed bots</span><small>Expertise, not access</small></header>
+        <header><span>Managed bots</span><small>Tools set by company</small></header>
         <div>{agents.length ? agents.map(item) : <p>No matching managed agent.</p>}</div>
       </section>
       {showHumans && humans.length ? (

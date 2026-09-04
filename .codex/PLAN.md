@@ -1,5 +1,322 @@
-# Plan — Harden the flagship and make its proof teachable
-_Updated: 2026-09-03T11:41:58+08:00_
+# Plan — Make managed delegation one clean, company-scoped interaction
+_Updated: 2026-09-03T20:36:21+08:00_
+
+## Goal and ambition mode
+
+Correct the brownfield v4.3 demo so a human selects any safe rendered text, mentions a
+managed bot, and runs it without configuring permissions. Company policy statically
+binds Code, Data, and General to their approved site tools. The document distinguishes
+the current selection, pending discussion/work, and the agent's just-committed result
+without carrying historical yellow noise. Preserve exact-range authority, Relay leases,
+permits, replay, provenance, old run compatibility, and ordinary human/BYOA flows.
+Deployment, migration-history reconciliation, and final recording are out of scope until
+the local candidate passes its gates.
+
+## Chokepoint — freeze first
+
+1. The public canonical managed-mention input contains only revision, comment, canonical
+   agent profile, and exact selection. It rejects `accessProfile`; humans cannot choose,
+   override, or submit raw tools, sources, actors, or owners.
+2. One checked server-owned policy keyed by canonical `ManagedAgentHandle` owns the exact
+   company mapping: `data -> METRICS_SCOPED_EDIT`,
+   `code -> REPOSITORY_SCOPED_EDIT`, and `general -> EDITORIAL_SCOPED_EDIT`. It applies
+   only to `DEMO_DIRECTORY` identities; self-declared `GENERAL` expertise is not a managed
+   policy key. Both backends resolve the handle after canonical profile lookup, then
+   persist the resulting immutable run `accessProfile`; all existing catalog, permit,
+   and selected-range enforcement continues to read the run grant.
+3. Highlight semantics are exact source ranges with three mutually clear states:
+   the live selection is neutral blue; active open comments and uncommitted tasks are
+   yellow; a newly observed agent-authored committed revision is green for 30 seconds.
+   Closed/resolved/stale historical anchors never paint the document, and initial seeded
+   examples therefore land with no yellow or green highlight. Yellow eligibility is
+   exactly: active selection anchors on standalone `OPEN` threads and active anchors on
+   `OPEN` or `PROPOSED` tasks. It excludes every resolved, completed, rejected,
+   cancelled, and stale record. Overlap priority is blue over green over yellow.
+4. A newly observed `DIRECT` or `REVIEW` head revision may trigger green only when the
+   head history entry matches `document.lastRevision.revisionId` and revision number,
+   its provenance has a canonical task ID, and the matching completed task has an active
+   replacement anchor whose recorded result/decision revision equals that head. Initial
+   load seeds the observation cursor without highlighting. The timer starts on first
+   client observation, is replaced by a newer qualifying agent head, and is cleared on
+   expiry or session change. Polling the same revision must not restart it; skipped
+   intermediate revisions, human/restore heads, and stale anchors do not paint green.
+5. The composer flow is selection -> `@` directory choice -> instruction -> **Assign &
+   run**. It has no permission selector or permission decision; concise copy may explain
+   that company access and exact-passage bounds are automatic.
+
+## Streams
+
+### C0 — contract refreeze — completed
+- Owner / worktree: coordinating task in the shared checkout.
+- Scope and key files: `.codex/PLAN.md`, `product_spec.md`, `EVALS.md`,
+  `docs/contracts/{repository-contract,webmcp-relay-contract}.md`, checked public types,
+  and the static managed-handle policy map.
+- Must not touch: runtime behavior or styling before this checkpoint is reviewed.
+- Verification: types reject public `accessProfile`; one test enumerates all three exact
+  handle mappings; authoritative prose and checked types agree; the work map passes a
+  fresh adversarial read.
+
+### S1 — server-authoritative company access — completed
+- Owner / worktree: `backend_static_access` worker after C0 in the shared dirty mirror;
+  exclusive ownership of mention route, in-memory service, Supabase Relay adapter, and
+  focused backend/route tests. It must patch in place and preserve all baseline changes.
+- Must not touch: repository React/CSS, deck, SQL migrations, or prose.
+- Inputs / frozen contracts: C0 input shape and exact three-entry policy.
+- Verification: managed mentions with no access field create the mapped run; supplied or
+  crossed access is rejected at HTTP/domain boundaries; all three agents map correctly;
+  durable adapter enriches the trusted RPC call from inspected canonical directory data.
+
+### S2 — clean selection and result feedback — completed
+- Owner / worktree: `ui_highlight_flow` worker after C0 in the shared dirty mirror;
+  exclusive ownership of repository workspace, Markdown rendering/source mapping, CSS,
+  and focused UI/render tests. It must patch in place and preserve all baseline changes.
+- Must not touch: server/domain, Supabase, agent Relay internals, deck, or prose.
+- Inputs / frozen contracts: C0 highlight semantics and static policy helper.
+- Verification: delimiter-safe inline/cross-leaf ranges render without parent/nested overpaint;
+  closed seed anchors render none; open anchors render yellow; a new agent revision swaps
+  yellow for green and expires once after 30 seconds; composer exposes no access control.
+  A driven browser case proves exact Unicode/source offsets and exact visible paint.
+
+### I1 — integration, truth, and visual proof — completed
+- Owner / worktree: coordinating task.
+- Scope: reconcile S1/S2, update active product/eval/contract/demo copy, focused E2E,
+  revise the 11-slide `/deck` around one Code walkthrough, `.codex/verify.sh`, production
+  build, driven desktop/mobile flow, fresh design-judge,
+  and `.codex/PROGRESS.md`.
+- Verification: browser starts clean, selected range delegates in one composer, pending
+  range is yellow, committed replacement is green, green disappears after 30 seconds,
+  and Code/Data/General expose only their fixed company catalogs. Fake-clock coverage
+  checks 29,999/30,000 ms, repeated polling, newer agent heads, DIRECT/REVIEW, HUMAN/
+  RESTORE, and session reset. Ordinary human comments, BYOA, old runs, and WebMCP-off
+  usage retain focused regression coverage.
+
+## Checkpoints
+
+- Before S1/S2, preserve the dirty baseline: primary `HEAD` is
+  `b5891fc6fcb8606ebba150b3943dd8244aa40665`; `.codex/PROGRESS.md` identifies the clean
+  shipped v4.3 candidate at `/private/tmp/ratiflow-candidate.P3j7MK`; the coordinator has
+  captured sorted tracked/untracked path lists from `git diff --name-only` and
+  `git ls-files --others --exclude-standard`. Final integration must show no baseline
+  path disappeared and must preserve `.gitignore`, `next-env.d.ts`, `--annotate`, and
+  legacy demo artifacts.
+- Any public or UI path still lets a human submit `accessProfile` -> block S1/I1.
+- Company mapping differs between in-memory and Supabase execution -> block integration.
+- Initial resolved history paints yellow/green, or one anchor paints whole parent blocks
+  instead of its exact visible text -> block S2/I1.
+- Repeated polling restarts green, or non-agent/historical revisions trigger it -> block.
+- Browser payload contains `accessProfile`, seeded Postmortem/Product surfaces paint on
+  load, a delimiter-safe cross-leaf/Unicode selection changes submitted offsets, or a
+  selection that bisects inline Markdown syntax opens the composer -> block.
+- Focused tests, `.codex/verify.sh`, build, driven flow, or visual review blocks -> do not
+  present or deploy.
+
+## Integration order
+
+`C0 authoritative prose + checked types/policy + adversarial review -> S1 and S2 in
+parallel with disjoint ownership -> route/UI and fixture tests -> editorial/demo sync -> full verify/build -> driven interaction ->
+independent visual review -> handoff`. The coordinator owns policy decisions, shared type
+conflicts, dirty-baseline audit, timer semantics, and release truth. The shared checkout
+is deliberate because the v4.3 candidate is currently uncommitted relative to primary
+HEAD; no worker may reset, replace, or reformat another stream's files.
+
+## Risks and open decisions
+
+- The deployed v4.3 SQL RPC still accepts an internal `accessProfile`; until a later
+  migration is safe, the trusted Supabase adapter must derive and enrich that private RPC
+  input while the public HTTP contract rejects it.
+- Local migration filename `20260903161308_...` still differs from remote history version
+  `20260903103236`; do not run `supabase db push` in this block.
+- Generated Markdown such as charts/code remains selection-disabled. Safe rendered prose,
+  same-wrapper inline selections, and plain selections enclosing complete formatted nodes
+  retain exact source mapping; selections that would bisect inline syntax fail closed.
+
+---
+
+# Archived plan — Make WebMCP capability-first, not persona-scoped
+_Updated: 2026-09-03T19:11:05+08:00_
+
+## Goal and ambition mode
+
+Correct the brownfield v4.2 managed Relay so Code/Data/General are descriptive bot
+expertise, while a separate human-selected Ratiflow access grant determines which site
+tools the current assignment may discover and execute through WebMCP. Preserve the
+working Luna relay, exact selected-range authority, leases, one-shot permits, replay,
+provenance, and the three deterministic source flows. Do not claim that WebMCP identifies
+bots, grants permissions, or replaces server authorization. Do not resume presence work,
+production promotion, or final recording until this correction passes its release gates.
+
+## Chokepoint — freeze first
+
+The shared contract is:
+
+`bot identity + descriptive expertise` (who acts) is independent from
+`assignment access grant` (what this run may do). Ratiflow resolves the grant from the
+human's explicit selection plus the exact document task, registers its catalog through
+WebMCP, and authoritatively enforces the document, selected range, action, source,
+revision, lease, and permit on the server.
+
+1. Bot expertise remains `DATA | CODE | GENERAL` and is never an input to catalog
+   compilation, physical tool naming, manifest validation, provider sequencing, or
+   permit authorization.
+2. The exact access profiles are `METRICS_SCOPED_EDIT`, `REPOSITORY_SCOPED_EDIT`, and
+   `EDITORIAL_SCOPED_EDIT`. Each grants the five existing task/document actions plus only
+   its approved read-only source tools; every mutation remains bound to the human-selected
+   passage. The server expands a profile into tools and source labels; callers never send
+   raw tool names, source labels, actor, owner, range authority, or credentials.
+3. The managed mention UI selects a canonical bot and separately exposes one compact
+   **Website access for this run** choice. Guided Code/Data/General flows preselect the
+   matching access profile for speed, but the pairing is editable and has no authority
+   shortcut.
+4. The checked proof is bidirectional: different bot expertise with the same access
+   profile yields the same logical catalog/order; one bot under different access profiles
+   yields different catalogs. An out-of-grant manifest or tool call fails before its
+   source/mutation port runs.
+5. Physical names and visible copy identify the access profile/run, not the bot persona.
+   `COMPANY | TEAM | PERSONAL` is directory visibility metadata and is not displayed as
+   authorization. Ban `role catalog`, `role scoped`, `specialist catalog`, `relay persona`,
+   and any claim that WebMCP itself grants or enforces access.
+6. Persistence may retain legacy database column names/codes for compatibility, but a
+   forward-only migration adds immutable `access_profile` to each run, backfills old rows
+   from their historical specialty, and makes new durable runs take access only from the
+   explicit mention field. Durable tool resolution uses `run.access_profile`, never
+   profile specialty. Existing `rfrelay_v1` and `rfpermit_v1` claim shapes remain exact;
+   authorization joins their bound `runId` to the immutable run grant. Applied migrations
+   remain untouched.
+7. The managed mention agent arm requires `accessProfile`; the human arm forbids it.
+   `RelayRun` stores immutable `accessProfile`; agent `expertise` remains descriptive.
+   Managed directory entries do not expose authoritative tool names or source labels.
+   `RelayCapabilityGrant` returned by a successful claim contains the access profile,
+   `DIRECT_SELECTION` document authority, ordered logical tools, and source labels.
+8. One `RELAY_ACCESS_POLICIES` map owns each profile's canonical tool order, required
+   execution order, task category, source labels, and physical discriminator
+   (`metrics | repository | editorial`). `read_assignment` exposes `expertise` and
+   `accessProfile` separately and obtains source labels only from the capability grant.
+
+## Streams
+
+### C0 — checked and prose contract refreeze — completed
+- Owner / worktree: coordinating task.
+- Scope and key files: `product_spec.md`, `EVALS.md`,
+  `docs/contracts/{repository-contract,webmcp-relay-contract}.md`,
+  `src/repository/contracts.ts`, and the shared types/policy section of
+  `src/agent-relay/contracts.ts`.
+- Must not touch: runtime implementation, SQL, UI/deck implementation, or evidence.
+- Verification: types expose the exact shapes in chokepoint items 7-8; prose and checked
+  contracts agree; an adversarial re-read finds no unresolved identity/access coupling.
+
+### C1 — checked capability compiler and browser/server relay — completed locally
+- Owner / worktree: core worker; shared checkout with exclusive ownership of
+  `src/agent-relay/**` except Supabase adapter concerns explicitly owned by C2.
+- Scope and key files: pure access-policy compiler, neutral physical names, browser
+  registration/manifest/runtime, relay stepper, provider instructions, and focused tests.
+- Must not touch: SQL, repository workspace UI, deck, prose contracts, or demo evidence.
+- Inputs / frozen contracts: chokepoint above; existing bounds, cancellation, descriptor,
+  permit, and model-output privacy invariants.
+- Verification: focused contracts/browser/stepper/provider tests plus explicit two-way
+  orthogonality and forged/out-of-grant rejection tests.
+
+### C2 — repository authority and durable Supabase parity — completed locally
+- Owner / worktree: backend worker; shared checkout with exclusive ownership of
+  `src/repository/contracts.ts`, `src/domain/repository-service.ts`,
+  `src/domain/supabase/repository-supabase-relay-service.ts`, mention route/tests, and one
+  new forward-only migration.
+- Scope and key files: exact mention shape, run-level access grant, server policy
+  resolution, claim construction/projection, authoritative manifest comparison,
+  logical-tool resolution, permit issuance/execution, SQL function parity and migration
+  assertions. Durable record-manifest validation reconstructs the exact catalog from the
+  run grant; it never accepts any merely known catalog or equal tool count.
+- Must not touch: relay browser/stepper, UI/deck, existing applied migrations, or prose.
+- Inputs / frozen contracts: C1 exported types/policy names; legacy storage codes may be
+  reused only behind the corrected public contract.
+- Verification: repository relay/service/route/Supabase tests, migration replay/fresh-db
+  gates, old-row plus v1-token replay, missing/unknown access rejection, and proof that
+  profile expertise cannot influence durable catalog authorization. A forged
+  Repository-versus-Editorial equal-cardinality manifest must fail before provider
+  continuation, fixture access, mutation, or permit creation.
+
+### C3 — product interaction and capability-first story — completed locally
+- Owner / worktree: UI/story worker after C1 types freeze; shared checkout with exclusive
+  ownership of repository UI, deck, E2E/UI tests, and named v4.2 prose/demo artifacts.
+- Scope and key files: separate compact access selector; directory/recorder labels; deck
+  mechanism slide and CTA; product spec, relay/repository/deck contracts, evals, hero
+  scenarios, runbook/README, and stale preview guidance.
+- Must not touch: relay/server implementation, SQL, unrelated media, or old protocol
+  compatibility contracts.
+- Inputs / frozen contracts: chokepoint wording and C1 profile/tool map.
+- Verification: focused UI/deck tests, ordinary and managed browser flows, all 12 deck
+  hashes, mobile containment, and searches showing no active persona-scoped claims.
+
+### I1 — integration and release evidence — completed
+- Owner / worktree: coordinating task.
+- Scope: integrate C1 -> C2 -> C3; resolve only contract-shaped conflicts; run focused and
+  full gates; drive the actual access swap in the browser; run independent visual review;
+  refresh handoff and identify which production captures are invalidated. Deployment and
+  recapture require the corrected exact candidate and the already-authorized release
+  workflow; no old role-scoped image may be presented as current proof.
+- Verification: `.codex/verify.sh`, `pnpm build`, migration gates, browser proof of
+  the one-variable matrix: Code+Metrics versus Data+Metrics has identical catalog/order
+  with distinct expertise/authorship; Code+Metrics versus Code+Repository keeps identity
+  while changing catalog/source sequence. At least one crossed pairing must finish and
+  commit access-specific evidence under the unchanged selected bot identity. Then verify
+  native idle -> grant catalog -> idle, `$dev-visual-review`, and the production confidence
+  gate if the corrected database and deployment are promoted.
+
+Release completed on 2026-09-03. Clean candidate
+`5b10296e7f5c4865042cb9ba99a2eaecb6966a75` is on GitHub `main` and Vercel deployment
+`dpl_2uVsLbKvM3R8Y8tMVLzfzEceZKD4` serves the canonical production domain. The
+capability-first migration is applied remotely as version `20260903103236`. The final
+gate passed 80 files / 598 tests, a production build, 16/16 deployed browser checks, and
+one live three-assignment Luna trajectory: Code + Repository, the same Code + Editorial,
+then Data + Metrics, all on their first attempt with zero page errors and zero residual
+active Relay authority. The configured `design-judge` role was unavailable; a fresh
+read-only fallback performed the required visual review.
+
+## Checkpoints
+
+- Any catalog/order/permit path still reads bot expertise -> block and correct C1/C2.
+- Same access profile produces different logical catalogs for two bots -> block.
+- A changed access profile does not change the same bot's catalog -> block.
+- UI submits raw tool names or hides the access choice inside the bot selection -> block.
+- Copy says WebMCP grants/enforces permissions or calls a catalog role-scoped -> block.
+- A reduced catalog is treated as the security boundary without matching server rejection
+  -> block.
+- An applied migration is edited, compatibility replay fails, or a stale descriptor gains
+  effect -> block deployment.
+- Focused gate, `.codex/verify.sh`, build, driven flow, or visual review fails -> do not
+  claim completion or record final evidence.
+
+## Integration order
+
+`C0 checked/prose freeze + adversarial review -> C1 compiler/runtime -> C2 authority/persistence -> C3
+UI/story -> focused integration tests -> full verify/build/migrations -> driven access
+swap -> independent visual review -> deployment/native/production confidence -> recapture
+and handoff`.
+
+C0 owns the exported contract and lands first. C1 and C2 consume it without changing names.
+C3 may prepare prose in parallel but must compile against the frozen C1 public shape.
+The coordinator owns requirement decisions, cross-stream integration, release truth, and
+completion audit.
+
+## Risks and open decisions
+
+- Existing production rows lack `access_profile`. The forward migration must backfill
+  their historical meaning without altering v1 signed-token claims, while ensuring every
+  new run requires explicit access independently of the selected bot.
+- The explicit access selector is intentionally small; adding arbitrary custom scopes,
+  admin actions, or a general policy editor is out of scope for this deadline.
+- Catalog visibility guides the agent but is not sufficient authorization. Existing
+  server-side range/revision/grant/permit checks remain the authoritative boundary.
+- Existing role-scoped screenshots and manifests become historical evidence and require
+  recapture before final presentation.
+- Production release must be coordinated: make stale v4.2 deployment paths unreachable
+  (or enter maintenance), drain pre-v4.3 grants/attempts/permits, apply the migration in
+  one transaction, then smoke both aligned and crossed bot/access pairings. Never migrate
+  first or roll the app back to v4.2 after the database flip.
+
+---
+
+# Archived plan — Harden the flagship and make its proof teachable
+_Updated: 2026-09-03T12:20:46+08:00_
 
 ## Goal and ambition mode
 
@@ -91,7 +408,7 @@ Freeze one shared judge-story and release contract before implementation:
   use the same light canvas and none render `darkSlide`; current-vs-proposed labels and
   official source links; fresh `$dev-visual-review` after integration.
 
-### S3 — screenshot-led recording kit — runbook and deck previews complete; product captures pending deployment
+### S3 — screenshot-led recording kit — completed on canonical production
 - Owner / worktree: coordinating task.
 - Scope and key files: new `demo/v4.2-relay/recording-runbook.md`, sanitized screenshots
   under `demo/v4.2-relay/screenshots/`, and a narrow capture README/manifest.
@@ -101,8 +418,11 @@ Freeze one shared judge-story and release contract before implementation:
 - Verification: every image is visually inspected, contains no browser chrome or secrets,
   maps to a numbered runbook beat, and has an explicit evidence class. The runbook covers
   setup, `@Code`, catalog/turn proof, r6 History/Restore, and the shorter `@Data` transfer.
+- Observed result: the single final capture completed all three managed roles on first
+  attempts with no Retry, page error, or HTTP 5xx. All seven 1440×1000 DPR1 PNGs were
+  visually inspected and manifested against the deployed SHA and production origin.
 
-### I1 — integration, production deployment, and rehearsal — local gates complete; production staging next
+### I1 — integration, production deployment, and rehearsal — deployed; confidence gate partially complete
 - Owner / worktree: coordinating task.
 - Scope: integrate only the S1/S2 allowlists, run the repository gate and production
   build, drive the real UI, create a clean exact-SHA candidate containing only the
@@ -125,6 +445,17 @@ Freeze one shared judge-story and release contract before implementation:
   `pnpm eval:agent:v4`; and `pnpm eval:release:v4`. If
   external credentials or a privileged aggregate surface are unavailable, report that
   gate as pending rather than infer success.
+- Observed result: exact SHA `26a7ab3a1f112f952d3d720a55c4758d18f7be28` is live at
+  `https://ratiflow-webmcp.vercel.app` through deployment
+  `dpl_85JqoTrJvrLoxhghR1wrV6ssKKEz`; `/` and `/deck` return 200. The native
+  idle -> relay -> idle probe, one first-attempt hosted Luna trajectory, and hosted deck
+  E2E passed. A five-repeat stress run completed sixteen first-attempt managed-role
+  outcomes across the single run plus repeats, but three evaluator assertions rejected
+  semantically valid wording/trace eviction and background presence/surface requests
+  exposed database statement timeouts. The runtime remains deployed because the managed
+  path completed, the candidate contains the same-tab containment improvement, and the
+  rollback target shares the database defect. The zero-5xx recording-confidence bar is
+  not claimed.
 
 ## Checkpoints
 
@@ -142,10 +473,14 @@ Freeze one shared judge-story and release contract before implementation:
 - A staged production build is not READY, its metadata does not match the clean candidate
   SHA, or `/` and `/deck` do not return HTTP 200 -> do not promote.
 - Any post-promotion native/Luna gate failure, first-attempt Retry, uncaught page error,
-  or new application 5xx -> rollback immediately to
+  or release-specific application 5xx -> rollback immediately to
   `dpl_AT4uKsok7vBhVzVcBQ1CtJEc2xKj`, confirm the canonical URL is restored, and report
   the failing evidence. This previous deployment has known presence 500s, so rollback is
   application recovery rather than a clean-health claim.
+- The observed presence/surface timeouts reproduce a shared pre-existing database
+  pressure defect rather than a release-specific regression. Retain the safer contained
+  candidate while the durable lightweight presence-RPC migration is separately scoped;
+  do not classify the stress gate as passed.
 - Fewer than five repair-free production rehearsals -> the runbook may ship, but the
   release remains explicitly below the internal recording-confidence bar.
 
@@ -173,6 +508,13 @@ and evidence classification.
   inventing that behavior under deadline.
 - Pub/sub can become a prompt-injection channel. The proposal is typed invalidation plus
   authoritative re-read, opt-in scope, coalescing, expiry, and separate mutation grants.
+- The current five-second presence RPC runs through the generic human-mutation path,
+  locks the document row, renders twice, and permanently writes a full-surface replay
+  entry. Roughly 50k presence ledger rows accumulated in about 28 hours, causing anon
+  statement timeouts under stress. A durable fix needs an additive lightweight RPC and
+  bounded replay retention; destructive cleanup requires separate authorization.
+- `pnpm eval:agent:v4` and `pnpm eval:release:v4` remain schema-valid `PENDING`; browser
+  and Luna smoke tests do not populate their native/release evidence ledgers.
 - The checkout contains unrelated user changes. Integration and deployment must exclude
   them and must not rewrite the legacy untracked demo media.
 

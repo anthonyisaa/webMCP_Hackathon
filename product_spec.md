@@ -1,28 +1,28 @@
 # Ratiflow product specification
 
-Version 4.3 · Capability-first WebMCP Relay refreeze · Owner: Ant · 2026-09-03
+Version 4.4 · Company-scoped WebMCP Relay interaction · Owner: Ant · 2026-09-03
 
-## Capability-first correction (authoritative)
+## Company-scoped delegation correction (authoritative)
 
-Version 4.3 replaces the v4.2 persona-derived relay. No active product rule derives a
-WebMCP catalog, tool sequence, source access, task category, physical name, manifest, or
-permission from bot expertise.
+Version 4.4 replaces v4.3's human-selected assignment access. A human selects an exact
+passage and canonical managed bot; company policy—not another form control—determines the
+site capabilities available to that bot.
 
-`@Data`, `@Code`, and `@General` are managed bot identities with descriptive expertise.
-Expertise says who is doing the work and never grants website access. For a managed
-mention, the human separately selects exactly one Ratiflow access profile:
-`METRICS_SCOPED_EDIT`, `REPOSITORY_SCOPED_EDIT`, or `EDITORIAL_SCOPED_EDIT`. The server
-expands that value into one immutable assignment capability grant containing
+`@Data`, `@Code`, and `@General` are managed bot identities with descriptive expertise and
+one fixed company access policy. The exact managed-handle mapping is Data ->
+`METRICS_SCOPED_EDIT`, Code -> `REPOSITORY_SCOPED_EDIT`, and General ->
+`EDITORIAL_SCOPED_EDIT`. After resolving the canonical managed profile, the server
+expands that mapping into one immutable assignment capability grant containing
 `DIRECT_SELECTION` document authority, an ordered site-tool catalog, and approved
-read-only source labels. The caller cannot submit raw tools, sources, actor, owner,
-credential, or range authority.
+read-only source labels. The caller cannot submit an access profile, raw tools, sources,
+actor, owner, credential, or range authority.
 
-The managed mention agent branch requires `accessProfile`; the human branch forbids it.
-`RelayRun.accessProfile` is immutable. A successful claim returns the selected agent and
-a separate `RelayCapabilityGrant`. Bot expertise must not be an input to catalog
-compilation, physical naming, manifest validation, provider sequencing, task category,
-or permit authorization. Equal access profiles produce equal logical catalogs for every
-managed bot; changing only the access profile changes the same bot's catalog.
+Both canonical mention branches reject public `accessProfile`. `RelayRun.accessProfile`
+remains immutable after server resolution. A successful claim returns the selected agent
+and a separate `RelayCapabilityGrant`; catalog compilation, physical naming, manifest
+validation, provider sequencing, task category, and permit authorization continue to use
+only that stored run grant. Self-declared BYOA profiles never enter the managed-handle
+policy.
 
 Ratiflow—not WebMCP—grants and enforces access. WebMCP exposes the current tab-bound site
 tools and routes invocations. Server-side document, selection, action, revision, run,
@@ -33,8 +33,8 @@ is directory visibility metadata and must not be presented as scope or permissio
 
 ## 0. Authority and supersession
 
-This file is the submission-facing source of truth for the v4 flagship. Version 4.3 is
-an additive product release on the literal protocol-4 wire and storage boundary. It
+This file is the submission-facing source of truth for the v4 flagship. Version 4.4 is
+an application-level correction on the literal protocol-4 wire and storage boundary. It
 supersedes the v4.1 flagship story where this file names managed directory agents or the
 Relay, while retaining the complete v4.1 bring-your-own-agent surface as Advanced
 compatibility behavior. It supersedes
@@ -54,7 +54,7 @@ The v4 contract is jointly owned by:
   oracles (with the v4 directory retained for blank-template compatibility);
 - `evals/goldens/repo-document-v4.2/managed-relay.json` for the independent bot/access,
   source-fact, trace, and ablation oracle;
-- `docs/contracts/html-deck-storyboard.md` for the 12-slide evidence narrative; and
+- `docs/contracts/html-deck-storyboard.md` for the 11-slide evidence narrative; and
 - `EVALS.md` for evidence and release gates.
 
 The v3 `docs/contracts/editor-contract.md`, `src/document/contracts.ts`, routes,
@@ -64,12 +64,12 @@ v4 revision, comment, task-authority, direct-write, template, or native-tool cla
 ## 1. Product promise
 
 **Ratiflow is a versioned document where people collaborate by commenting on exact
-passages, mention a known bot with `@`, choose the assignment's website access, and preserve a complete record of who
+passages, mention a known bot with `@`, and preserve a complete record of who
 changed what, why, with which page-supplied tools, from which context, and for whom.**
 
 The submission thesis is: **Mention the expert. The page supplies the tools. The document
 keeps the proof.** The document is not merely edited by an agent; while it is open,
-Ratiflow maps the explicit assignment access choice to a capability grant, exposes the
+Ratiflow maps the company's fixed access policy for that managed bot to a capability grant, exposes the
 matching tab-bound tools through WebMCP, and records the action as reversible provenance.
 
 The final document is the product. Tasks, comments, agent findings, proposals, and
@@ -77,9 +77,9 @@ revision history are the path to that product, not a chat transcript that replac
 A person can open the shared URL, read and edit the document, discuss it, inspect every
 revision, and restore an older version without connecting an agent.
 
-The built-in demo directory contains `@Data`, `@Code`, and `@General`; their expertise is
-descriptive identity metadata. An anchored mention plus a separately selected access
-profile queues durable work. While an eligible document page remains open, Ratiflow's
+The built-in demo directory contains `@Data`, `@Code`, and `@General`; each has descriptive
+expertise plus company-configured site access. An anchored mention queues durable work
+without a permission step. While an eligible document page remains open, Ratiflow's
 application-owned Relay uses fixed `gpt-5.6-luna` Responses calls over the granted site
 tools, and the browser discovers and executes those tools through
 `document.modelContext.getTools()` and `executeTool()`. Luna does not
@@ -91,9 +91,9 @@ Synthetic metrics, logs, and code are unmistakably labeled demo sources. A task 
 the open page immediately and a 15-second heartbeat recovers missed work; this is not a
 cron job and it does not promise execution after every eligible page closes.
 
-There is one primary delegation rule: a person selects an anchored passage, a canonical
-directory target, and—only for a managed bot—one access profile. Ratiflow grants one
-direct replacement of that exact passage under the selected profile. A human target
+There is one primary delegation rule: a person selects an anchored passage and a
+canonical directory target. For a managed bot, Ratiflow resolves the company's fixed
+profile and grants one direct replacement of that exact passage. A human target
 creates discussion only. A managed-bot target creates exactly one task and one Relay run,
 and a successful scoped result commits immediately as a reversible revision.
 The selected canonical ID is authority, while the visible comment must begin with the
@@ -249,16 +249,18 @@ The workspace has three quiet regions:
   accessible drawer below 740 px.
 
 The first-run NUX is judge-safe and progressive: set a nickname, choose Postmortem or
-Product, then follow one anchored coachmark that says to select the highlighted section,
-  open a comment, choose a bot after typing `@`, and confirm a separate website-access
-  choice. Guided flows may preselect the matching access profile, but the pairing remains
-  editable. It states that managed agents
+Product, then select any safe rendered passage, open one comment bubble, choose a bot
+after typing `@`, and run it. There is no website-access decision. It states that managed agents
 run automatically only while this page stays open and that selected document context is
   sent to OpenAI. Relay readiness, active access grant, heartbeat, retry, WebMCP-unavailable, and
 complete states are distinct. Advanced BYOA setup remains available without dominating
 the judge path.
 
-Comments align to their anchored passage. A plain comment shows its author, time,
+Comments align to their anchored passage. Initial completed examples carry no document
+highlight. The live pre-submit selection stays exactly visible in neutral blue; an open
+comment or uncommitted agent task is yellow; and a newly observed agent-authored committed
+replacement is green for 30 seconds. Resolved, completed, rejected, cancelled, and stale
+historical anchors do not paint the document. A plain comment shows its author, time,
 discussion, and **Close**. An @ mention shows its human owner, named agent, exact prompt,
 status, source context, and discussion. When complete it also shows the highlighted
 before/after change, agent rationale, evidence, linked revision, and **Restore**. Closed
@@ -273,11 +275,12 @@ requires a current-revision check and appends a new human-authored revision.
 A non-empty rendered title/body selection or a block comment affordance opens one compact
 comment bubble. Typing `@` opens one grouped directory: Humans first for discussion and
 Agents for `@Data`, `@Code`, `@General`, plus Advanced self-declared profiles. Submitting a
-selected managed bot also requires exactly one of Metrics, Repository, or Editorial
-scoped edit; submitting a selected human or plain text creates discussion. Literal
-unselected @ text has no authority. The access selector is part of the same compact
-composer, not a second workflow. Ambiguous rendered-to-source mapping fails clearly
-and preserves the selection rather than attaching to the wrong text. Pointer-origin
+selected managed bot resolves its company access automatically; submitting a selected
+human or plain text creates discussion. Literal unselected @ text has no authority. No
+permission selector appears. Ambiguous rendered-to-source mapping fails clearly
+and preserves the selection rather than attaching to the wrong text. Same-wrapper inline
+selections and plain selections enclosing complete formatted nodes are safe; selections
+that would bisect strong, emphasis, strikethrough, or link syntax fail closed. Pointer-origin
 context-menu safeguards, native spelling behavior in source edit mode, Unicode code-point
 conversion, focus restoration, and modified right-click behavior remain strict.
 
@@ -297,10 +300,11 @@ not claim character-level CRDT or automatic merge behavior.
 Managed demo agents are immutable first-class principals, not aliases of the judge.
 Each has a distinct internal member, canonical profile ID, ASCII case-insensitively
 unique handle, display name, `COMPANY | TEAM | PERSONAL` visibility, `DATA | CODE |
-GENERAL` descriptive expertise, `DEMO_DIRECTORY` identity source, fixed runtime, and
-readiness. Managed profiles do not own authoritative tools or sources. Visibility is not
-authorization. The server resolves identity from the selected profile ID and access from
-the run's immutable profile; typed names and model JSON choose neither.
+GENERAL` descriptive expertise, `DEMO_DIRECTORY` identity source, fixed runtime, fixed
+company access mapping, and readiness. Visibility is not authorization. The server
+resolves identity from the selected profile ID, maps the canonical managed handle to
+access, and stores that access on the immutable run; typed names and model JSON choose
+neither.
 
 For Advanced BYOA, one workspace member has distinct human and delegated-agent bearer credentials. The
 person supplies the display name shown on their own work. The agent credential is a
@@ -491,8 +495,8 @@ The judge selects Root cause and writes the frozen `@Code` prompt:
 The Flight Recorder then visibly proves task and lease creation, idle-catalog withdrawal,
 assignment capability registration, `toolchange`, Luna client `tool_search`, in-page `getTools()`, Luna's tool
 selection, `executeTool()`, evidence, the exact diff, the new revision, and idle-catalog
-restoration. Changing the assignment access visibly changes the catalog even when the bot
-stays the same. The Product transfer story uses `@Data` with Metrics access on Success
+restoration. The bot's fixed company access visibly determines the catalog. The Product
+transfer story uses `@Data` with company-configured Metrics access on Success
 measures and proves that 10 + 4 = 14 fits whereas 10 + 8 =
 18 does not, preserving the October 15 invite-only beta and November 1 GA commitment.
 
@@ -524,8 +528,9 @@ registers only the run access profile's generation-unique physical tools. Every 
 gets `read_assignment`, `read_document_context`, `read_collaboration_context`,
 `comment_on_assignment`, and `submit_scoped_revision`. Metrics adds
 `query_demo_metrics`; Repository adds `search_demo_code` and `read_demo_file`; Editorial
-adds `read_company_style_guide` and `check_document_consistency`. Bot expertise is never
-an input. Completion or failure aborts that catalog and restores the eight idle tools.
+adds `read_company_style_guide` and `check_document_consistency`. Users and models cannot
+switch a managed bot's access. Completion or failure aborts that catalog and restores the
+eight idle tools.
 
 The Relay starts Luna with only client-executed `tool_search`. Page code calls
 `getTools()`, normalizes the same-origin catalog, and the server reconstructs and validates
@@ -559,10 +564,10 @@ operation. Authenticated mutations after issuance use replay-safe request identi
 
 ## 10. Competition alignment and proof discipline
 
-| Official criterion | Judge-visible v4.3 proof |
+| Official criterion | Judge-visible v4.4 proof |
 |---|---|
-| WebMCP Leverage | The assignment access choice changes the top-level page's live tool surface; Luna searches that site capability catalog and every selected action returns through `executeTool()`. Removing WebMCP leaves the document usable but makes managed actuation fail closed. |
-| Execution | One visible task/lease/attempt lineage yields one bounded, evidence-backed, reversible revision without duplicate spend across tabs; access-profile changes create an observable catalog delta. |
+| WebMCP Leverage | The selected managed bot's company access determines the top-level page's live tool surface; Luna searches that site capability catalog and every selected action returns through `executeTool()`. Removing WebMCP leaves the document usable but makes managed actuation fail closed. |
+| Execution | One visible task/lease/attempt lineage yields one bounded, evidence-backed, reversible revision without duplicate spend across tabs; Data, Code, and General expose visibly different fixed catalogs. |
 | Potential Impact | A company directory of people and bots can work in the same decision record while later readers recover the request, access grant, sources, tools, rationale, and change. |
 | Creativity and Ambition | The document itself becomes the dynamic agent runtime and immutable proof ledger, rather than a generic AI rewrite button or detached chat. |
 
@@ -592,7 +597,7 @@ may enter source, logs, screenshots, video assets, or evidence.
 
 Release requires `.codex/verify.sh`, the v4 focused domain/protocol/browser gates,
 production build, five repair-free hero rehearsals, desktop/390px driven behavior, the
-12-slide `/deck` with verified release screenshots, fresh
+11-slide `/deck` with verified release screenshots, fresh
 read-only visual review, supported-client native capture, controlled WebMCP-off ablation,
 four final criterion judges, and one clean exact-SHA identity across repository,
 deployment, evidence, video, and submission.

@@ -28,18 +28,7 @@ export async function POST(request: Request) {
       "An @ mention requires exact public JSON and Idempotency-Key.",
     ));
   }
-  const target = body.target;
-  const targetKind = target && typeof target === "object" && !Array.isArray(target)
-    ? (target as Record<string, unknown>).kind
-    : undefined;
-  const canonicalShape = targetKind === "HUMAN"
-    ? hasExactRequestKeys(body, ["expectedRevision", "comment", "target", "anchor"])
-    : targetKind === "AGENT"
-      ? hasExactRequestKeys(body, [
-        "expectedRevision", "comment", "target", "accessProfile", "anchor",
-      ])
-      : false;
-  if (canonicalShape) {
+  if (hasExactRequestKeys(body, ["expectedRevision", "comment", "target", "anchor"])) {
     const input: CreateDirectoryMentionServiceInput = {
       ...(body as unknown as CreateDirectoryMentionHttpInput),
       requestId,

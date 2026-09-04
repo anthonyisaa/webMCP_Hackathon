@@ -13,27 +13,64 @@ import {
 import ReactMarkdown, { type Components, type ExtraProps, type UrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import type { IssueSelectionAnchor } from "@/repository/contracts";
+import type { IssueDocumentField } from "@/repository/contracts";
 
 import { ChartFigure } from "./ChartFigure";
 import { parseRepositoryChart } from "./chart-spec";
 import {
-  repositoryCodePointOffset,
+  repositoryHighlightedLeafSegments,
   repositorySelectionFromDom,
   sourceRangeToSelection,
+  type RepositorySourceHighlight,
+  type RepositorySourceHighlightKind,
   type RepositorySourceSelection,
 } from "./markdown-source-map";
 import styles from "./repository-workspace.module.css";
 
 const ALLOWED_ELEMENTS = [
   "a", "blockquote", "br", "code", "del", "em", "h1", "h2", "h3", "h4", "h5", "h6",
-  "hr", "img", "input", "li", "ol", "p", "pre", "section", "strong", "sup", "table", "tbody",
+  "hr", "img", "input", "li", "mark", "ol", "p", "pre", "section", "span", "strong", "sup", "table", "tbody",
   "td", "th", "thead", "tr", "ul",
 ] as const;
 
 interface SourcePosition {
   start: { offset?: number };
   end: { offset?: number };
+}
+
+interface MarkdownSourceNode {
+  type: string;
+  children?: MarkdownSourceNode[];
+  data?: Record<string, unknown>;
+  position?: SourcePosition;
+}
+
+/** Preserve every authored text node as an addressable DOM leaf. */
+function remarkSourceTextLeaves() {
+  return (root: MarkdownSourceNode) => {
+    const visit = (node: MarkdownSourceNode) => {
+      if (node.type === "text") {
+        const startUtf16 = node.position?.start.offset;
+        const endUtf16 = node.position?.end.offset;
+        const currentProperties = node.data?.hProperties;
+        node.data = {
+          ...node.data,
+          hName: "span",
+          ...(Number.isSafeInteger(startUtf16) && Number.isSafeInteger(endUtf16) ? {
+            hProperties: {
+              ...(typeof currentProperties === "object" && currentProperties !== null
+                ? currentProperties
+                : {}),
+              "data-source-start": startUtf16,
+              "data-source-end": endUtf16,
+            },
+          } : {}),
+        };
+      }
+      node.children?.forEach(visit);
+    };
+    visit(root);
+  };
 }
 
 function nodeRange(node: ExtraProps["node"]): { startUtf16: number; endUtf16: number } | null {
@@ -61,6 +98,13 @@ function chartChild(children: ReactNode): { source: string } | null {
   return { source: String(only.props.children ?? "").replace(/\n$/u, "") };
 }
 
+function sourceLeafText(children: ReactNode): string | null {
+  const nodes = Children.toArray(children);
+  return nodes.length > 0 && nodes.every((node) => typeof node === "string")
+    ? nodes.join("")
+    : null;
+}
+
 export interface MarkdownSelectionEvent extends RepositorySourceSelection {
   rect: DOMRect;
 }
@@ -71,38 +115,88 @@ export interface MarkdownDocumentProps {
   sourceCodePointOffset?: number;
   /** Omit when an ancestor represents multiple rendered source slices as one test surface. */
   testId?: string | null;
-  anchors?: readonly IssueSelectionAnchor[];
+  highlights?: readonly RepositorySourceHighlight[];
   onSelectSource?: (selection: MarkdownSelectionEvent) => void;
   className?: string;
 }
 
-function rangeOverlapsAnchor(
-  source: string,
-  range: { startUtf16: number; endUtf16: number } | null,
-  anchors: readonly IssueSelectionAnchor[],
-  sourceCodePointOffset: number,
-): boolean {
-  if (!range) return false;
-  const start = repositoryCodePointOffset(source, range.startUtf16);
-  const end = repositoryCodePointOffset(source, range.endUtf16);
-  if (start === null || end === null) return false;
-  const absoluteStart = start + sourceCodePointOffset;
-  const absoluteEnd = end + sourceCodePointOffset;
-  return anchors.some((anchor) => anchor.field === "BODY" && anchor.rangeStart < absoluteEnd && anchor.rangeEnd > absoluteStart);
-}
-
 function sourceAttributes(
-  source: string,
   node: ExtraProps["node"],
-  anchors: readonly IssueSelectionAnchor[],
-  sourceCodePointOffset: number,
 ) {
   const range = nodeRange(node);
   return range ? {
     "data-source-start": range.startUtf16,
     "data-source-end": range.endUtf16,
-    "data-commented": rangeOverlapsAnchor(source, range, anchors, sourceCodePointOffset) ? "true" : undefined,
   } : {};
+}
+
+function sourceRangeFromProperties(
+  props: ComponentPropsWithoutRef<"span">,
+): { startUtf16: number; endUtf16: number } | null {
+  const properties = props as Record<string, unknown>;
+  const startUtf16 = Number(properties["data-source-start"]);
+  const endUtf16 = Number(properties["data-source-end"]);
+  return Number.isSafeInteger(startUtf16) && Number.isSafeInteger(endUtf16)
+    ? { startUtf16, endUtf16 }
+    : null;
+}
+
+interface SourceHighlightTextProps {
+  source: string;
+  field: IssueDocumentField;
+  highlights: readonly RepositorySourceHighlight[];
+  sourceCodePointOffset?: number;
+}
+
+const HIGHLIGHT_ATTRIBUTE: Readonly<Record<
+  RepositorySourceHighlightKind,
+  "pending" | "agent-change" | "selection"
+>> = {
+  PENDING: "pending",
+  AGENT_CHANGE: "agent-change",
+  SELECTION: "selection",
+};
+
+function SourceLeaf({ source, field, highlights, sourceCodePointOffset = 0, range, children }: SourceHighlightTextProps & {
+  range: { startUtf16: number; endUtf16: number };
+  children: string;
+}) {
+  const segments = repositoryHighlightedLeafSegments(
+    source,
+    field,
+    { ...range, leafText: children },
+    highlights,
+    sourceCodePointOffset,
+  );
+  if (!segments) return <span data-selection-disabled="true">{children}</span>;
+  return <>{segments.map((segment) => {
+    const attributes = {
+      "data-source-start": segment.startUtf16,
+      "data-source-end": segment.endUtf16,
+    };
+    return segment.highlight ? (
+      <mark
+        key={`${segment.startUtf16}:${segment.endUtf16}`}
+        {...attributes}
+        data-highlight={HIGHLIGHT_ATTRIBUTE[segment.highlight]}
+      >{segment.text}</mark>
+    ) : (
+      <span key={`${segment.startUtf16}:${segment.endUtf16}`} {...attributes}>{segment.text}</span>
+    );
+  })}</>;
+}
+
+/** Render one plain source field with the same exact-leaf highlight semantics as Markdown. */
+export function SourceHighlightText({ source, field, highlights, sourceCodePointOffset = 0 }: SourceHighlightTextProps) {
+  return (
+    <SourceLeaf
+      source={source}
+      field={field}
+      highlights={highlights}
+      sourceCodePointOffset={sourceCodePointOffset}
+      range={{ startUtf16: 0, endUtf16: source.length }}
+    >{source}</SourceLeaf>
+  );
 }
 
 function blockSelection(
@@ -124,12 +218,12 @@ function blockSelection(
 
 function createComponents(
   source: string,
-  anchors: readonly IssueSelectionAnchor[],
+  highlights: readonly RepositorySourceHighlight[],
   sourceCodePointOffset: number,
   onSelectSource?: (selection: MarkdownSelectionEvent) => void,
 ): Components {
   type BlockProps<Tag extends keyof React.JSX.IntrinsicElements> = ComponentPropsWithoutRef<Tag> & ExtraProps;
-  const attributes = (node: ExtraProps["node"]) => sourceAttributes(source, node, anchors, sourceCodePointOffset);
+  const attributes = (node: ExtraProps["node"]) => sourceAttributes(node);
 
   return {
     h1: ({ node, ...props }: BlockProps<"h1">) => <h1 {...attributes(node)} {...props} />,
@@ -144,6 +238,19 @@ function createComponents(
     strong: ({ node, ...props }: BlockProps<"strong">) => <strong {...attributes(node)} {...props} />,
     em: ({ node, ...props }: BlockProps<"em">) => <em {...attributes(node)} {...props} />,
     del: ({ node, ...props }: BlockProps<"del">) => <del {...attributes(node)} {...props} />,
+    span: ({ node, children, ...props }: BlockProps<"span">) => {
+      const range = nodeRange(node) ?? sourceRangeFromProperties(props);
+      const text = sourceLeafText(children);
+      return range && text !== null ? (
+        <SourceLeaf
+          source={source}
+          field="BODY"
+          highlights={highlights}
+          sourceCodePointOffset={sourceCodePointOffset}
+          range={range}
+        >{text}</SourceLeaf>
+      ) : <span data-selection-disabled="true">{children}</span>;
+    },
     a: ({ node, href, children, ...props }: BlockProps<"a">) => href ? (
       <a
         {...attributes(node)}
@@ -208,11 +315,11 @@ function createComponents(
 }
 
 /** Safe GFM reading view that keeps exact raw-source positions for anchored comments. */
-export function MarkdownDocument({ source, sourceCodePointOffset = 0, testId = "rendered-document-body", anchors = [], onSelectSource, className }: MarkdownDocumentProps) {
+export function MarkdownDocument({ source, sourceCodePointOffset = 0, testId = "rendered-document-body", highlights = [], onSelectSource, className }: MarkdownDocumentProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const components = useMemo(
-    () => createComponents(source, anchors, sourceCodePointOffset, onSelectSource),
-    [anchors, onSelectSource, source, sourceCodePointOffset],
+    () => createComponents(source, highlights, sourceCodePointOffset, onSelectSource),
+    [highlights, onSelectSource, source, sourceCodePointOffset],
   );
 
   const captureSelection = (event: MouseEvent<HTMLDivElement> | KeyboardEvent<HTMLDivElement>) => {
@@ -241,7 +348,7 @@ export function MarkdownDocument({ source, sourceCodePointOffset = 0, testId = "
       }}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkSourceTextLeaves]}
         allowedElements={[...ALLOWED_ELEMENTS]}
         skipHtml
         unwrapDisallowed={false}

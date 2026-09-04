@@ -21,13 +21,30 @@ const SECRET = "supabase-relay-test-secret-with-at-least-32-bytes";
 const now = "2026-09-02T00:00:00.000Z";
 const later = "2026-09-02T00:02:00.000Z";
 
-function capabilityFirstState() {
+function managedDirectoryEntry(
+  profileId = randomUUID(),
+  handle: "data" | "code" | "general" = "code",
+) {
+  const expertise = { data: "DATA", code: "CODE", general: "GENERAL" } as const;
+  const visibility = { data: "COMPANY", code: "TEAM", general: "PERSONAL" } as const;
+  const displayName = `${handle[0]!.toUpperCase()}${handle.slice(1)}`;
   return {
-    directory: [{
-      kind: "AGENT",
-      identitySource: "DEMO_DIRECTORY",
-      expertise: "CODE",
-    }],
+    kind: "AGENT" as const,
+    profileId,
+    principal: { memberId: randomUUID(), displayName: `${displayName} · managed agent` },
+    handle,
+    displayName,
+    visibility: visibility[handle],
+    readiness: "READY" as const,
+    identitySource: "DEMO_DIRECTORY" as const,
+    expertise: expertise[handle],
+    runtime: "OPENAI_LUNA_WEBMCP_RELAY" as const,
+  };
+}
+
+function capabilityFirstState(directory: unknown[] = [managedDirectoryEntry()]) {
+  return {
+    directory,
     runs: [],
     activeAttempt: null,
     trace: [],
@@ -239,6 +256,132 @@ test("claim finalizes only a digest while returning a signed in-memory grant", a
   assert.equal(JSON.stringify(observed).includes(result.data.grant), false);
 });
 
+test("managed mention resolves company access from the canonical directory before its RPC", async () => {
+  const profileId = randomUUID();
+  const observed: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const request = (async (url: URL | RequestInfo, init?: RequestInit) => {
+    const target = String(url);
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    observed.push({ url: target, body });
+    if (target.endsWith("/ratiflow_read_issue_relay_state_v4")) {
+      return Response.json({
+        ok: true,
+        data: capabilityFirstState([managedDirectoryEntry(profileId, "code")]),
+      });
+    }
+    if (target.endsWith("/ratiflow_create_issue_directory_mention_v4")) {
+      return Response.json({
+        ok: true,
+        data: {
+          outcome: "MANAGED_TASK_QUEUED",
+          target: { kind: "AGENT", profileId },
+          threadId: randomUUID(),
+          commentId: randomUUID(),
+          taskId: randomUUID(),
+          runId: randomUUID(),
+        },
+      });
+    }
+    throw new Error(`Unexpected RPC: ${target}`);
+  }) as typeof fetch;
+  const service = new SupabaseRepositoryRelayService({
+    url: "https://example.supabase.co",
+    serviceRoleKey: "service-role",
+    signingSecret: SECRET,
+    fetch: request,
+  });
+  const input = {
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    comment: "@Code inspect this selection",
+    target: { kind: "AGENT" as const, profileId },
+    anchor: {
+      scope: "SELECTION" as const,
+      field: "BODY" as const,
+      rangeStart: 0,
+      rangeEnd: 4,
+    },
+  };
+
+  const result = await service.createDirectoryMention("human-session", input);
+
+  assert.equal(result.ok, true);
+  assert.equal(observed.length, 2);
+  assert.match(observed[0]!.url, /ratiflow_read_issue_relay_state_v4$/u);
+  assert.match(observed[1]!.url, /ratiflow_create_issue_directory_mention_v4$/u);
+  const persistedInput = observed[1]!.body.p_input as Record<string, unknown>;
+  assert.equal(persistedInput.accessProfile, "REPOSITORY_SCOPED_EDIT");
+  assert.equal(Object.hasOwn(persistedInput, "requestId"), false);
+  assert.equal(Object.hasOwn(input, "accessProfile"), false);
+});
+
+test("the Supabase mention boundary rejects supplied access before reading or mutating", async () => {
+  let calls = 0;
+  const service = new SupabaseRepositoryRelayService({
+    url: "https://example.supabase.co",
+    serviceRoleKey: "service-role",
+    signingSecret: SECRET,
+    fetch: (async () => {
+      calls += 1;
+      throw new Error("Supplied access must fail before an RPC.");
+    }) as typeof fetch,
+  });
+  const profileId = randomUUID();
+  const result = await service.createDirectoryMention("human-session", {
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    comment: "@Code inspect this selection",
+    target: { kind: "AGENT", profileId },
+    accessProfile: "METRICS_SCOPED_EDIT",
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 4 },
+  } as unknown as Parameters<SupabaseRepositoryRelayService["createDirectoryMention"]>[1]);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.code, "INVALID_INPUT");
+  assert.equal(calls, 0);
+});
+
+test("a self-declared profile cannot be resolved as a company-managed mention target", async () => {
+  const profileId = randomUUID();
+  let mutationCalls = 0;
+  const selfDeclared = {
+    ...managedDirectoryEntry(profileId, "code"),
+    identitySource: "SELF_DECLARED" as const,
+    expertise: "GENERAL" as const,
+    runtime: "BRING_YOUR_OWN_AGENT" as const,
+    logicalToolNames: [],
+    syntheticSourceLabels: [] as [],
+  };
+  const request = (async (url: URL | RequestInfo) => {
+    if (String(url).endsWith("/ratiflow_read_issue_relay_state_v4")) {
+      return Response.json({
+        ok: true,
+        data: capabilityFirstState([managedDirectoryEntry(), selfDeclared]),
+      });
+    }
+    mutationCalls += 1;
+    throw new Error(`Unexpected mutating RPC: ${String(url)}`);
+  }) as typeof fetch;
+  const service = new SupabaseRepositoryRelayService({
+    url: "https://example.supabase.co",
+    serviceRoleKey: "service-role",
+    signingSecret: SECRET,
+    fetch: request,
+  });
+
+  const result = await service.createDirectoryMention("human-session", {
+    expectedRevision: 1,
+    requestId: randomUUID(),
+    comment: "@Code inspect this selection",
+    target: { kind: "AGENT", profileId },
+    anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 4 },
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.code, "STALE_MENTION_TARGET");
+  assert.equal(mutationCalls, 0);
+});
+
 test("managed mention and claim fail closed before mutating a persona-era store", async () => {
   let stateReads = 0;
   let mutationCalls = 0;
@@ -274,7 +417,6 @@ test("managed mention and claim fail closed before mutating a persona-era store"
     requestId: randomUUID(),
     comment: "@Code inspect this selection",
     target: { kind: "AGENT", profileId: randomUUID() },
-    accessProfile: "METRICS_SCOPED_EDIT",
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 4 },
   });
   const claim = await service.claimRelay(

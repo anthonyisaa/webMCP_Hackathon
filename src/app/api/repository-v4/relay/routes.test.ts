@@ -309,9 +309,8 @@ test("canonical mention dispatches exact human and capability-bound agent shapes
   const agentRequestId = randomUUID();
   const agentBody = {
     expectedRevision: 1,
-    comment: "@Code Check this passage with metrics.",
+    comment: "@Code Check this passage against the repository.",
     target: { kind: "AGENT", profileId: randomUUID() },
-    accessProfile: "METRICS_SCOPED_EDIT",
     anchor: { scope: "SELECTION", field: "BODY", rangeStart: 0, rangeEnd: 5 },
   };
   const agentResponse = await POST(new Request(
@@ -332,7 +331,7 @@ test("canonical mention dispatches exact human and capability-bound agent shapes
   );
 
   for (const invalidBody of [
-    { ...agentBody, accessProfile: undefined },
+    { ...agentBody, accessProfile: "METRICS_SCOPED_EDIT" },
     { ...body, accessProfile: "METRICS_SCOPED_EDIT" },
   ]) {
     const rejected = await POST(new Request(

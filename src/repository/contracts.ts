@@ -21,8 +21,9 @@ export const ISSUE_DOCUMENT_KINDS = ["POSTMORTEM", "PRODUCT_DOCUMENT"] as const;
 export type IssueDocumentKind = (typeof ISSUE_DOCUMENT_KINDS)[number];
 
 /**
- * Website access selected for one managed assignment. These values describe the
- * Ratiflow capabilities granted to a run, never the identity or expertise of its bot.
+ * Company-configured website access persisted on one managed assignment. These values
+ * describe the Ratiflow capabilities granted to a run; public mention input cannot
+ * select or override them.
  */
 export const MANAGED_RELAY_ACCESS_PROFILES = [
   "METRICS_SCOPED_EDIT",
@@ -906,7 +907,6 @@ export type CreateDirectoryMentionHttpInput = {
     }
   | {
       target: Extract<IssueMentionTarget, { kind: "AGENT" }>;
-      accessProfile: ManagedRelayAccessProfile;
       anchor: Extract<IssueAnchorInput, { scope: "SELECTION" }>;
     }
 );

@@ -1,8 +1,8 @@
 {
-  "oracleSchemaVersion": "ratiflow.managed-relay-oracle/v2",
+  "oracleSchemaVersion": "ratiflow.managed-relay-oracle/v3",
   "protocolVersion": 4,
-  "releaseName": "v4.3",
-  "claim": "Bot expertise is descriptive. Ratiflow grants assignment access; WebMCP exposes and invokes the matching site tools; the server enforces document, range, and action authority.",
+  "releaseName": "v4.4",
+  "claim": "A person selects exact text and a managed bot. Company policy fixes that bot's access, Ratiflow stores the resolved grant immutably on the run, WebMCP exposes and invokes the matching site tools, and the server enforces document, range, and action authority.",
   "runtime": "OPENAI_LUNA_WEBMCP_RELAY",
   "model": "gpt-5.6-luna",
   "agents": [
@@ -11,21 +11,24 @@
       "displayName": "Data",
       "visibility": "COMPANY",
       "expertise": "DATA",
-      "identitySource": "DEMO_DIRECTORY"
+      "identitySource": "DEMO_DIRECTORY",
+      "fixedAccessProfile": "METRICS_SCOPED_EDIT"
     },
     {
       "handle": "code",
       "displayName": "Code",
       "visibility": "TEAM",
       "expertise": "CODE",
-      "identitySource": "DEMO_DIRECTORY"
+      "identitySource": "DEMO_DIRECTORY",
+      "fixedAccessProfile": "REPOSITORY_SCOPED_EDIT"
     },
     {
       "handle": "general",
       "displayName": "General",
       "visibility": "PERSONAL",
       "expertise": "GENERAL",
-      "identitySource": "DEMO_DIRECTORY"
+      "identitySource": "DEMO_DIRECTORY",
+      "fixedAccessProfile": "EDITORIAL_SCOPED_EDIT"
     }
   ],
   "accessProfiles": {
@@ -82,16 +85,23 @@
       ]
     }
   },
-  "orthogonalityProof": {
-    "sameAccessDifferentBots": [
-      { "agent": "code", "accessProfile": "METRICS_SCOPED_EDIT" },
-      { "agent": "data", "accessProfile": "METRICS_SCOPED_EDIT" }
-    ],
-    "sameBotDifferentAccess": [
-      { "agent": "code", "accessProfile": "METRICS_SCOPED_EDIT" },
-      { "agent": "code", "accessProfile": "REPOSITORY_SCOPED_EDIT" }
-    ],
-    "equalSizeForgeryPair": ["REPOSITORY_SCOPED_EDIT", "EDITORIAL_SCOPED_EDIT"]
+  "companyAccessPolicy": {
+    "data": "METRICS_SCOPED_EDIT",
+    "code": "REPOSITORY_SCOPED_EDIT",
+    "general": "EDITORIAL_SCOPED_EDIT"
+  },
+  "managedMentionAuthority": {
+    "publicAccessProfileAccepted": false,
+    "modelSelectsAccessProfile": false,
+    "runAccessProfileImmutable": true
+  },
+  "highlightLifecycle": {
+    "initialResolvedDocument": "NONE",
+    "liveSelection": "NEUTRAL_BLUE",
+    "openCommentOrUncommittedTask": "YELLOW",
+    "newlyObservedAgentReplacement": "GREEN",
+    "agentReplacementDurationMs": 30000,
+    "resolvedHistoricalAnchorsPaintDocument": false
   },
   "postmortem": {
     "documentKind": "POSTMORTEM",

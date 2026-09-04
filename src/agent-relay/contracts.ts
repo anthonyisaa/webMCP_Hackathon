@@ -42,6 +42,23 @@ export const RELAY_EXECUTION_PERMIT_SIGNING_DOMAIN = "ratiflow-relay-permit-v1" 
 export const MANAGED_AGENT_HANDLES = ["data", "code", "general"] as const;
 export type ManagedAgentHandle = (typeof MANAGED_AGENT_HANDLES)[number];
 
+export function isManagedAgentHandle(value: string): value is ManagedAgentHandle {
+  return MANAGED_AGENT_HANDLES.some((handle) => handle === value);
+}
+
+/** Company policy for managed demo principals. Self-declared agents never enter here. */
+export const MANAGED_AGENT_ACCESS_BY_HANDLE = {
+  data: "METRICS_SCOPED_EDIT",
+  code: "REPOSITORY_SCOPED_EDIT",
+  general: "EDITORIAL_SCOPED_EDIT",
+} as const satisfies Record<ManagedAgentHandle, RelayAccessProfile>;
+
+export function relayAccessProfileForManagedHandle(
+  handle: ManagedAgentHandle,
+): RelayAccessProfile {
+  return MANAGED_AGENT_ACCESS_BY_HANDLE[handle];
+}
+
 export const RELAY_RUN_STATUSES = [
   "QUEUED",
   "ACTIVE",

@@ -98,9 +98,11 @@ import {
   type CreateDirectoryMentionServiceInput,
 } from "@/repository/contracts";
 import {
+  isManagedAgentHandle,
   MANAGED_AGENT_MODEL,
   MANAGED_AGENT_RUNTIME,
   MANAGED_AGENT_TOOL_DEFINITIONS,
+  relayAccessProfileForManagedHandle,
   RELAY_ACCESS_POLICIES,
   RELAY_BROWSER_OBSERVED_CATALOG_TRANSITIONS,
   RELAY_BOUNDS,
@@ -112,7 +114,6 @@ import {
   type ManagedAgentDirectoryEntry,
   type ManagedAgentExpertise,
   type ManagedAgentLogicalToolName,
-  type RelayAccessProfile,
   type RelayCapabilityGrant,
   type RelayAttempt,
   type RelayBrowserTraceInput,
@@ -848,21 +849,18 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         { ok: true, data: receipt });
     }
 
-    const selectedAccessProfile = (input as unknown as Record<string, unknown>).accessProfile;
     if (!hasExactKeys(input, [
-      "expectedRevision", "requestId", "comment", "target", "accessProfile", "anchor",
+      "expectedRevision", "requestId", "comment", "target", "anchor",
     ])
       || input.target.kind !== "AGENT"
       || !hasExactKeys(input.target, ["kind", "profileId"])
       || !isUuid(input.target.profileId)
-      || typeof selectedAccessProfile !== "string"
-      || !Object.hasOwn(RELAY_ACCESS_POLICIES, selectedAccessProfile)
       || input.anchor.scope !== "SELECTION") {
       return this.recordRelayReplay(resolved, "directory.mention", input,
         relayFailure("INVALID_INPUT", "The canonical directory target is invalid."));
     }
     const managed = workspace.managedAgentsByProfileId.get(input.target.profileId)?.entry;
-    if (!managed || managed.readiness !== "READY"
+    if (!managed || !isManagedAgentHandle(managed.handle) || managed.readiness !== "READY"
       || !this.validDirectoryComment(input.comment, managed.displayName)) {
       return this.recordRelayReplay(resolved, "directory.mention", input,
         relayFailure(managed?.readiness === "DISABLED" ? "RELAY_UNAVAILABLE" : "STALE_MENTION_TARGET",
@@ -889,7 +887,7 @@ implements RepositoryServicePort, RepositoryEvaluationPort {
         relayFailure("INVALID_INPUT", "Managed work requires a valid bounded selection."));
     }
     const timestamp = this.stamp(workspace);
-    const accessProfile = selectedAccessProfile as RelayAccessProfile;
+    const accessProfile = relayAccessProfileForManagedHandle(managed.handle);
     const accessPolicy = RELAY_ACCESS_POLICIES[accessProfile];
     const taskId = randomUUID();
     const threadId = randomUUID();

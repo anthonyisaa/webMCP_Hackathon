@@ -6,6 +6,9 @@
   --violet: #7356a1;
   --violet-soft: #e9e1f3;
   --amber: #9a5917;
+  --selection-blue: #dce9f5;
+  --selection-blue-ink: #315473;
+  --pending-yellow: #fff2c7;
   --line: rgba(32, 34, 31, 0.18);
   min-height: 100svh;
   overflow: hidden;
@@ -46,6 +49,16 @@
     var(--paper);
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.32);
   isolation: isolate;
+}
+
+.slide:not(.coverSlide) {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.slide:not(.coverSlide) .slideFooter {
+  margin-top: auto;
 }
 
 .slide::after {
@@ -572,16 +585,16 @@
 .selectionExcerpt mark,
 .assignmentExcerpt mark {
   padding: 1px 2px;
-  background: #e4d9f0;
-  color: #50396f;
+  background: var(--selection-blue);
+  color: var(--selection-blue-ink);
 }
 
 .commentBubble {
   margin-left: 14%;
   padding: 16px;
-  border-left: 3px solid var(--violet);
-  background: #f6f1fb;
-  color: #5c4c6b;
+  border-left: 3px solid #d7a63a;
+  background: var(--pending-yellow);
+  color: #665023;
   font-size: 16px;
   line-height: 1.45;
 }
@@ -804,7 +817,7 @@
   font-size: 12px;
 }
 
-.accessChoice {
+.policyNote {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -812,7 +825,7 @@
   background: #edf5f1;
 }
 
-.accessChoice span {
+.policyNote span {
   color: #667069;
   font-family: var(--font-geist-mono, ui-monospace, monospace);
   font-size: 9px;
@@ -820,7 +833,7 @@
   text-transform: uppercase;
 }
 
-.accessChoice b {
+.policyNote b {
   color: #285f53;
   font-size: 12px;
 }
@@ -861,6 +874,18 @@
   color: #494f49;
   font-size: clamp(1.05rem, 1.24vw, 1.5rem);
   line-height: 1.7;
+}
+
+.assignmentDocument mark {
+  padding: 0.08em 0.12em;
+  background: var(--selection-blue);
+  box-decoration-break: clone;
+  color: var(--selection-blue-ink);
+}
+
+.assignmentDocument mark code {
+  color: #315473;
+  font-size: 0.9em;
 }
 
 .assignmentDocument small {
@@ -915,6 +940,18 @@
 
 .scopeLine code {
   margin-left: auto;
+}
+
+.assignAction {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #242824;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 680;
 }
 
 .assignmentSlide .truthRowCenter,
@@ -1089,30 +1126,30 @@
   font-size: 24px;
 }
 
-.orthogonalityProof {
+.policyMap {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   border: 1px solid rgba(32, 34, 31, 0.18);
   background: rgba(255, 255, 255, 0.72);
 }
 
-.orthogonalityProof > div {
+.policyMap > div {
   display: grid;
   gap: 6px;
   padding: 14px 18px;
 }
 
-.orthogonalityProof > div + div {
+.policyMap > div + div {
   border-left: 1px solid rgba(32, 34, 31, 0.12);
 }
 
-.orthogonalityProof span {
+.policyMap span {
   color: #343934;
   font-size: 12px;
   font-weight: 650;
 }
 
-.orthogonalityProof code {
+.policyMap code {
   color: #5f675f;
   font-size: 10px;
 }
@@ -1652,7 +1689,7 @@
 .futureScale {
   display: grid;
   min-height: 0;
-  grid-template-columns: 0.78fr 1.1fr 1.25fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 2.5% 0 1.6%;
   border-top: 1px solid #cdd2cc;
   border-bottom: 1px solid #cdd2cc;
@@ -1687,32 +1724,37 @@
 }
 
 .futureScale article > b {
+  max-width: 16ch;
   color: #343934;
-  font-size: clamp(1.28rem, 1.55vw, 1.85rem);
+  font-size: clamp(1.5rem, 1.9vw, 2.3rem);
   font-weight: 620;
   letter-spacing: -0.035em;
+  line-height: 1.04;
 }
 
 .futureScale p,
-.futureScale ul,
 .futureScale small {
   margin: 0;
   color: #565d56;
-  font-size: 14px;
-  line-height: 1.42;
-}
-
-.futureScale ul {
-  display: grid;
-  gap: 8px;
-  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .futureScale small {
   padding-top: 10px;
   border-top: 1px solid rgba(41, 104, 91, 0.24);
   color: #496459;
-  font-size: 12px;
+  font-size: 13px;
+}
+
+.futureScale strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #343934;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .futureSlide .truthRowCenter {
@@ -1735,17 +1777,15 @@
   text-underline-offset: 3px;
 }
 
-/* Slide 12 */
+/* Final slide */
 .finalSlide {
-  grid-template-rows: auto auto 1fr auto;
+  justify-content: flex-start;
 }
 
 .finalComposition {
   display: grid;
-  min-height: 0;
-  grid-template-rows: 1fr auto;
-  gap: 18px;
-  margin: 2.4% 0 2%;
+  place-items: start;
+  margin: clamp(42px, 6vw, 92px) 0 0;
 }
 
 .finalPaths {
@@ -1836,18 +1876,16 @@
 }
 
 .finalAction {
-  position: absolute;
-  right: clamp(38px, 4.3vw, 82px);
-  bottom: clamp(24px, 2.7vw, 52px);
-  z-index: 6;
+  position: static;
   display: inline-flex;
-  min-height: 44px;
+  min-height: 64px;
   align-items: center;
   gap: 8px;
-  border-bottom: 2px solid var(--green);
+  border-bottom: 3px solid var(--green);
   color: var(--ink);
-  font-size: 17px;
-  font-weight: 670;
+  font-size: clamp(1.55rem, 2.2vw, 2.65rem);
+  font-weight: 620;
+  letter-spacing: -0.04em;
   text-decoration: none;
 }
 
@@ -1988,6 +2026,10 @@
     border-radius: 0;
   }
 
+  .slide:not(.coverSlide) {
+    display: flex;
+  }
+
   .slideTitle {
     font-size: 2rem;
     line-height: 1.04;
@@ -2097,6 +2139,16 @@
     min-height: 420px;
   }
 
+  .cleanDocument {
+    padding-top: 96px;
+  }
+
+  .cleanDocument .previewLabel {
+    max-width: calc(100% - 32px);
+    line-height: 1.3;
+    text-align: right;
+  }
+
   .sequenceConnector,
   .toolchange,
   .ablationDivider {
@@ -2129,11 +2181,11 @@
     padding: 34px 28px;
   }
 
-  .orthogonalityProof {
+  .policyMap {
     grid-template-columns: 1fr;
   }
 
-  .orthogonalityProof > div + div {
+  .policyMap > div + div {
     border-top: 1px solid rgba(32, 34, 31, 0.12);
     border-left: 0;
   }
@@ -2217,7 +2269,7 @@
   .finalComposition {
     display: grid;
     gap: 18px;
-    margin-top: 28px;
+    margin-top: 40px;
   }
 
   .finalPaths {
@@ -2249,6 +2301,11 @@
     margin-top: 24px;
   }
 
+  .finalAction {
+    min-height: 64px;
+    font-size: 1.65rem;
+  }
+
   .sourceLinks {
     flex-wrap: wrap;
     font-size: 12px;
@@ -2270,6 +2327,8 @@
     z-index: 20;
     height: 72px;
     grid-template-columns: 48px minmax(50px, 1fr) auto 48px;
+    box-sizing: border-box;
+    padding-left: 64px;
     background: rgba(21, 23, 20, 0.96);
     backdrop-filter: blur(14px);
   }

@@ -107,7 +107,7 @@ function expectNativeEnvelope<T>(invocation: NativeInvocation<T>): T {
   return invocation.structuredContent;
 }
 
-test("native v4.3 candidate discovers the eight-tool idle catalog, connects Contextbot first, and reads Postmortem r5/av11 context", async ({ page }) => {
+test("native v4.4 discovers the eight-tool idle catalog, shows company-scoped bot NUX, connects Contextbot, and reads Postmortem context", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
 
@@ -122,14 +122,27 @@ test("native v4.3 candidate discovers the eight-tool idle catalog, connects Cont
 
   await expect.poll(async () => (await discoverNativeTools(page)).supported, {
     message:
-      "Native v4.3 idle-surface evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
+      "Native v4.4 idle-surface evidence requires a supported client with the standard document.modelContext surface; ordinary Chromium is not native evidence.",
   }).toBe(true);
   const discovery = await discoverNativeTools(page);
   expect(discovery.hasGetTools).toBe(true);
   expect([...discovery.tools].sort()).toEqual([...REPOSITORY_TOOL_NAMES].sort());
   await expect(page.getByRole("heading", {
-    name: "Select a passage. Pick a bot and its website access. Watch the proof.",
+    name: "Highlight text. @ a bot. Watch the change.",
   })).toBeVisible();
+  await expect(page.getByText(
+    "The selection bounds the edit. @Code's company profile supplies its website tools automatically.",
+  )).toBeVisible();
+  const managedDirectory = page.getByTestId("managed-agent-directory");
+  await expect(page.getByText(/3 managed bots · company-configured access/u)).toBeVisible();
+  await expect(managedDirectory.getByText("@Code", { exact: true }).locator(".."))
+    .toContainText("Software analysis expertise · Repository tools");
+  await expect(managedDirectory.getByText("@Data", { exact: true }).locator(".."))
+    .toContainText("Data analysis expertise · Metrics tools");
+  await expect(managedDirectory.getByText("@General", { exact: true }).locator(".."))
+    .toContainText("Generalist expertise · Editorial tools");
+  await expect(managedDirectory.getByText("Company-set", { exact: true })).toHaveCount(3);
+  await expect(page.getByLabel("Website access for this run")).toHaveCount(0);
 
   if (discovery.hasExecuteTool) {
     const connected = expectNativeEnvelope(
@@ -249,7 +262,7 @@ test("native v4.3 candidate discovers the eight-tool idle catalog, connects Cont
     test.info().annotations.push({
       type: "pending",
       description:
-        "This supported client discovered the current v4.3 idle compatibility catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
+        "This supported client discovered the current v4.4 idle compatibility catalog but did not expose optional page-side executeTool; connected invocation still needs a dated supported-client capture.",
     });
   }
 

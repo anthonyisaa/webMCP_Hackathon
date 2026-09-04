@@ -1,20 +1,49 @@
 # Ratiflow
 
-> **Mention the expert. The page supplies the tools. The document keeps the proof.**
+> **Human chooses the task. Company policy fixes the grant. The page registers the
+> tools. The document keeps the proof.**
 
-Ratiflow turns a shared document into a dynamic agent workspace. A judge enters a
-nickname, opens a completed two-page Postmortem or Product document, selects a passage,
-chooses `@Code`, `@Data`, or `@General`, and separately chooses the website access that
-assignment needs. Ratiflow maps that explicit choice to a capability grant. The page
-exposes the matching tab-bound tools through WebMCP, GPT-5.6 Luna composes the required
-calls, and the result lands as a reversible document revision scoped to the selection.
+Ratiflow is a WebMCP Challenge entry about **capability grants on a live page**, not
+another AI chat box inside a document.
 
-The novelty is not another chat box. It is a page-owned capability switch:
+A person selects a passage, picks a managed expert label (`@Code`, `@Data`, or
+`@General`), writes an instruction, and selects **Assign & run**. Company policy maps
+that bot to Repository, Metrics, or Editorial access. Ratiflow resolves the policy into
+an immutable run grant, registers only the matching WebMCP catalog, and limits the
+result to the selected passage. History keeps a restorable revision with the prompt,
+sources, authorship, and server-computed diff.
+
+**Why this is a WebMCP project:** the website owns a dynamic, task-scoped tool surface.
+Bot identity is descriptive; the server-resolved access grant is the permission boundary
+and is enforced server-side.
+
+- Live: [ratiflow-webmcp.vercel.app](https://ratiflow-webmcp.vercel.app/)
+- Devpost: [devpost.com/software/ratiflow](https://devpost.com/software/ratiflow)
+- License: MIT
+
+## 90-second judge path
+
+1. Enter a nickname and open the completed **INC-482** postmortem.
+2. Select any safe rendered passage, type `@`, choose `@Code`, and write an instruction.
+3. Select **Assign & run**. Company policy supplies Repository access; no permission
+   picker appears.
+4. Watch the exact passage turn yellow while the Flight Recorder shows the granted
+   catalog, Luna tool calls, synthetic evidence, and commit.
+5. See the committed replacement turn green for 30 seconds, then open **History** to
+   inspect its prompt, sources, authorship, diff, and Restore action.
+6. Repeat with `@Data` or `@General` to see policy register a different catalog.
+
+## What is *not* the pitch
+
+Ratiflow is not “Google Docs + GitHub for agents.” Collaborative editing is the
+substrate. The submission thesis is **task → grant → catalog → scoped revision**.
+
+## Architecture in one line
 
 ```text
-@mention + access choice → Ratiflow capability grant → WebMCP site-tool catalog
-         → Luna tool search → exact page tool
-         → synthetic evidence → scoped revision → immutable history
+selection + @mention → company policy → capability grant → WebMCP site-tool catalog
+                     → Luna tool search → executeTool()
+                     → scoped revision → immutable history
 ```
 
 Ratiflow uses an **application-owned Luna↔WebMCP relay**. Luna supports client-executed
@@ -29,23 +58,9 @@ and server-computed diff. Native WebMCP execution is validated separately as dat
 supported-client observational evidence; the application trace is not presented as
 cryptographic browser attestation.
 
-## The 90-second judge path
-
-1. Enter a nickname and choose **Postmortem** or **Product doc**.
-2. Follow the three-step coach to select the suggested passage and load the suggested
-   bot prompt and suggested assignment access.
-3. Assign `@Code` with **Repository scoped edit** to verify the Postmortem's retry
-   regression, or `@Data` with **Metrics scoped edit** to check launch-capacity arithmetic.
-4. Watch the Flight Recorder show the assignment capability catalog, Luna's required calls, labeled
-   synthetic sources, and the committed revision.
-5. Keep `@Code` selected but switch to **Editorial scoped edit** to reword a section while preserving facts.
-6. Open **History** to inspect the prompt, sources, authorship, diff, and Restore action.
-
 The completed **INC-482 · Checkout outage postmortem** begins at r5 with human and agent
 history. Its guided `@Code` run verifies `commit:7d3c9e1` and `checkout.log`, then commits
-r6. A follow-up run keeps `@Code` but changes assignment access to Editorial, rewording
-the revised Root cause as r7. The same identity receives a different catalog because the
-human chose a different grant.
+r6 using Code's fixed Repository access.
 
 The completed **Northstar · CSV export launch decision** begins at r6. Its guided
 `@Data` run queries a synthetic capacity fixture, demonstrates that 10 + 4 = 14 fits
@@ -63,17 +78,20 @@ tools: `connect_agent`, `inspect_document`, `read_document_history`,
 and `submit_task_result`.
 
 During a managed mention, the page withdraws that idle catalog and registers one
-generation-scoped site capability catalog derived from the assignment's access profile:
+generation-scoped site capability catalog derived from the selected managed bot's fixed
+company access policy:
 
-| Assignment access | Common tools | Source tools | Total |
+| Managed bot | Fixed company access | Source tools | Total |
 | --- | --- | --- | ---: |
-| Repository scoped edit | assignment, document, collaboration, comment, submit | `search_demo_code`, `read_demo_file` | 7 |
-| Metrics scoped edit | assignment, document, collaboration, comment, submit | `query_demo_metrics` | 6 |
-| Editorial scoped edit | assignment, document, collaboration, comment, submit | `read_company_style_guide`, `check_document_consistency` | 7 |
+| `@Data` | Metrics scoped edit | `query_demo_metrics` | 6 |
+| `@Code` | Repository scoped edit | `search_demo_code`, `read_demo_file` | 7 |
+| `@General` | Editorial scoped edit | `read_company_style_guide`, `check_document_consistency` | 7 |
 
-Bot expertise is descriptive identity metadata, not a permission boundary. `@Code` and
-`@Data` receive the same six tools when each assignment chooses Metrics access; the same
-`@Code` bot receives a different catalog when its assignment chooses Repository access.
+Each catalog also contains the five bounded assignment, document, collaboration,
+comment, and submit tools. The public mention cannot submit or override an access
+profile. After canonical managed-profile lookup, the server stores the resolved profile
+immutably on the Relay run; WebMCP exposes and invokes its tools while Ratiflow enforces
+document, range, action, revision, lease, and permit authority.
 
 The exact relay sequence is:
 
@@ -108,15 +126,19 @@ accessible static SVG plus a tabular fallback. A quiet Edit action reveals Markd
 source only when someone needs it, and save summaries are derived rather than typed.
 
 After a document opens, a dismissible coach shows the live demo in three moves: select
-the suggested passage, choose the suggested managed bot and assignment access, and open
-the Flight Recorder. The company directory is deliberately synthetic and labels each
-agent's visibility and descriptive expertise. Bring-your-own-agent setup remains available in an Advanced
-section; self-declared profiles are separate from managed demo identities.
+any safe passage, choose a managed bot after typing `@`, and select **Assign & run**. The
+company directory is deliberately synthetic and labels each agent's visibility,
+descriptive expertise, and company-configured access. No permission selector appears.
+Bring-your-own-agent setup remains available in an Advanced section; self-declared
+profiles are separate from managed demo identities.
 
 A text or whole-block selection opens one compact anchored comment composer. Selecting
 an autocomplete result creates `@Agent` work; literal or unselected `@` text creates a
-normal comment. The unified comment rail shows discussion and completed work in place.
-History is a quiet Git-like view with immutable snapshots, provenance, diffs, and
+normal comment. Initial completed examples paint no historical anchors. A live selection
+is neutral blue, an open comment or uncommitted task is yellow, and a newly observed
+agent replacement is green for 30 seconds; resolved and completed history does not keep
+painting the document. The unified comment rail shows discussion and completed work in
+place. History is a quiet Git-like view with immutable snapshots, provenance, diffs, and
 Restore—useful to people, but primarily the durable context plane agents read.
 
 WebMCP is optional. With it absent, people can still create, read, edit, share, comment,
@@ -129,8 +151,8 @@ Without a page-native contract, collaboration with agents collapses into copied 
 pasted findings, bespoke integrations, and lost reasoning. Ratiflow turns the live
 document into a discoverable capability and context plane:
 
-- the page changes the available capabilities when assignment access changes, independently
-  of whether `@Code`, `@Data`, or `@General` performs the work;
+- the page changes the available capabilities when a managed bot is selected, following
+  the company's fixed Data→Metrics, Code→Repository, and General→Editorial policy;
 - Luna discovers those tools at run time instead of receiving one oversized static set;
 - new `@Agent` results commit only to the exact passage a person selected; legacy task
   modes remain readable for compatibility but are absent from the flagship UI;
@@ -171,12 +193,12 @@ Next.js issue page
   waits use fetch-subscribe-refetch with one bounded deadline.
 - WebMCP registration and execution honor `AbortSignal`; route or session changes remove
   tools, waits, timers, listeners, and stale callbacks.
-- Managed runs use one immutable assignment access profile, one active run per document,
+- Managed runs use one server-resolved immutable access profile, one active run per document,
   two attempts at most, short leases,
   one-shot execution permits, provider-step reservations, and durable spend limits.
 
 The older `/document/[shareToken]` and `/decision-demo` paths remain isolated v3
-compatibility surfaces. They do not prove the v4.3 capability-first managed relay.
+compatibility surfaces. They do not prove the v4.4 company-scoped managed relay.
 
 ## Share and session safety
 
@@ -243,30 +265,21 @@ live-agent, visual, release, ablation, and independent competition-judge gates. 
 machine-checked row inventory is the source of truth; this README does not duplicate
 those fast-changing counts.
 
-The production URL currently serves the prior v4.2 persona-coupled build. Its historical
-native and Luna observations do not prove the v4.3 capability-first correction. A fresh
-supported-client release run must observe the idle→assignment-catalog→idle transition and
-invoke the exact returned descriptors on the corrected production SHA; adapter-only calls
-never count as native proof.
-
-The v4.3 migration, application promotion, exact-SHA deployed-native matrix, remote
-persistence checks, recaptured media, public video/package, and final release manifest
+The production URL currently serves the shipped v4.4 company-scoped interaction. Local
+protocol, browser, deterministic end-to-end, and production smoke gates passed before
+promotion. A fresh supported-client release run must still observe the
+idle→assignment-catalog→idle transition and invoke the exact returned descriptors on the
+v4.4 production source; adapter-only calls never count as native proof. The live managed
+provider result, exact-SHA native matrix, public video/package, and final release manifest
 remain `PENDING`.
 
 Repository visibility, video publication, and Devpost submission remain separate
-release actions. The source push and matching application deployment are authorized;
-the capability-first database migration still requires approval. Its safe cutover is
-app-first and fail-closed: promote the v4.3 app, make old deployment URLs unreachable (or
-enter maintenance), and let the new app return retryable `RELAY_UNAVAILABLE` without
-mutating the v4.2 store. Confirm old attempts, grants, and permits have finished or
-expired, then apply the approved migration. The required v4.3 HTTP marker fences stale
-tabs on the current origin; after migration, the new five-argument database claim also
-fences old servers from reserving work. Finish with aligned and crossed bot/access smoke.
-Never apply this migration first or roll the app back to v4.2 afterward.
+release actions. Local and remote Supabase migration-history timestamps still differ, so
+no database push should run until that history is reconciled.
 
 ## Project documents
 
-- [Product specification](product_spec.md) — frozen v4.3 collaboration and authority contract.
+- [Product specification](product_spec.md) — frozen v4.4 collaboration and authority contract.
 - [Repository contract](docs/contracts/repository-contract.md) — checked entities,
   routes, lifecycle, replay, security, and concurrency behavior.
 - [Postmortem hero](docs/contracts/postmortem-hero-scenario.md) — exact INC-482 r1-r5
@@ -276,7 +289,7 @@ Never apply this migration first or roll the app back to v4.2 afterward.
 - [Evaluation contract](EVALS.md) — automated, browser, native, trajectory, visual,
   rehearsal, and competition-judge gates.
 - [Legacy evidence ledger](EVAL_RESULTS.md) — prior-release observations only; it is not
-  v4.3 release proof.
+  v4.4 release proof.
 
 ## License
 
